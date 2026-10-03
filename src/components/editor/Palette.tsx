@@ -4,14 +4,10 @@ import { clearCustomNote, customNoteUrl, loadCustomNotes, setCustomNote, subscri
 import { useChart } from "@/lib/md/store";
 import { NoteIcon } from "./NoteIcon";
 
-export function Palette() {
+export function NoteImageActions() {
   const brush = useChart((state) => state.brush);
-  const showIcons = useChart((state) => state.showIcons);
-  const setBrush = useChart((state) => state.setBrush);
-  const [group, setGroup] = useState<NoteGroup>("tap");
   const [, setRev] = useState(0);
   const file = useRef<HTMLInputElement>(null);
-  const notes = NOTES.filter((note) => note.group === group);
   const selected = NOTES.find((note) => note.key === brush);
 
   useEffect(() => {
@@ -20,7 +16,7 @@ export function Palette() {
   }, []);
 
   return (
-    <section className="flex shrink-0 flex-col gap-2 border-b border-line bg-panel px-3 py-3 lg:w-60 lg:border-r lg:border-b-0">
+    <>
       <input
         ref={file}
         type="file"
@@ -28,13 +24,36 @@ export function Palette() {
         className="hidden"
         onChange={(event) => {
           const picked = event.target.files?.[0];
-          const key = brush;
           event.target.value = "";
-          if (!picked || !key) return;
+          if (!picked || !brush) return;
           if (picked.type && picked.type !== "image/png") return;
-          void setCustomNote(key, picked);
+          void setCustomNote(brush, picked);
         }}
       />
+      <button type="button" className="h-8 shrink-0 rounded border border-dock-line bg-field px-2 text-sm" onClick={() => file.current?.click()}>
+        Import PNG
+      </button>
+      <button
+        type="button"
+        className="h-8 shrink-0 rounded border border-dock-line bg-field px-2 text-sm disabled:opacity-40"
+        disabled={!selected || !customNoteUrl(selected.key)}
+        onClick={() => selected && void clearCustomNote(selected.key)}
+      >
+        Plain icon
+      </button>
+    </>
+  );
+}
+
+export function Palette() {
+  const brush = useChart((state) => state.brush);
+  const showIcons = useChart((state) => state.showIcons);
+  const setBrush = useChart((state) => state.setBrush);
+  const [group, setGroup] = useState<NoteGroup>("tap");
+  const notes = NOTES.filter((note) => note.group === group);
+
+  return (
+    <section className="flex shrink-0 flex-col gap-2 border-b border-line bg-panel px-3 py-3 lg:w-60 lg:border-r lg:border-b-0">
       <div className="flex gap-1 overflow-x-auto lg:flex-wrap">
         {GROUPS.map((item) => (
           <button
@@ -71,27 +90,7 @@ export function Palette() {
           );
         })}
       </div>
-      <div className="flex gap-1">
-        <button
-          type="button"
-          className="h-9 flex-1 rounded-md bg-paper px-2 text-xs font-semibold text-ink"
-          onClick={() => file.current?.click()}
-        >
-          Import PNG
-        </button>
-        <button
-          type="button"
-          className="h-9 rounded-md border border-line px-2 text-xs text-paper disabled:text-mute"
-          disabled={!selected || !customNoteUrl(selected.key)}
-          onClick={() => selected && void clearCustomNote(selected.key)}
-        >
-          Plain icon
-        </button>
-      </div>
-      <p className="hidden text-xs text-mute lg:block">
-        {selected ? `PNG applies to ${selected.name}. ` : ""}
-        + rises from the floor. − drops from the air.
-      </p>
+      <p className="hidden text-xs text-mute lg:block">+ rises from the floor. − drops from the air.</p>
     </section>
   );
 }

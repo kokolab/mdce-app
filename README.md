@@ -29,7 +29,7 @@ Fonts load from `fonts.bunny.net`, so the VM needs outbound internet.
 
 ## Custom note icons
 
-Select a note in the palette and click **Import PNG**. That image is saved in this browser and used everywhere that note appears. **Plain icon** removes it. Notes without an imported PNG keep the built-in icon. Right-click on the grid still deletes a note.
+Select a note, then click **Import PNG** in the top bar. That image is saved in this browser and used everywhere that note appears. **Plain icon** removes it. Notes without an imported PNG keep the built-in icon. Right-click on the grid still deletes a note.
 
 ## Keep editing with another LLM
 

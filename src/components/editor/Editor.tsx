@@ -4,7 +4,7 @@ import { readAlbum } from "@/lib/md/album";
 import { musicFileName, type Meta } from "@/lib/md/bms";
 import { player } from "@/lib/md/player";
 import { persistChart, restoreChart, useChart } from "@/lib/md/store";
-import { Palette } from "./Palette";
+import { Palette, NoteImageActions } from "./Palette";
 import { Roll } from "./Roll";
 import { Inspector } from "./Inspector";
 import { MenuBar } from "./MenuBar";
@@ -274,6 +274,7 @@ export function Editor() {
         <button type="button" className="h-8 rounded border border-dock-line bg-field px-2 text-sm" onClick={() => useChart.getState().redo()}>
           Redo
         </button>
+        <NoteImageActions />
         <button type="button" className="h-8 rounded border border-dock-line bg-field px-2 text-sm lg:hidden" onClick={() => setSongOpen(!songOpen)}>
           Panel
         </button>
