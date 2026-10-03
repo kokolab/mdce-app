@@ -20,18 +20,20 @@ export function NoteImageActions() {
       <input
         ref={file}
         type="file"
-        accept="image/png,.png"
+        accept="image/png,image/webp,.png,.webp"
         className="hidden"
         onChange={(event) => {
           const picked = event.target.files?.[0];
           event.target.value = "";
           if (!picked || !brush) return;
-          if (picked.type && picked.type !== "image/png") return;
+          const name = picked.name.toLowerCase();
+          const allowed = picked.type === "image/png" || picked.type === "image/webp" || name.endsWith(".png") || name.endsWith(".webp");
+          if (picked.type && !allowed) return;
           void setCustomNote(brush, picked);
         }}
       />
       <button type="button" className="h-8 shrink-0 rounded border border-dock-line bg-field px-2 text-sm" onClick={() => file.current?.click()}>
-        Import PNG
+        Import image
       </button>
       <button
         type="button"
