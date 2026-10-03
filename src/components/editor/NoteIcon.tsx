@@ -259,16 +259,16 @@ export function BlueNoteIcon({ className = "" }: { className?: string }) {
 
 function RaiderIcon({ flip, className = "" }: { flip: boolean; className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" className={"shrink-0 " + className} aria-hidden>
-      <g fill="currentColor" transform={flip ? "translate(0 24) scale(1 -1)" : undefined}>
+    <svg viewBox="0 0 40 40" className={"shrink-0 " + className} aria-hidden>
+      <g fill="currentColor" transform={flip ? "translate(0 40) scale(1 -1)" : undefined}>
         <path
           fillRule="evenodd"
-          d="M5.2 7.4C5.2 4.6 7.2 3.4 9.6 3.5l5.6-.4c2.6-.1 4.2 1.6 4.2 4.2v7.4c0 2.8-1.8 4.6-4.6 4.6H8.6c-2.6 0-4-1.6-3.8-4.2l.4-7.7zM7.3 7.5h8.4v6.5H7.3z"
+          d="M9 11.5C9 6.2 13 3.2 18 3.2h8.2c4.6 0 7.6 2.8 7.6 7.4v12.2c0 4.4-3 7.2-7.6 7.2H15.2c-4.6 0-7.4-2.8-7.2-7.2l1-11.3zM11.2 13.2h16.2c1 0 1.6.7 1.6 1.6v8.2c0 .9-.6 1.6-1.6 1.6H11.2c-1 0-1.6-.7-1.6-1.6v-8.2c0-.9.6-1.6 1.6-1.6z"
         />
-        <rect x="10.85" y="7.5" width="1.35" height="6.5" />
-        <path d="M18.2 12.4h2.2a1.7 1.7 0 0 1 0 3.4h-1.1v1.5h-1.7v-1.2h-.4z" />
-        <rect x="6.1" y="18.5" width="3.5" height="2.3" rx="1.1" />
-        <rect x="12.2" y="18.5" width="3.5" height="2.3" rx="1.1" />
+        <rect x="17.3" y="13.2" width="2.5" height="11.4" rx="0.6" />
+        <path d="M32.4 19.2h3.2c1.5 0 2.6 1.3 2.6 2.9v1.6c0 1.5-1.1 2.7-2.6 2.7h-1.4v2.4h-2.6v-2c0-.8.2-1.2.8-1.4v-6.2z" />
+        <rect x="9.2" y="31.4" width="7.4" height="4.4" rx="2.2" />
+        <rect x="20.2" y="31.4" width="7.4" height="4.4" rx="2.2" />
       </g>
     </svg>
   );
