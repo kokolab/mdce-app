@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { NOTE_BY_KEY, type LaneId } from "@/lib/md/catalog";
+import { customNoteUrl } from "@/lib/md/customNotes";
 
 const FLIP = new Set(["0I", "0J"]);
 
@@ -314,6 +315,8 @@ function HammerIcon({ flip, className = "" }: { flip: boolean; className?: strin
 
 /** Original round note chips. Not game sprites. */
 export function NoteIcon({ noteKey, className = "size-6" }: { noteKey: string; className?: string }) {
+  const custom = customNoteUrl(noteKey);
+  if (custom) return <img src={custom} alt="" draggable={false} className={"pointer-events-none shrink-0 object-contain " + className} />;
   if (noteKey === "0H" || noteKey === "18") return <GearIcon half={false} boss={noteKey === "18"} className={className} />;
   if (noteKey === "23") return <BlueNoteIcon className={className} />;
   if (noteKey === "0D" || noteKey === "0J") return <HammerIcon flip={noteKey === "0J"} className={className} />;
@@ -371,20 +374,24 @@ function Rail({ color, size, lines }: { color: string; size: number; lines: numb
 }
 
 /** Flat circle, black star, four plain lines. */
-export function HoldNote({ lane, size }: { lane: LaneId; size: number }) {
+export function HoldNote({ lane, size, noteKey = "0F" }: { lane: LaneId; size: number; noteKey?: string }) {
   const color = noteFill(lane);
+  const custom = customNoteUrl(noteKey);
+  const mark = custom ? (
+    <img src={custom} alt="" draggable={false} className="h-[78%] w-[78%] object-contain" />
+  ) : (
+    <svg viewBox="0 0 24 24" className="h-[64%] w-[64%]" aria-hidden>
+      <polygon points={STAR} fill="#000" />
+    </svg>
+  );
   return (
     <span className="pointer-events-none absolute inset-0">
       <Rail color={color} size={size} lines={4} />
       <EndCap color={color} size={size} side="left">
-        <svg viewBox="0 0 24 24" className="h-[64%] w-[64%]" aria-hidden>
-          <polygon points={STAR} fill="#000" />
-        </svg>
+        {mark}
       </EndCap>
       <EndCap color={color} size={size} side="right">
-        <svg viewBox="0 0 24 24" className="h-[64%] w-[64%]" aria-hidden>
-          <polygon points={STAR} fill="#000" />
-        </svg>
+        {mark}
       </EndCap>
     </span>
   );
@@ -412,9 +419,12 @@ function Zigzag({ color, size, id }: { color: string; size: number; id: string }
 }
 
 /** Masher: boxing glove on each end, zigzag between them. */
-export function MasherNote({ lane, size }: { lane: LaneId; size: number }) {
+export function MasherNote({ lane, size, noteKey = "0G" }: { lane: LaneId; size: number; noteKey?: string }) {
   const color = noteFill(lane);
-  const mark = (
+  const custom = customNoteUrl(noteKey);
+  const mark = custom ? (
+    <img src={custom} alt="" draggable={false} className="h-[82%] w-[82%] object-contain" />
+  ) : (
     <svg viewBox="0 0 24 24" className="h-[82%] w-[82%]" aria-hidden>
       <GloveMark />
     </svg>

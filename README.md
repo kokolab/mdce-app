@@ -27,6 +27,10 @@ To pick up later edits, push to `main` and use **Pull and redeploy** on that sta
 
 Fonts load from `fonts.bunny.net`, so the VM needs outbound internet.
 
+## Custom note icons
+
+Put a PNG in [src/assets/notes](src/assets/notes) and name it with the note key, such as `21.png` for the ghost or `0E.png` for Gemini. Rebuild and redeploy. If that file is missing, the note keeps its plain icon. The key is the same one stored in the chart, for example `0D`, `0H`, `18`, `0F`, `0G`.
+
 ## Keep editing with another LLM
 
 This project is plain TypeScript. Claude Code, Cursor, Aider, Continue, or Cline can keep working on the same GitHub repo.

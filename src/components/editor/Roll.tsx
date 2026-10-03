@@ -2,10 +2,11 @@ import { useEffect, useRef, useState, type RefObject } from "react";
 import { DISPLAY_LANES, HOLD_KEYS, LANE_BY_ID, LANE_UNITS, noteLabel, noteName, type LaneId } from "@/lib/md/catalog";
 import type { ChartNote } from "@/lib/md/bms";
 import { player } from "@/lib/md/player";
+import { NoteIcon, HoldNote, MasherNote, GearIcon, GeminiIcon } from "./NoteIcon";
 import { useChart } from "@/lib/md/store";
 import { livePx, measureStart, measureTicks, pxForWidth, secondsAt, snapTick, tempoPoints, tickToX, totalTicks, xToTick, type Sig } from "@/lib/md/timing";
 import { stopPoints } from "@/lib/md/bms";
-import { NoteIcon, HoldNote, MasherNote, GearIcon, GeminiIcon } from "./NoteIcon";
+import { customNoteUrl } from "@/lib/md/customNotes";
 
 type Ghost = { lane: LaneId; tick: number; end?: number };
 
@@ -403,7 +404,11 @@ export function Roll({
         style={{ left, width: span, height: boxH, top: music ? 2 : (laneH - boxH) / 2 }}
       >
         {gear && icons ? (
-          <GearIcon half={gearHalf} boss={note.key === "18"} className="h-[82%] w-[82%]" />
+          customNoteUrl(note.key) ? (
+            <img src={customNoteUrl(note.key)} alt="" draggable={false} className="h-[82%] w-[82%] object-contain" />
+          ) : (
+            <GearIcon half={gearHalf} boss={note.key === "18"} className="h-[82%] w-[82%]" />
+          )
         ) : music ? (
           <span className="flex h-full flex-col items-center justify-center gap-px text-[10px] leading-none font-semibold">
             {"music".split("").map((letter, index) => (
@@ -412,12 +417,22 @@ export function Roll({
           </span>
         ) : held ? (
           masher ? (
-            <MasherNote lane={note.lane} size={size} />
+            <MasherNote lane={note.lane} size={size} noteKey={note.key} />
           ) : (
-            <HoldNote lane={note.lane} size={size} />
+            <HoldNote lane={note.lane} size={size} noteKey={note.key} />
           )
         ) : icons && note.key === "0E" ? (
-          <GeminiIcon up={note.lane === "gnd" || note.lane === "gnd2"} className="h-[92%] w-[92%]" />
+          customNoteUrl("0E") ? (
+            <img
+              src={customNoteUrl("0E")}
+              alt=""
+              draggable={false}
+              className="h-[92%] w-[92%] object-contain"
+              style={{ transform: note.lane === "gnd" || note.lane === "gnd2" ? "scaleY(-1)" : undefined }}
+            />
+          ) : (
+            <GeminiIcon up={note.lane === "gnd" || note.lane === "gnd2"} className="h-[92%] w-[92%]" />
+          )
         ) : icons ? (
           <NoteIcon noteKey={note.key} className="h-[78%] w-[78%]" />
         ) : (
@@ -562,9 +577,9 @@ export function Roll({
                     }}
                   >
                     {useChart.getState().brush === "0G" || useChart.getState().brush === "16" || useChart.getState().brush === "17" ? (
-                      <MasherNote lane={lane.id} size={Math.min(noteSize, laneHeightOf(lane.id) - 6)} />
+                      <MasherNote lane={lane.id} size={Math.min(noteSize, laneHeightOf(lane.id) - 6)} noteKey={useChart.getState().brush} />
                     ) : (
-                      <HoldNote lane={lane.id} size={Math.min(noteSize, laneHeightOf(lane.id) - 6)} />
+                      <HoldNote lane={lane.id} size={Math.min(noteSize, laneHeightOf(lane.id) - 6)} noteKey={useChart.getState().brush} />
                     )}
                   </div>
                 ) : null}
