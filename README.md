@@ -27,10 +27,6 @@ To pick up later edits, push to `main` and use **Pull and redeploy** on that sta
 
 Fonts load from `fonts.bunny.net`, so the VM needs outbound internet.
 
-## Custom note icons
-
-Select a note, then click **Import image** in the top bar. PNG and WebP files are saved in this browser and used everywhere that note appears. **Plain icon** removes it. Notes without an imported image keep the built-in icon. Right-click on the grid still deletes a note.
-
 ## Keep editing with another LLM
 
 This project is plain TypeScript. Claude Code, Cursor, Aider, Continue, or Cline can keep working on the same GitHub repo.

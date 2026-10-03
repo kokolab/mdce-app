@@ -1,7 +1,5 @@
 import type { ReactNode } from "react";
 import { NOTE_BY_KEY, type LaneId } from "@/lib/md/catalog";
-import { useEffect, useState } from "react";
-import { customNoteUrl, subscribeCustomNotes } from "@/lib/md/customNotes";
 
 const FLIP = new Set(["0I", "0J"]);
 
@@ -333,31 +331,7 @@ function HammerIcon({ flip, className = "" }: { flip: boolean; className?: strin
   );
 }
 
-export function FittedNoteImage({ src }: { src: string }) {
-  return (
-    <img
-      src={src}
-      alt=""
-      draggable={false}
-      className="pointer-events-none absolute top-1/2 left-1/2 h-[70%] w-[70%] -translate-x-1/2 -translate-y-1/2 object-contain"
-    />
-  );
-}
-function useNoteImages() {
-  const [, setRev] = useState(0);
-  useEffect(() => subscribeCustomNotes(() => setRev((value) => value + 1)), []);
-}
-
 export function NoteIcon({ noteKey, className = "size-6" }: { noteKey: string; className?: string }) {
-  useNoteImages();
-  const custom = customNoteUrl(noteKey);
-  if (custom) {
-    return (
-      <span className={"relative block shrink-0 " + className}>
-        <img src={custom} alt="" draggable={false} className="absolute inset-0 h-full w-full object-contain" />
-      </span>
-    );
-  }
   if (noteKey === "0H" || noteKey === "18") return <GearIcon half={false} boss={noteKey === "18"} className={className} />;
   if (noteKey === "23") return <BlueNoteIcon className={className} />;
   if (noteKey === "0D" || noteKey === "0J") return <HammerIcon flip={false} className={className} />;
@@ -424,13 +398,9 @@ function Rail({ color, size, lines }: { color: string; size: number; lines: numb
 }
 
 /** Flat circle, black star, four plain lines. */
-export function HoldNote({ lane, size, noteKey = "0F" }: { lane: LaneId; size: number; noteKey?: string }) {
-  useNoteImages();
+export function HoldNote({ lane, size }: { lane: LaneId; size: number }) {
   const color = noteFill(lane);
-  const custom = customNoteUrl(noteKey);
-  const mark = custom ? (
-    <FittedNoteImage src={custom} />
-  ) : (
+  const mark = (
     <svg viewBox="0 0 24 24" className="h-[64%] w-[64%]" aria-hidden>
       <polygon points={STAR} fill="#000" />
     </svg>
@@ -471,12 +441,8 @@ function Zigzag({ color, size, id }: { color: string; size: number; id: string }
 
 /** Masher: boxing glove on each end, zigzag between them. */
 export function MasherNote({ lane, size, noteKey = "0G" }: { lane: LaneId; size: number; noteKey?: string }) {
-  useNoteImages();
   const color = noteFill(lane);
-  const custom = customNoteUrl(noteKey);
-  const mark = custom ? (
-    <FittedNoteImage src={custom} />
-  ) : (
+  const mark = (
     <svg viewBox="0 0 24 24" className="h-[82%] w-[82%]" aria-hidden>
       <GloveMark />
     </svg>

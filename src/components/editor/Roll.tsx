@@ -2,11 +2,10 @@ import { useEffect, useRef, useState, type RefObject } from "react";
 import { DISPLAY_LANES, HOLD_KEYS, LANE_BY_ID, LANE_UNITS, noteLabel, noteName, noteTravel, type LaneId } from "@/lib/md/catalog";
 import type { ChartNote } from "@/lib/md/bms";
 import { player } from "@/lib/md/player";
-import { NoteIcon, HoldNote, MasherNote, GearIcon, GeminiIcon, FittedNoteImage, ApproachArrow, BossBadge, bossMark } from "./NoteIcon";
+import { NoteIcon, HoldNote, MasherNote, GearIcon, GeminiIcon, ApproachArrow, BossBadge, bossMark } from "./NoteIcon";
 import { useChart } from "@/lib/md/store";
 import { livePx, measureStart, measureTicks, pxForWidth, secondsAt, snapTick, tempoPoints, tickToX, totalTicks, xToTick, type Sig } from "@/lib/md/timing";
 import { stopPoints } from "@/lib/md/bms";
-import { customNoteUrl, loadCustomNotes, subscribeCustomNotes } from "@/lib/md/customNotes";
 
 type Ghost = { lane: LaneId; tick: number; end?: number };
 
@@ -188,11 +187,6 @@ export function Roll({
   playheadRef: RefObject<HTMLDivElement | null>;
   scrollerRef: RefObject<HTMLDivElement | null>;
 }) {
-  const [, setNoteImages] = useState(0);
-  useEffect(() => {
-    void loadCustomNotes();
-    return subscribeCustomNotes(() => setNoteImages((value) => value + 1));
-  }, []);
   const notes = useChart((state) => state.notes);
   const sigs = useChart((state) => state.sigs);
   const measureCount = useChart((state) => state.measureCount);
@@ -410,11 +404,7 @@ export function Roll({
         style={{ left, width: span, height: boxH, top: music ? 2 : (laneH - boxH) / 2 }}
       >
         {gear && icons ? (
-          customNoteUrl(note.key) ? (
-            <FittedNoteImage src={customNoteUrl(note.key) ?? ""} />
-          ) : (
-            <GearIcon half={gearHalf} boss={note.key === "18"} className="h-[82%] w-[82%]" />
-          )
+          <GearIcon half={gearHalf} boss={note.key === "18"} className="h-[82%] w-[82%]" />
         ) : music ? (
           <span className="flex h-full flex-col items-center justify-center gap-px text-[10px] leading-none font-semibold">
             {"music".split("").map((letter, index) => (
@@ -425,20 +415,12 @@ export function Roll({
           masher ? (
             <MasherNote lane={note.lane} size={size} noteKey={note.key} />
           ) : (
-            <HoldNote lane={note.lane} size={size} noteKey={note.key} />
+            <HoldNote lane={note.lane} size={size} />
           )
         ) : icons && note.key === "0E" ? (
-          customNoteUrl("0E") ? (
-            <FittedNoteImage src={customNoteUrl("0E") ?? ""} />
-          ) : (
-            <GeminiIcon up={note.lane === "gnd" || note.lane === "gnd2"} className="h-[92%] w-[92%]" />
-          )
+          <GeminiIcon up={note.lane === "gnd" || note.lane === "gnd2"} className="h-[92%] w-[92%]" />
         ) : icons ? (
-          customNoteUrl(note.key) ? (
-            <FittedNoteImage src={customNoteUrl(note.key) ?? ""} />
-          ) : (
-            <NoteIcon noteKey={note.key} className="h-[78%] w-[78%]" />
-          )
+          <NoteIcon noteKey={note.key} className="h-[78%] w-[78%]" />
         ) : (
           label
         )}
@@ -585,7 +567,7 @@ export function Roll({
                     {useChart.getState().brush === "0G" || useChart.getState().brush === "16" || useChart.getState().brush === "17" ? (
                       <MasherNote lane={lane.id} size={Math.min(noteSize, laneHeightOf(lane.id) - 6)} noteKey={useChart.getState().brush} />
                     ) : (
-                      <HoldNote lane={lane.id} size={Math.min(noteSize, laneHeightOf(lane.id) - 6)} noteKey={useChart.getState().brush} />
+                      <HoldNote lane={lane.id} size={Math.min(noteSize, laneHeightOf(lane.id) - 6)} />
                     )}
                   </div>
                 ) : null}

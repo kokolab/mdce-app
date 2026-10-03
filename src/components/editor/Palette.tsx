@@ -1,67 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { GROUPS, NOTES, type NoteGroup } from "@/lib/md/catalog";
-import { clearCustomNote, customNoteUrl, loadCustomNotes, setCustomNote, subscribeCustomNotes } from "@/lib/md/customNotes";
 import { useChart } from "@/lib/md/store";
 import { BossBadge, NoteIcon, bossMark } from "./NoteIcon";
-
-export function NoteImageActions() {
-  const brush = useChart((state) => state.brush);
-  const selectedId = useChart((state) => state.selectedId);
-  const selection = useChart((state) => state.selection);
-  const notes = useChart((state) => state.notes);
-  const [, setRev] = useState(0);
-  const file = useRef<HTMLInputElement>(null);
-  const pickedIds = selection.length ? selection : selectedId ? [selectedId] : [];
-  const targets = [
-    ...new Set(
-      pickedIds
-        .map((id) => notes.find((note) => note.id === id)?.key)
-        .filter((key): key is string => !!key && key !== "BPM"),
-    ),
-  ];
-  if (!targets.length && brush && brush !== "BPM") targets.push(brush);
-  const label = targets.map((key) => NOTES.find((note) => note.key === key)?.name ?? key).join(", ");
-
-  useEffect(() => {
-    void loadCustomNotes();
-    return subscribeCustomNotes(() => setRev((value) => value + 1));
-  }, []);
-
-  return (
-    <>
-      <input
-        ref={file}
-        type="file"
-        accept="image/png,image/webp,.png,.webp"
-        className="hidden"
-        onChange={(event) => {
-          const picked = event.target.files?.[0];
-          event.target.value = "";
-          if (!picked || !targets.length) return;
-          for (const key of targets) void setCustomNote(key, picked);
-        }}
-      />
-      <button
-        type="button"
-        title={label ? `Replace ${label}` : "Select a note first"}
-        className="h-8 shrink-0 rounded border border-dock-line bg-field px-2 text-sm"
-        onClick={() => file.current?.click()}
-      >
-        Import image
-      </button>
-      <button
-        type="button"
-        className="h-8 shrink-0 rounded border border-dock-line bg-field px-2 text-sm disabled:opacity-40"
-        disabled={!targets.some((key) => customNoteUrl(key))}
-        onClick={() => {
-          for (const key of targets) void clearCustomNote(key);
-        }}
-      >
-        Plain icon
-      </button>
-    </>
-  );
-}
 
 export function Palette() {
   const brush = useChart((state) => state.brush);
