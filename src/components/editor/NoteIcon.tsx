@@ -53,8 +53,13 @@ function mark(key: string) {
     case "0J":
       return (
         <g fill="currentColor">
-          <rect x="6" y="6" width="12" height="3.6" rx="1" />
-          <rect x="10.2" y="9.4" width="3.6" height="8.2" rx="1" />
+          <rect x="11.15" y="1.1" width="1.7" height="13.4" rx="0.4" />
+          <circle cx="17.5" cy="17.6" r="3.2" />
+          <rect x="7.6" y="15.5" width="8.2" height="4.2" />
+          <path
+            fillRule="evenodd"
+            d="M6.5 13.4a4.2 4.2 0 1 0 0 8.4 4.2 4.2 0 0 0 0-8.4zm0 2.15 0.62 1.45 1.55.1-1.2.95.45 1.5L6.5 18.6l-1.42.95.45-1.5-1.2-.95 1.55-.1z"
+          />
         </g>
       );
     case "0E":
