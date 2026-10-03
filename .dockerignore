@@ -1,0 +1,10 @@
+node_modules
+.output
+screenshots
+attachments
+artifacts
+.git
+.grok/skills
+.grok/references
+.grok/preview.log
+*.zip

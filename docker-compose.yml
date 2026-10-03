@@ -1,0 +1,7 @@
+services:
+  stagepen:
+    build: .
+    image: stagepen:latest
+    restart: unless-stopped
+    ports:
+      - "8090:8080"

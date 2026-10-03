@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Stagepen">
+  <rect width="32" height="32" rx="7" fill="#121014"/>
+  <rect x="4" y="8" width="16" height="5" rx="1.5" fill="#ff4d8d"/>
+  <rect x="4" y="18" width="16" height="5" rx="1.5" fill="#7dffa6"/>
+  <path d="M19.5 15.4 23.8 19.7 19.5 24 15.2 19.7 Z" fill="#ffd15c"/>
+</svg>

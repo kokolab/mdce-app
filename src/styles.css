@@ -1,0 +1,156 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #121014;
+  --color-panel: #1c1822;
+  --color-paper: #f4efe8;
+  --color-mute: #b7aea4;
+  --color-line: #3a3344;
+  --color-pink: #ff4d8d;
+  --color-mint: #7dffa6;
+  --color-gold: #ffd15c;
+  --color-airnote: #55d8ff;
+  --color-gndnote: #f95adc;
+  --color-airwash: #2a1824;
+  --color-gndwash: #15241c;
+  --color-bosswash: #2a2416;
+  --color-bgmwash: #241c20;
+  --color-dock: #e6e6e6;
+  --color-dock-ink: #1a1a1a;
+  --color-dock-line: #b9b9b9;
+  --color-field: #ffffff;
+  --color-menubar: #f3f3f3;
+  --color-chart: #101428;
+  --color-lane-air: #2a2060;
+  --color-lane-gnd: #143028;
+  --color-lane-boss: #10141c;
+  --color-lane-label: #8dffc0;
+  --font-sans: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --radius-md: 0.6rem;
+  --radius-lg: 1rem;
+}
+
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  html,
+  body {
+    background: var(--color-ink);
+    color: var(--color-paper);
+    font-family: var(--font-sans);
+  }
+
+  body {
+    min-height: 100dvh;
+  }
+
+  ::selection {
+    background: var(--color-pink);
+    color: var(--color-ink);
+  }
+}
+
+@utility grid-sub {
+  background-image: repeating-linear-gradient(
+    to right,
+    transparent 0,
+    transparent calc(100% / var(--cols) - 1px),
+    var(--color-line) calc(100% / var(--cols) - 1px),
+    var(--color-line) calc(100% / var(--cols))
+  );
+}
+
+.stripe {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent 0 4px,
+    color-mix(in srgb, var(--color-ink) 40%, transparent) 4px 8px
+  );
+}
+
+.roll {
+  touch-action: none;
+}
+
+.chart-bg {
+  background-color: var(--color-chart);
+  background-image:
+    radial-gradient(circle at 15% 20%, color-mix(in srgb, #6a5acd 28%, transparent), transparent 42%),
+    radial-gradient(circle at 80% 70%, color-mix(in srgb, #1d4e42 22%, transparent), transparent 46%);
+}
+
+.dock {
+  background: var(--color-dock);
+  color: var(--color-dock-ink);
+}
+
+.dock .text-paper {
+  color: var(--color-dock-ink);
+}
+
+.dock .text-mute {
+  color: color-mix(in srgb, var(--color-dock-ink) 68%, transparent);
+}
+
+.dock .bg-ink {
+  background: var(--color-field);
+}
+
+.dock .border-line {
+  border-color: var(--color-dock-line);
+}
+
+.groupbox {
+  position: relative;
+  margin-top: 14px;
+  border: 1px solid var(--color-dock-line);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-field) 72%, var(--color-dock));
+  padding: 12px 8px 8px;
+}
+
+.groupbox > h2 {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  translate: -50% -50%;
+  background: var(--color-dock);
+  padding: 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+html {
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
+  --color-ink: #000000;
+  --color-panel: #000000;
+  --color-chart: #000000;
+  --color-line: #2a2a2a;
+  --color-dock: #000000;
+  --color-dock-ink: #f2f2f2;
+  --color-dock-line: #2e2e2e;
+  --color-field: #000000;
+  --color-menubar: #000000;
+}
+
+html.dark .chart-bg {
+  background-image: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
