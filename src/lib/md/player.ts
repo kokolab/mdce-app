@@ -141,11 +141,21 @@ export class Player {
     // The audio file is already aligned so file time equals chart time.
     // The MUSIC note only tells uBMplay which sample to load; it is not an extra delay.
     this.syncMusic(this.musicOffset);
+    const geminiHeard = new Set<string>();
     for (const note of notes) {
       if (note.lane === "bpm" || note.lane === "bgm" || note.key === "10") continue;
       if (!soundFor(note.key) || this.fired.has(note.id)) continue;
       const time = secondsAt(note.tick, points, stops);
       if (time < now - 0.02 || time > horizon) continue;
+      if (note.key === "0E") {
+        const column = note.lane === "air2" || note.lane === "gnd2" ? "2" : "1";
+        const pair = `${column}:${note.tick}`;
+        if (geminiHeard.has(pair)) {
+          this.fired.add(note.id);
+          continue;
+        }
+        geminiHeard.add(pair);
+      }
       this.fired.add(note.id);
       this.blip(note.key, Math.max(0, time - now), this.sfxVolume);
     }
