@@ -99,8 +99,6 @@ function mark(key: string) {
           <circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none" />
         </g>
       );
-    case "21":
-      return <circle cx="12" cy="12" r="5.5" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="2.1 2.2" />;
     case "22":
       return <path d="M12 17.2c-3.8-2.2-6-4.4-6-7a3.1 3.1 0 0 1 5.4-2 3.1 3.1 0 0 1 5.4 2c0 2.6-2.2 4.8-4.8 7z" fill="currentColor" />;
     case "10":
@@ -286,6 +284,20 @@ function RaiderIcon({ flip, className = "" }: { flip: boolean; className?: strin
   );
 }
 
+function GhostIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 32 32" className={"shrink-0 " + className} aria-hidden>
+      <path
+        fill="currentColor"
+        fillRule="evenodd"
+        d="M16 2.8C9.4 2.8 5 8 5 14.8c0 5.6 2.8 10 6.6 12.2 1.2.7 2.2 1.6 1.6 2.5-.4.6.4 1.3 1.2 1 1.2-.5 1.4-1.8 2.1-1.8.7 0 1.3 1.1 2.3 1.5.8.3 1.6-.4 1.2-1.2-.6-1.1-.2-2 1.4-3 3.4-2.2 6.6-6.4 6.6-12.2C27 8 22.6 2.8 16 2.8zM9.2 12.4h13.6c.8 0 1.2.8.8 1.5l-.7 1.6c-.4.8-1.2 1.2-2.1.9H11.2c-.9.3-1.7-.1-2.1-.9l-.7-1.6c-.4-.7 0-1.5.8-1.5zM12.8 18.2c.9.8 1.9 1.3 3.2 1.3s2.3-.5 3.2-1.3c.5-.4 1.2.2.7.8-1.2 1.4-2.5 2-3.9 2s-2.7-.6-3.9-2c-.5-.6.2-1.2.7-.8z"
+      />
+      <circle cx="13" cy="13.8" r="1.35" fill="currentColor" />
+      <circle cx="19" cy="13.8" r="1.35" fill="currentColor" />
+    </svg>
+  );
+}
+
 function HammerIcon({ flip, className = "" }: { flip: boolean; className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={"shrink-0 " + className} aria-hidden>
@@ -307,6 +319,7 @@ export function NoteIcon({ noteKey, className = "size-6" }: { noteKey: string; c
   if (noteKey === "0D" || noteKey === "0J") return <HammerIcon flip={noteKey === "0J"} className={className} />;
   if (noteKey === "0C" || noteKey === "0I") return <RaiderIcon flip={noteKey === "0I"} className={className} />;
   if (noteKey === "0E") return <GeminiIcon className={className} />;
+  if (noteKey === "21") return <GhostIcon className={className} />;
   const dir = NOTE_BY_KEY[noteKey]?.dir;
   const bullet = noteKey === "30" || noteKey === "34" || noteKey === "38";
   return (
