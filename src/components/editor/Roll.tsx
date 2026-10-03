@@ -5,7 +5,7 @@ import { player } from "@/lib/md/player";
 import { useChart } from "@/lib/md/store";
 import { livePx, measureStart, measureTicks, pxForWidth, secondsAt, snapTick, tempoPoints, tickToX, totalTicks, xToTick, type Sig } from "@/lib/md/timing";
 import { stopPoints } from "@/lib/md/bms";
-import { NoteIcon, HoldNote, MasherNote, GearIcon, GeminiIcon } from "./NoteIcon";
+import { NoteIcon, HoldNote, MasherNote, GearIcon, GeminiIcon, GhostIcon } from "./NoteIcon";
 
 type Ghost = { lane: LaneId; tick: number; end?: number };
 
@@ -321,8 +321,17 @@ export function Roll({
     const masher = note.key === "0G" || note.key === "16" || note.key === "17";
     const music = note.key === "10";
     const gear = note.key === "0H" || note.key === "18";
+    const ghostInk =
+      note.lane === "gnd" || note.lane === "gnd2"
+        ? "text-gndnote"
+        : note.lane === "boss" || note.lane === "boss2"
+          ? "text-gold"
+          : note.lane === "bgm"
+            ? "text-paper"
+            : "text-airnote";
     const gearHalf = gear && (note.lane === "gnd" || note.lane === "gnd2");
     const held = live.endTick != null && live.endTick > live.tick;
+    const ghostNote = icons && note.key === "21" && !held;
     const boxW = music ? Math.max(18, Math.round(size * 0.7)) : size;
     const boxH = music ? Math.max(size, laneH - 4) : size;
     const span = held ? `calc(${(live.endTick ?? live.tick) - startTick} * var(--px) / 192 * 1px + ${size}px)` : `${boxW}px`;
@@ -392,7 +401,9 @@ export function Roll({
         }}
         className={
           "absolute z-10 font-mono text-xs font-medium " +
-          (held
+          (ghostNote
+            ? "flex items-center justify-center overflow-visible bg-transparent " + ghostInk + " "
+            : held
             ? "overflow-visible "
             : "flex items-center overflow-hidden " +
               (music ? "justify-center rounded-sm " : round ? "justify-center rounded-full " : "justify-start rounded-md px-1 ") +
@@ -416,6 +427,8 @@ export function Roll({
           ) : (
             <HoldNote lane={note.lane} size={size} />
           )
+        ) : ghostNote ? (
+          <GhostIcon className="h-full w-full" />
         ) : icons && note.key === "0E" ? (
           <GeminiIcon up={note.lane === "gnd" || note.lane === "gnd2"} className="h-[92%] w-[92%]" />
         ) : icons ? (
