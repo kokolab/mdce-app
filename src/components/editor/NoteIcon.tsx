@@ -314,7 +314,16 @@ function HammerIcon({ flip, className = "" }: { flip: boolean; className?: strin
   );
 }
 
-/** Original round note chips. Not game sprites. */
+export function FittedNoteImage({ src }: { src: string }) {
+  return (
+    <img
+      src={src}
+      alt=""
+      draggable={false}
+      className="pointer-events-none absolute top-1/2 left-1/2 h-[70%] w-[70%] -translate-x-1/2 -translate-y-1/2 object-contain"
+    />
+  );
+}
 function useNoteImages() {
   const [, setRev] = useState(0);
   useEffect(() => subscribeCustomNotes(() => setRev((value) => value + 1)), []);
@@ -323,7 +332,13 @@ function useNoteImages() {
 export function NoteIcon({ noteKey, className = "size-6" }: { noteKey: string; className?: string }) {
   useNoteImages();
   const custom = customNoteUrl(noteKey);
-  if (custom) return <img src={custom} alt="" draggable={false} className={"pointer-events-none object-contain " + className} />;
+  if (custom) {
+    return (
+      <span className={"relative block shrink-0 " + className}>
+        <img src={custom} alt="" draggable={false} className="absolute inset-0 h-full w-full object-contain" />
+      </span>
+    );
+  }
   if (noteKey === "0H" || noteKey === "18") return <GearIcon half={false} boss={noteKey === "18"} className={className} />;
   if (noteKey === "23") return <BlueNoteIcon className={className} />;
   if (noteKey === "0D" || noteKey === "0J") return <HammerIcon flip={noteKey === "0J"} className={className} />;
@@ -386,7 +401,7 @@ export function HoldNote({ lane, size, noteKey = "0F" }: { lane: LaneId; size: n
   const color = noteFill(lane);
   const custom = customNoteUrl(noteKey);
   const mark = custom ? (
-    <img src={custom} alt="" draggable={false} className="h-[78%] w-[78%] object-contain" />
+    <FittedNoteImage src={custom} />
   ) : (
     <svg viewBox="0 0 24 24" className="h-[64%] w-[64%]" aria-hidden>
       <polygon points={STAR} fill="#000" />
@@ -432,7 +447,7 @@ export function MasherNote({ lane, size, noteKey = "0G" }: { lane: LaneId; size:
   const color = noteFill(lane);
   const custom = customNoteUrl(noteKey);
   const mark = custom ? (
-    <img src={custom} alt="" draggable={false} className="h-[82%] w-[82%] object-contain" />
+    <FittedNoteImage src={custom} />
   ) : (
     <svg viewBox="0 0 24 24" className="h-[82%] w-[82%]" aria-hidden>
       <GloveMark />

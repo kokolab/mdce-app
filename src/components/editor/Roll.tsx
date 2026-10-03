@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type RefObject } from "react";
 import { DISPLAY_LANES, HOLD_KEYS, LANE_BY_ID, LANE_UNITS, noteLabel, noteName, type LaneId } from "@/lib/md/catalog";
 import type { ChartNote } from "@/lib/md/bms";
 import { player } from "@/lib/md/player";
-import { NoteIcon, HoldNote, MasherNote, GearIcon, GeminiIcon } from "./NoteIcon";
+import { NoteIcon, HoldNote, MasherNote, GearIcon, GeminiIcon, FittedNoteImage } from "./NoteIcon";
 import { useChart } from "@/lib/md/store";
 import { livePx, measureStart, measureTicks, pxForWidth, secondsAt, snapTick, tempoPoints, tickToX, totalTicks, xToTick, type Sig } from "@/lib/md/timing";
 import { stopPoints } from "@/lib/md/bms";
@@ -410,7 +410,7 @@ export function Roll({
       >
         {gear && icons ? (
           customNoteUrl(note.key) ? (
-            <img src={customNoteUrl(note.key)} alt="" draggable={false} className="h-full w-full object-contain" />
+            <FittedNoteImage src={customNoteUrl(note.key) ?? ""} />
           ) : (
             <GearIcon half={gearHalf} boss={note.key === "18"} className="h-[82%] w-[82%]" />
           )
@@ -428,18 +428,13 @@ export function Roll({
           )
         ) : icons && note.key === "0E" ? (
           customNoteUrl("0E") ? (
-            <img
-              src={customNoteUrl("0E")}
-              alt=""
-              draggable={false}
-              className="h-full w-full object-contain"
-            />
+            <FittedNoteImage src={customNoteUrl("0E") ?? ""} />
           ) : (
             <GeminiIcon up={note.lane === "gnd" || note.lane === "gnd2"} className="h-[92%] w-[92%]" />
           )
         ) : icons ? (
           customNoteUrl(note.key) ? (
-            <img src={customNoteUrl(note.key)} alt="" draggable={false} className="h-full w-full object-contain" />
+            <FittedNoteImage src={customNoteUrl(note.key) ?? ""} />
           ) : (
             <NoteIcon noteKey={note.key} className="h-[78%] w-[78%]" />
           )
