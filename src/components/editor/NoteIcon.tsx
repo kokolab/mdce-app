@@ -323,7 +323,7 @@ function useNoteImages() {
 export function NoteIcon({ noteKey, className = "size-6" }: { noteKey: string; className?: string }) {
   useNoteImages();
   const custom = customNoteUrl(noteKey);
-  if (custom) return <img src={custom} alt="" draggable={false} className={"pointer-events-none shrink-0 object-contain " + className} />;
+  if (custom) return <img src={custom} alt="" draggable={false} className={"pointer-events-none object-contain " + className} />;
   if (noteKey === "0H" || noteKey === "18") return <GearIcon half={false} boss={noteKey === "18"} className={className} />;
   if (noteKey === "23") return <BlueNoteIcon className={className} />;
   if (noteKey === "0D" || noteKey === "0J") return <HammerIcon flip={noteKey === "0J"} className={className} />;

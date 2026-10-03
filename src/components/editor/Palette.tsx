@@ -6,9 +6,21 @@ import { NoteIcon } from "./NoteIcon";
 
 export function NoteImageActions() {
   const brush = useChart((state) => state.brush);
+  const selectedId = useChart((state) => state.selectedId);
+  const selection = useChart((state) => state.selection);
+  const notes = useChart((state) => state.notes);
   const [, setRev] = useState(0);
   const file = useRef<HTMLInputElement>(null);
-  const selected = NOTES.find((note) => note.key === brush);
+  const pickedIds = selection.length ? selection : selectedId ? [selectedId] : [];
+  const targets = [
+    ...new Set(
+      pickedIds
+        .map((id) => notes.find((note) => note.id === id)?.key)
+        .filter((key): key is string => !!key && key !== "BPM"),
+    ),
+  ];
+  if (!targets.length && brush && brush !== "BPM") targets.push(brush);
+  const label = targets.map((key) => NOTES.find((note) => note.key === key)?.name ?? key).join(", ");
 
   useEffect(() => {
     void loadCustomNotes();
@@ -25,21 +37,25 @@ export function NoteImageActions() {
         onChange={(event) => {
           const picked = event.target.files?.[0];
           event.target.value = "";
-          if (!picked || !brush) return;
-          const name = picked.name.toLowerCase();
-          const allowed = picked.type === "image/png" || picked.type === "image/webp" || name.endsWith(".png") || name.endsWith(".webp");
-          if (picked.type && !allowed) return;
-          void setCustomNote(brush, picked);
+          if (!picked || !targets.length) return;
+          for (const key of targets) void setCustomNote(key, picked);
         }}
       />
-      <button type="button" className="h-8 shrink-0 rounded border border-dock-line bg-field px-2 text-sm" onClick={() => file.current?.click()}>
+      <button
+        type="button"
+        title={label ? `Replace ${label}` : "Select a note first"}
+        className="h-8 shrink-0 rounded border border-dock-line bg-field px-2 text-sm"
+        onClick={() => file.current?.click()}
+      >
         Import image
       </button>
       <button
         type="button"
         className="h-8 shrink-0 rounded border border-dock-line bg-field px-2 text-sm disabled:opacity-40"
-        disabled={!selected || !customNoteUrl(selected.key)}
-        onClick={() => selected && void clearCustomNote(selected.key)}
+        disabled={!targets.some((key) => customNoteUrl(key))}
+        onClick={() => {
+          for (const key of targets) void clearCustomNote(key);
+        }}
       >
         Plain icon
       </button>

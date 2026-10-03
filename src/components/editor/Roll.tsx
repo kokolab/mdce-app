@@ -410,7 +410,7 @@ export function Roll({
       >
         {gear && icons ? (
           customNoteUrl(note.key) ? (
-            <img src={customNoteUrl(note.key)} alt="" draggable={false} className="h-[82%] w-[82%] object-contain" />
+            <img src={customNoteUrl(note.key)} alt="" draggable={false} className="h-full w-full object-contain" />
           ) : (
             <GearIcon half={gearHalf} boss={note.key === "18"} className="h-[82%] w-[82%]" />
           )
@@ -432,14 +432,17 @@ export function Roll({
               src={customNoteUrl("0E")}
               alt=""
               draggable={false}
-              className="h-[92%] w-[92%] object-contain"
-              style={{ transform: note.lane === "gnd" || note.lane === "gnd2" ? "scaleY(-1)" : undefined }}
+              className="h-full w-full object-contain"
             />
           ) : (
             <GeminiIcon up={note.lane === "gnd" || note.lane === "gnd2"} className="h-[92%] w-[92%]" />
           )
         ) : icons ? (
-          <NoteIcon noteKey={note.key} className="h-[78%] w-[78%]" />
+          customNoteUrl(note.key) ? (
+            <img src={customNoteUrl(note.key)} alt="" draggable={false} className="h-full w-full object-contain" />
+          ) : (
+            <NoteIcon noteKey={note.key} className="h-[78%] w-[78%]" />
+          )
         ) : (
           label
         )}
