@@ -9,23 +9,15 @@ export function Palette() {
   const showIcons = useChart((state) => state.showIcons);
   const setBrush = useChart((state) => state.setBrush);
   const [group, setGroup] = useState<NoteGroup>("tap");
-  const [menu, setMenu] = useState<{ key: string; name: string; x: number; y: number } | null>(null);
   const [, setRev] = useState(0);
-  const pending = useRef<string | null>(null);
   const file = useRef<HTMLInputElement>(null);
   const notes = NOTES.filter((note) => note.group === group);
+  const selected = NOTES.find((note) => note.key === brush);
 
   useEffect(() => {
     void loadCustomNotes();
     return subscribeCustomNotes(() => setRev((value) => value + 1));
   }, []);
-
-  useEffect(() => {
-    if (!menu) return;
-    const close = () => setMenu(null);
-    window.addEventListener("pointerdown", close);
-    return () => window.removeEventListener("pointerdown", close);
-  }, [menu]);
 
   return (
     <section className="flex shrink-0 flex-col gap-2 border-b border-line bg-panel px-3 py-3 lg:w-60 lg:border-r lg:border-b-0">
@@ -36,7 +28,7 @@ export function Palette() {
         className="hidden"
         onChange={(event) => {
           const picked = event.target.files?.[0];
-          const key = pending.current;
+          const key = brush;
           event.target.value = "";
           if (!picked || !key) return;
           if (picked.type && picked.type !== "image/png") return;
@@ -68,10 +60,6 @@ export function Palette() {
               type="button"
               title={note.name}
               onClick={() => setBrush(note.key)}
-              onContextMenu={(event) => {
-                event.preventDefault();
-                setMenu({ key: note.key, name: note.name, x: event.clientX, y: event.clientY });
-              }}
               className={
                 "flex h-14 min-w-14 shrink-0 flex-col items-center justify-center gap-0.5 rounded-md border px-2 font-mono text-xs font-medium " +
                 (on ? "border-pink bg-pink text-ink" : "border-line bg-ink text-paper")
@@ -83,37 +71,27 @@ export function Palette() {
           );
         })}
       </div>
-      <p className="hidden text-xs text-mute lg:block">Right-click a note to import a PNG. + rises from the floor. − drops from the air.</p>
-      {menu ? (
-        <div
-          className="fixed z-50 min-w-44 border border-line bg-panel py-1 shadow-sm"
-          style={{ left: menu.x, top: menu.y }}
-          onPointerDown={(event) => event.stopPropagation()}
+      <div className="flex gap-1">
+        <button
+          type="button"
+          className="h-9 flex-1 rounded-md bg-paper px-2 text-xs font-semibold text-ink"
+          onClick={() => file.current?.click()}
         >
-          <button
-            type="button"
-            className="block h-9 w-full px-3 text-left text-sm hover:bg-pink/30"
-            onClick={() => {
-              pending.current = menu.key;
-              setMenu(null);
-              file.current?.click();
-            }}
-          >
-            Import PNG for {menu.name}
-          </button>
-          <button
-            type="button"
-            className="block h-9 w-full px-3 text-left text-sm hover:bg-pink/30 disabled:text-mute"
-            disabled={!customNoteUrl(menu.key)}
-            onClick={() => {
-              void clearCustomNote(menu.key);
-              setMenu(null);
-            }}
-          >
-            Use plain icon
-          </button>
-        </div>
-      ) : null}
+          Import PNG
+        </button>
+        <button
+          type="button"
+          className="h-9 rounded-md border border-line px-2 text-xs text-paper disabled:text-mute"
+          disabled={!selected || !customNoteUrl(selected.key)}
+          onClick={() => selected && void clearCustomNote(selected.key)}
+        >
+          Plain icon
+        </button>
+      </div>
+      <p className="hidden text-xs text-mute lg:block">
+        {selected ? `PNG applies to ${selected.name}. ` : ""}
+        + rises from the floor. − drops from the air.
+      </p>
     </section>
   );
 }
