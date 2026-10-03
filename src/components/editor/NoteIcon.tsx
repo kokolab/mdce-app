@@ -361,20 +361,11 @@ const STAR = "12,3.2 14.5,9.2 20.8,9.6 16.1,13.6 17.6,19.8 12,16.4 6.4,19.8 7.9,
 export function ApproachArrow({ dir, lane }: { dir: "up" | "down"; lane: LaneId }) {
   const down = dir === "down";
   return (
-    <svg
-      viewBox="0 0 24 24"
-      className="pointer-events-none absolute z-20 w-[36%]"
-      style={{ left: "50%", bottom: "6%", transform: "translateX(-50%)" }}
-      aria-hidden
-    >
-      <path
-        d={down ? "M8 18.5 17.5 15.6 12.2 13.4 10 8.2Z" : "M8 5.5 17.5 8.4 12.2 10.6 10 15.8Z"}
-        fill={noteFill(lane)}
-        stroke="#160814"
-        strokeWidth="1.4"
-        strokeLinejoin="round"
-      />
-    </svg>
+    <span className="pointer-events-none absolute bottom-[4%] left-1/2 z-20 w-[42%] -translate-x-1/2">
+      <svg viewBox="0 0 24 24" className="block w-full" style={{ transform: `rotate(${down ? 135 : -135}deg)` }} aria-hidden>
+        <path d="M3.5 5.2 19.2 12 3.5 18.8 7.2 12Z" fill={noteFill(lane)} stroke="#160814" strokeWidth="1.6" strokeLinejoin="round" />
+      </svg>
+    </span>
   );
 }
 
