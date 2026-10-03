@@ -88,7 +88,7 @@ export function Inspector() {
                 {scene.label}
               </option>
             ))}
-            <option value="custom">{meta.genre || "Custom"}</option>
+            {knownScene ? null : <option value="custom">{meta.genre || "Custom"}</option>}
           </select>
         </Row>
         <Row label="BPM">
