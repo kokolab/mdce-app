@@ -5,9 +5,54 @@ import { player } from "@/lib/md/player";
 import { useChart } from "@/lib/md/store";
 import { livePx, measureStart, measureTicks, pxForWidth, secondsAt, snapTick, tempoPoints, tickToX, totalTicks, xToTick, type Sig } from "@/lib/md/timing";
 import { stopPoints } from "@/lib/md/bms";
-import { NoteIcon, HoldNote, MasherNote, GearIcon } from "./NoteIcon";
+import { NoteIcon, HoldNote, MasherNote, GearIcon, GeminiIcon } from "./NoteIcon";
 
 type Ghost = { lane: LaneId; tick: number; end?: number };
+
+const GEMINI_LOWER: Partial<Record<LaneId, LaneId>> = { air: "gnd", air2: "gnd2" };
+
+function geminiLinks(
+  notes: ChartNote[],
+  drafts: Record<string, { tick: number; endTick?: number }>,
+  laneHeightOf: (id: LaneId) => number,
+  noteSize: number,
+) {
+  const tickOf = (note: ChartNote) => drafts[note.id]?.tick ?? note.tick;
+  const gemini = notes.filter((note) => note.key === "0E");
+  const laneTop: Partial<Record<LaneId, number>> = {};
+  let top = 32;
+  for (const id of DISPLAY_LANES) {
+    laneTop[id] = top;
+    top += laneHeightOf(id);
+  }
+  const links: { key: string; left: string; top: number; height: number }[] = [];
+  for (const note of gemini) {
+    const lowerLane = GEMINI_LOWER[note.lane];
+    if (!lowerLane) continue;
+    const tick = tickOf(note);
+    const mate = gemini.find((other) => other.lane === lowerLane && tickOf(other) === tick);
+    if (!mate) continue;
+    const upperH = laneHeightOf(note.lane);
+    const lowerH = laneHeightOf(lowerLane);
+    const upperSize = Math.min(noteSize, Math.max(14, upperH - 6));
+    const lowerSize = Math.min(noteSize, Math.max(14, lowerH - 6));
+    const y1 = (laneTop[note.lane] ?? 0) + (upperH + upperSize) / 2 - 4;
+    const y2 = (laneTop[lowerLane] ?? 0) + (lowerH - lowerSize) / 2 + 4;
+    links.push({
+      key: note.id + mate.id,
+      left: `calc(${tick} * var(--px) / 192 * 1px)`,
+      top: y1,
+      height: Math.max(2, y2 - y1),
+    });
+  }
+  return links.map((link) => (
+    <div
+      key={link.key}
+      className="pointer-events-none absolute z-20 w-0.5 -translate-x-1/2 rounded-full bg-paper"
+      style={{ left: link.left, top: link.top, height: link.height }}
+    />
+  ));
+}
 
 function chipClass(lane: LaneId): string {
   switch (lane) {
@@ -366,6 +411,8 @@ export function Roll({
           ) : (
             <HoldNote lane={note.lane} size={size} />
           )
+        ) : icons && note.key === "0E" ? (
+          <GeminiIcon up={note.lane === "gnd" || note.lane === "gnd2"} className="h-[92%] w-[92%]" />
         ) : icons ? (
           <NoteIcon noteKey={note.key} className="h-[78%] w-[78%]" />
         ) : (
@@ -519,6 +566,7 @@ export function Roll({
               </div>
             );
           })}
+          {geminiLinks(notes, drafts, laneHeightOf, noteSize)}
           <div
             ref={playheadRef}
             className="pointer-events-none absolute top-0 bottom-0 left-0 z-30 w-0.5 bg-pink"
