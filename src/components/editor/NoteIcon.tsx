@@ -263,7 +263,7 @@ export function BlueNoteIcon({ className = "" }: { className?: string }) {
 function HammerIcon({ flip, className = "" }: { flip: boolean; className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={"shrink-0 " + className} aria-hidden>
-      <g fill="currentColor" transform={flip ? "rotate(180 12 12)" : undefined}>
+      <g fill="currentColor" transform={flip ? "translate(0 24) scale(1 -1)" : undefined}>
         <rect x="11.15" y="0.6" width="1.7" height="12.4" rx="0.45" />
         <ellipse cx="16.8" cy="17.7" rx="2.05" ry="3.7" />
         <rect x="7.5" y="15.15" width="7.6" height="5.1" rx="0.7" />
