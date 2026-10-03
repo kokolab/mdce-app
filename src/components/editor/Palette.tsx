@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { GROUPS, NOTES, type NoteGroup } from "@/lib/md/catalog";
 import { clearCustomNote, customNoteUrl, loadCustomNotes, setCustomNote, subscribeCustomNotes } from "@/lib/md/customNotes";
 import { useChart } from "@/lib/md/store";
-import { NoteIcon } from "./NoteIcon";
+import { BossBadge, NoteIcon, bossMark } from "./NoteIcon";
 
 export function NoteImageActions() {
   const brush = useChart((state) => state.brush);
@@ -102,7 +102,12 @@ export function Palette() {
                 (on ? "border-pink bg-pink text-ink" : "border-line bg-ink text-paper")
               }
             >
-              {showIcons ? <NoteIcon noteKey={note.key} className="size-8" /> : null}
+              {showIcons ? (
+                <span className="relative size-8">
+                  <NoteIcon noteKey={note.key} className="size-8" />
+                  {bossMark(note.key) ? <BossBadge text={bossMark(note.key) ?? ""} /> : null}
+                </span>
+              ) : null}
               {note.short}
             </button>
           );

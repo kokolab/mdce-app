@@ -5,6 +5,31 @@ import { customNoteUrl, subscribeCustomNotes } from "@/lib/md/customNotes";
 
 const FLIP = new Set(["0I", "0J"]);
 
+function SwordMark() {
+  return (
+    <g fill="currentColor">
+      <path d="M11.15 1.6h1.7l-.35 11.2h-1z" />
+      <rect x="6.4" y="12.2" width="11.2" height="1.8" rx="0.4" />
+      <rect x="10.85" y="13.8" width="2.3" height="4.6" rx="0.4" />
+      <circle cx="12" cy="20.2" r="1.45" />
+    </g>
+  );
+}
+
+export function bossMark(key: string): string | null {
+  if (key === "11" || key === "16") return "BM1";
+  if (key === "12" || key === "17") return "BM2";
+  return null;
+}
+
+export function BossBadge({ text }: { text: string }) {
+  return (
+    <span className="pointer-events-none absolute bottom-[7%] left-1/2 z-20 -translate-x-1/2 rounded-sm bg-ink/85 px-0.5 font-mono text-[8px] font-bold leading-none text-paper">
+      {text}
+    </span>
+  );
+}
+
 function speedCount(key: string): number {
   if (key === "0Q" || key === "0T" || key === "0W") return 3;
   if (key === "0P" || key === "0S" || key === "0V") return 2;
@@ -55,14 +80,8 @@ function mark(key: string) {
     case "17":
       return <GloveMark />;
     case "11":
-      return <path d="M7 17 L17 7" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />;
     case "12":
-      return (
-        <g fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-          <path d="M6 15.5 L15.5 6" />
-          <path d="M8.5 18 L18 8.5" />
-        </g>
-      );
+      return <SwordMark />;
     case "13":
       return <polygon points="12,7.5 16.5,12 12,16.5 7.5,12" fill="currentColor" />;
     case "14":
@@ -462,14 +481,17 @@ export function MasherNote({ lane, size, noteKey = "0G" }: { lane: LaneId; size:
       <GloveMark />
     </svg>
   );
+  const badge = bossMark(noteKey);
   return (
     <span className="pointer-events-none absolute inset-0">
       <Zigzag color={color} size={size} id={`zag-${lane}`} />
       <EndCap color={color} size={size} side="left">
         {mark}
+        {badge ? <BossBadge text={badge} /> : null}
       </EndCap>
       <EndCap color={color} size={size} side="right">
         {mark}
+        {badge ? <BossBadge text={badge} /> : null}
       </EndCap>
     </span>
   );

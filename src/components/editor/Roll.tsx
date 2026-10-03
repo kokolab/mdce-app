@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type RefObject } from "react";
 import { DISPLAY_LANES, HOLD_KEYS, LANE_BY_ID, LANE_UNITS, noteLabel, noteName, noteTravel, type LaneId } from "@/lib/md/catalog";
 import type { ChartNote } from "@/lib/md/bms";
 import { player } from "@/lib/md/player";
-import { NoteIcon, HoldNote, MasherNote, GearIcon, GeminiIcon, FittedNoteImage, ApproachArrow } from "./NoteIcon";
+import { NoteIcon, HoldNote, MasherNote, GearIcon, GeminiIcon, FittedNoteImage, ApproachArrow, BossBadge, bossMark } from "./NoteIcon";
 import { useChart } from "@/lib/md/store";
 import { livePx, measureStart, measureTicks, pxForWidth, secondsAt, snapTick, tempoPoints, tickToX, totalTicks, xToTick, type Sig } from "@/lib/md/timing";
 import { stopPoints } from "@/lib/md/bms";
@@ -444,6 +444,7 @@ export function Roll({
         )}
         {icons && note.blood ? <span className="absolute top-1 right-1 size-1.5 rounded-full bg-ink" /> : null}
         {travel ? <ApproachArrow dir={travel} lane={note.lane} /> : null}
+        {icons && !held && bossMark(note.key) ? <BossBadge text={bossMark(note.key) ?? ""} /> : null}
       </button>
     );
   }
