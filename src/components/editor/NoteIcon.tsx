@@ -49,19 +49,6 @@ function mark(key: string) {
     case "0C":
     case "0I":
       return <polygon points="7,6.5 17.5,12 7,17.5" fill="currentColor" />;
-    case "0D":
-    case "0J":
-      return (
-        <g fill="currentColor">
-          <rect x="11.15" y="1.1" width="1.7" height="13.4" rx="0.4" />
-          <circle cx="17.5" cy="17.6" r="3.2" />
-          <rect x="7.6" y="15.5" width="8.2" height="4.2" />
-          <path
-            fillRule="evenodd"
-            d="M6.5 13.4a4.2 4.2 0 1 0 0 8.4 4.2 4.2 0 0 0 0-8.4zm0 2.15 0.62 1.45 1.55.1-1.2.95.45 1.5L6.5 18.6l-1.42.95.45-1.5-1.2-.95 1.55-.1z"
-          />
-        </g>
-      );
     case "0E":
       return (
         <g fill="currentColor">
@@ -273,10 +260,25 @@ export function BlueNoteIcon({ className = "" }: { className?: string }) {
   );
 }
 
+function HammerIcon({ flip, className = "" }: { flip: boolean; className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={"shrink-0 " + className} aria-hidden>
+      <g fill="currentColor" transform={flip ? "rotate(180 12 12)" : undefined}>
+        <rect x="11.15" y="0.6" width="1.7" height="12.4" rx="0.45" />
+        <ellipse cx="16.8" cy="17.7" rx="2.05" ry="3.7" />
+        <rect x="7.5" y="15.15" width="7.6" height="5.1" rx="0.7" />
+        <ellipse cx="6.9" cy="17.7" rx="2.45" ry="4.55" />
+        <rect x="10.2" y="12.4" width="3.6" height="3.1" rx="0.45" />
+      </g>
+    </svg>
+  );
+}
+
 /** Original round note chips. Not game sprites. */
 export function NoteIcon({ noteKey, className = "size-6" }: { noteKey: string; className?: string }) {
   if (noteKey === "0H" || noteKey === "18") return <GearIcon half={false} boss={noteKey === "18"} className={className} />;
   if (noteKey === "23") return <BlueNoteIcon className={className} />;
+  if (noteKey === "0D" || noteKey === "0J") return <HammerIcon flip={noteKey === "0J"} className={className} />;
   const dir = NOTE_BY_KEY[noteKey]?.dir;
   const bullet = noteKey === "30" || noteKey === "34" || noteKey === "38";
   return (
