@@ -199,6 +199,13 @@ export const NOTES: NoteDef[] = [
 
 export const NOTE_BY_KEY: Record<string, NoteDef> = Object.fromEntries(NOTES.map((n) => [n.key, n]));
 
+/** Where a moving note comes from. Down leaves the top of the screen. Up leaves the floor. */
+export function noteTravel(key: string): "up" | "down" | null {
+  if (key === "0D" || key === "0I") return "down";
+  if (key === "0C" || key === "0J") return "up";
+  return NOTE_BY_KEY[key]?.dir ?? null;
+}
+
 export const GROUPS: { id: NoteGroup; label: string }[] = [
   { id: "tap", label: "Taps" },
   { id: "accent", label: "Accents" },

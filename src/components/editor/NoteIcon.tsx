@@ -352,13 +352,25 @@ export function NoteIcon({ noteKey, className = "size-6" }: { noteKey: string; c
       <circle cx="12" cy="12" r={dir || bullet ? "8.1" : "9.2"} fill="none" stroke="currentColor" strokeWidth="1.7" />
       <g transform={FLIP.has(noteKey) ? "rotate(180 12 12)" : undefined}>{mark(noteKey)}</g>
       {bullet ? <path d="M3.2 12h3.2" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" /> : null}
-      {dir === "up" ? <path d="M12 1.15 14.3 4.15H9.7Z" fill="currentColor" /> : null}
-      {dir === "down" ? <path d="M12 22.85 9.7 19.85h4.6Z" fill="currentColor" /> : null}
     </svg>
   );
 }
 
 const STAR = "12,3.2 14.5,9.2 20.8,9.6 16.1,13.6 17.6,19.8 12,16.4 6.4,19.8 7.9,13.6 3.2,9.6 9.5,9.2";
+
+export function ApproachArrow({ dir, lane }: { dir: "up" | "down"; lane: LaneId }) {
+  const down = dir === "down";
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="pointer-events-none absolute z-20 w-[36%]"
+      style={{ right: "7%", top: down ? undefined : "6%", bottom: down ? "6%" : undefined, transform: down ? "rotate(45deg)" : "rotate(-45deg)" }}
+      aria-hidden
+    >
+      <path d="M3.5 5.2 19.2 12 3.5 18.8 7.2 12Z" fill={noteFill(lane)} stroke="#160814" strokeWidth="1.6" strokeLinejoin="round" />
+    </svg>
+  );
+}
 
 export function noteFill(lane: LaneId): string {
   if (lane === "air" || lane === "air2") return "#55d8ff";
