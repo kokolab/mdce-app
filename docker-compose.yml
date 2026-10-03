@@ -3,7 +3,7 @@ name: muse-dash-chart-editor
 services:
   editor:
     build: .
-    image: muse-dash-chart-editor:latest
+    pull_policy: build
     container_name: muse-dash-chart-editor
     restart: unless-stopped
     ports:
