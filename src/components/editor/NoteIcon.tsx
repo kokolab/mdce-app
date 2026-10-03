@@ -256,11 +256,12 @@ export function GeminiIcon({ up = false, className = "" }: { up?: boolean; class
       <g fill="currentColor" transform={up ? "translate(0 32) scale(1 -1)" : undefined}>
         <path
           fillRule="evenodd"
-          d="M16 2.8a8.4 8.4 0 1 1 0 16.8 8.4 8.4 0 0 1 0-16.8zM10.4 9.2a2.35 2.35 0 1 0 0 4.7 2.35 2.35 0 0 0 0-4.7z"
+          d="M16 4.6a7.6 7.6 0 1 1 0 15.2 7.6 7.6 0 0 1 0-15.2zM10.6 10.2a2.7 2.7 0 1 0 0 5.4 2.7 2.7 0 0 0 0-5.4z"
         />
-        <path d="M5.4 13.6 1.4 18.2 9.2 16.2zM26.6 13.6 30.6 18.2 22.8 16.2z" />
-        <path d="M13.1 18.2h5.8l-.7 2.8h-4.4z" />
-        <circle cx="16" cy="26.2" r="2.35" />
+        <circle cx="10.6" cy="12.9" r="1.15" />
+        <path d="M8.4 14.4 4.2 18.4 10 16.6zM23.6 14.4 27.8 18.4 22 16.6z" />
+        <path d="M13.4 19h5.2l-.9 2.5h-3.4z" />
+        <circle cx="16" cy="24.6" r="2.2" />
       </g>
     </svg>
   );

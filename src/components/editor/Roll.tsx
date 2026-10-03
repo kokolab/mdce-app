@@ -36,8 +36,8 @@ function geminiLinks(
     const lowerH = laneHeightOf(lowerLane);
     const upperSize = Math.min(noteSize, Math.max(14, upperH - 6));
     const lowerSize = Math.min(noteSize, Math.max(14, lowerH - 6));
-    const y1 = (laneTop[note.lane] ?? 0) + (upperH + upperSize) / 2 - 4;
-    const y2 = (laneTop[lowerLane] ?? 0) + (lowerH - lowerSize) / 2 + 4;
+    const y1 = (laneTop[note.lane] ?? 0) + (upperH + upperSize) / 2;
+    const y2 = (laneTop[lowerLane] ?? 0) + (lowerH - lowerSize) / 2;
     links.push({
       key: note.id + mate.id,
       left: `calc(${tick} * var(--px) / 192 * 1px)`,
@@ -48,7 +48,7 @@ function geminiLinks(
   return links.map((link) => (
     <div
       key={link.key}
-      className="pointer-events-none absolute z-20 w-0.5 -translate-x-1/2 rounded-full bg-paper"
+      className="pointer-events-none absolute z-[5] w-1 -translate-x-1/2 rounded-sm bg-paper"
       style={{ left: link.left, top: link.top, height: link.height }}
     />
   ));
