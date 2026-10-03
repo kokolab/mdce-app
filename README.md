@@ -13,7 +13,7 @@ Docker already runs on the Proxmox VM **services** (VM 103). Portainer on that V
 3. Go to **Stacks** → **Add stack**.
 4. Name it `Muse Dash Chart Editor`. If Portainer rejects the spaces, use `muse-dash-chart-editor`.
 5. Choose **Git repository**.
-6. Repository URL: `https://github.com/kokolab/stagepen`
+6. Repository URL: `https://github.com/kokolab/mdce`
 7. Repository reference: `refs/heads/main`
 8. Compose path: `docker-compose.yml`
 9. Turn on **Authentication** if the repo is private, and use a GitHub personal access token with repository read access.
@@ -31,7 +31,7 @@ Fonts load from `fonts.bunny.net`, so the VM needs outbound internet.
 
 This project is plain TypeScript. Claude Code, Cursor, Aider, Continue, or Cline can keep working on the same GitHub repo.
 
-1. Clone `https://github.com/kokolab/stagepen`.
+1. Clone `https://github.com/kokolab/mdce`.
 2. Tell the agent to read `README.md` and `CLAUDE.md` before changing anything.
 3. Install Node 22, then `npm ci` and `npm run dev`.
 4. Push to `main`. Portainer redeploys from that branch.
