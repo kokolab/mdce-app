@@ -341,8 +341,8 @@ export function NoteIcon({ noteKey, className = "size-6" }: { noteKey: string; c
   }
   if (noteKey === "0H" || noteKey === "18") return <GearIcon half={false} boss={noteKey === "18"} className={className} />;
   if (noteKey === "23") return <BlueNoteIcon className={className} />;
-  if (noteKey === "0D" || noteKey === "0J") return <HammerIcon flip={noteKey === "0J"} className={className} />;
-  if (noteKey === "0C" || noteKey === "0I") return <RaiderIcon flip={noteKey === "0I"} className={className} />;
+  if (noteKey === "0D" || noteKey === "0J") return <HammerIcon flip={false} className={className} />;
+  if (noteKey === "0C" || noteKey === "0I") return <RaiderIcon flip={false} className={className} />;
   if (noteKey === "0E") return <GeminiIcon className={className} />;
   if (noteKey === "21") return <GhostIcon className={className} />;
   const dir = NOTE_BY_KEY[noteKey]?.dir;
