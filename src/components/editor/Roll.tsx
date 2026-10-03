@@ -48,8 +48,13 @@ function geminiLinks(
   return links.map((link) => (
     <div
       key={link.key}
-      className="pointer-events-none absolute z-[5] w-1 -translate-x-1/2 rounded-sm bg-paper"
-      style={{ left: link.left, top: link.top, height: link.height }}
+      className="pointer-events-none absolute z-[5] w-2 -translate-x-1/2 rounded-sm"
+      style={{
+        left: link.left,
+        top: link.top,
+        height: link.height,
+        background: "linear-gradient(to bottom, var(--color-airnote), var(--color-gndnote))",
+      }}
     />
   ));
 }
