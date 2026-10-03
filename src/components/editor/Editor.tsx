@@ -257,7 +257,7 @@ export function Editor() {
       <div className="flex h-8 items-center bg-ink px-3 text-xs text-mute">
         <span className="truncate">
           {(title || "untitled") + ".bms"}
-          {songName ? ` — ${songName}` : ""} — Editor — UTF-8
+          {songName ? ` — ${songName}` : ""} — Muse Dash Chart Editor
         </span>
       </div>
       <MenuBar
