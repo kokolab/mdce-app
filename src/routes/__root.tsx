@@ -8,7 +8,7 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Stagepen" },
+      { title: "Muse Dash Chart Editor" },
       { name: "description", content: "Chart Muse Dash maps in the browser. Writes the same BMS files as MDBMSC." },
       { name: "theme-color", content: "#121014" },
     ],

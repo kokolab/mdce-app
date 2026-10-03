@@ -1,4 +1,4 @@
-# Stagepen
+# Muse Dash Chart Editor
 
 A browser editor for Muse Dash BMS charts. Open a `.bms` file and a song, edit notes, then save `.bms` and `info.json`.
 
@@ -11,7 +11,7 @@ Docker already runs on the Proxmox VM **services** (VM 103). Portainer on that V
 1. Open Portainer.
 2. Select the **services** environment.
 3. Go to **Stacks** → **Add stack**.
-4. Name it `stagepen`.
+4. Name it `Muse Dash Chart Editor`. If Portainer rejects the spaces, use `muse-dash-chart-editor`.
 5. Choose **Git repository**.
 6. Repository URL: `https://github.com/kokolab/stagepen`
 7. Repository reference: `refs/heads/main`

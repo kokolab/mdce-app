@@ -1,4 +1,4 @@
-# Stagepen — notes for the next coding agent
+# Muse Dash Chart Editor — notes for the next coding agent
 
 Read [README.md](README.md) first. This is a browser chart editor for Muse Dash BMS files.
 

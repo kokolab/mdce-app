@@ -159,7 +159,7 @@ function demo(): Snapshot & { wavExtra: { key: string; name: string }[]; wavName
     meta: {
       ...EMPTY_META,
       title: "Warm-up",
-      artist: "Stagepen",
+      artist: "Muse Dash Chart Editor",
       designer: "Kokomilk",
       genre: "scene_05",
       bpm: 148,
