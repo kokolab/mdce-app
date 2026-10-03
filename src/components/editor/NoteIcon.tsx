@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { NOTE_BY_KEY, type LaneId } from "@/lib/md/catalog";
-import { customNoteUrl } from "@/lib/md/customNotes";
+import { useEffect, useState } from "react";
+import { customNoteUrl, subscribeCustomNotes } from "@/lib/md/customNotes";
 
 const FLIP = new Set(["0I", "0J"]);
 
@@ -314,7 +315,13 @@ function HammerIcon({ flip, className = "" }: { flip: boolean; className?: strin
 }
 
 /** Original round note chips. Not game sprites. */
+function useNoteImages() {
+  const [, setRev] = useState(0);
+  useEffect(() => subscribeCustomNotes(() => setRev((value) => value + 1)), []);
+}
+
 export function NoteIcon({ noteKey, className = "size-6" }: { noteKey: string; className?: string }) {
+  useNoteImages();
   const custom = customNoteUrl(noteKey);
   if (custom) return <img src={custom} alt="" draggable={false} className={"pointer-events-none shrink-0 object-contain " + className} />;
   if (noteKey === "0H" || noteKey === "18") return <GearIcon half={false} boss={noteKey === "18"} className={className} />;
@@ -375,6 +382,7 @@ function Rail({ color, size, lines }: { color: string; size: number; lines: numb
 
 /** Flat circle, black star, four plain lines. */
 export function HoldNote({ lane, size, noteKey = "0F" }: { lane: LaneId; size: number; noteKey?: string }) {
+  useNoteImages();
   const color = noteFill(lane);
   const custom = customNoteUrl(noteKey);
   const mark = custom ? (
@@ -420,6 +428,7 @@ function Zigzag({ color, size, id }: { color: string; size: number; id: string }
 
 /** Masher: boxing glove on each end, zigzag between them. */
 export function MasherNote({ lane, size, noteKey = "0G" }: { lane: LaneId; size: number; noteKey?: string }) {
+  useNoteImages();
   const color = noteFill(lane);
   const custom = customNoteUrl(noteKey);
   const mark = custom ? (

@@ -29,7 +29,7 @@ Fonts load from `fonts.bunny.net`, so the VM needs outbound internet.
 
 ## Custom note icons
 
-Put a PNG in [src/assets/notes](src/assets/notes) and name it with the note key, such as `21.png` for the ghost or `0E.png` for Gemini. Rebuild and redeploy. If that file is missing, the note keeps its plain icon. The key is the same one stored in the chart, for example `0D`, `0H`, `18`, `0F`, `0G`.
+Right-click a note in the palette and choose **Import PNG**. That image is saved in this browser and used everywhere that note appears. **Use plain icon** removes it. Notes without an imported PNG keep the built-in icon.
 
 ## Keep editing with another LLM
 

@@ -6,7 +6,7 @@ import { NoteIcon, HoldNote, MasherNote, GearIcon, GeminiIcon } from "./NoteIcon
 import { useChart } from "@/lib/md/store";
 import { livePx, measureStart, measureTicks, pxForWidth, secondsAt, snapTick, tempoPoints, tickToX, totalTicks, xToTick, type Sig } from "@/lib/md/timing";
 import { stopPoints } from "@/lib/md/bms";
-import { customNoteUrl } from "@/lib/md/customNotes";
+import { customNoteUrl, loadCustomNotes, subscribeCustomNotes } from "@/lib/md/customNotes";
 
 type Ghost = { lane: LaneId; tick: number; end?: number };
 
@@ -188,6 +188,11 @@ export function Roll({
   playheadRef: RefObject<HTMLDivElement | null>;
   scrollerRef: RefObject<HTMLDivElement | null>;
 }) {
+  const [, setNoteImages] = useState(0);
+  useEffect(() => {
+    void loadCustomNotes();
+    return subscribeCustomNotes(() => setNoteImages((value) => value + 1));
+  }, []);
   const notes = useChart((state) => state.notes);
   const sigs = useChart((state) => state.sigs);
   const measureCount = useChart((state) => state.measureCount);
