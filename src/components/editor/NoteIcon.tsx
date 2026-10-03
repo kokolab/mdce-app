@@ -364,15 +364,16 @@ export function ApproachArrow({ dir, lane }: { dir: "up" | "down"; lane: LaneId 
     <svg
       viewBox="0 0 24 24"
       className="pointer-events-none absolute z-20 w-[36%]"
-      style={{
-        left: "50%",
-        top: down ? undefined : "6%",
-        bottom: down ? "6%" : undefined,
-        transform: `translateX(-50%) rotate(${down ? 45 : -45}deg)`,
-      }}
+      style={{ left: "50%", bottom: "6%", transform: "translateX(-50%)" }}
       aria-hidden
     >
-      <path d="M20.5 5.2 4.8 12 20.5 18.8 16.8 12Z" fill={noteFill(lane)} stroke="#160814" strokeWidth="1.6" strokeLinejoin="round" />
+      <path
+        d={down ? "M8 18.5 17.5 15.6 12.2 13.4 10 8.2Z" : "M8 5.5 17.5 8.4 12.2 10.6 10 15.8Z"}
+        fill={noteFill(lane)}
+        stroke="#160814"
+        strokeWidth="1.4"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
