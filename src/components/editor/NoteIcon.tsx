@@ -222,15 +222,17 @@ export function GearIcon({ half, boss, className = "" }: { half: boolean; boss: 
     <span className={"inline-flex flex-col items-center justify-center " + className}>
       <span className="w-[90%] overflow-hidden" style={{ height: half ? "42%" : boss ? "68%" : "84%" }}>
         <svg viewBox="0 0 64 64" className="block w-full" style={{ height: half ? "200%" : "100%" }} aria-hidden>
-          {[0, 45, 90, 135, 180, 225, 270, 315].map((angle) => (
-            <polygon key={angle} points="32,1.5 25.5,16 38.5,16" fill="#f4f4f5" transform={`rotate(${angle} 32 32)`} />
-          ))}
-          <circle cx="32" cy="32" r="19" fill="#c084fc" />
-          <circle cx="32" cy="32" r="14.5" fill="#f9a8d4" />
-          <circle cx="32" cy="32" r="10" fill="#fbcfe8" />
-          <rect x="30.1" y="17.5" width="3.8" height="29" rx="1.6" fill="#f472b6" />
-          <circle cx="25.6" cy="27.5" r="1.8" fill="#e879f9" />
-          <circle cx="25.6" cy="36.5" r="1.8" fill="#e879f9" />
+          <g fill="currentColor">
+            {[0, 45, 90, 135, 180, 225, 270, 315].map((angle) => (
+              <polygon key={angle} points="32,1.5 25.5,16 38.5,16" transform={`rotate(${angle} 32 32)`} />
+            ))}
+            <circle cx="32" cy="32" r="19" />
+            <circle cx="32" cy="32" r="14.5" />
+            <circle cx="32" cy="32" r="10" />
+            <rect x="30.1" y="17.5" width="3.8" height="29" rx="1.6" />
+            <circle cx="25.6" cy="27.5" r="1.8" />
+            <circle cx="25.6" cy="36.5" r="1.8" />
+          </g>
         </svg>
       </span>
       {boss ? <span className="text-[8px] leading-none font-bold tracking-wide">BOSS</span> : null}
