@@ -48,7 +48,7 @@ function geminiLinks(
   return links.map((link) => (
     <div
       key={link.key}
-      className="pointer-events-none absolute z-[5] w-2 -translate-x-1/2 rounded-sm"
+      className="pointer-events-none absolute z-[5] w-3.5 -translate-x-1/2"
       style={{
         left: link.left,
         top: link.top,
