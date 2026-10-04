@@ -59,21 +59,42 @@ export function Transport({
   useEffect(() => {
     let frame = 0;
     let lastPaint = 0;
+    let alive = true;
+    let points = tempoPoints([], 120);
+    let stops = stopPoints([], [], []);
+    let pointsNotes: unknown = null;
+    let pointsBpm = 0;
+    let stopsHeader: unknown = null;
+    let stopsExtras: unknown = null;
+    let stopsSigs: unknown = null;
     const loop = (now: number) => {
+      if (!alive || !player.playing) {
+        frame = 0;
+        return;
+      }
       frame = requestAnimationFrame(loop);
       const state = useChart.getState();
-      const points = tempoPoints(state.notes, state.meta.bpm);
-      const stops = stopPoints(state.headerExtras ?? [], state.extras ?? [], state.sigs);
-      if (player.playing) player.pump(state.notes, points, stops);
+      if (pointsNotes !== state.notes || pointsBpm !== state.meta.bpm) {
+        pointsNotes = state.notes;
+        pointsBpm = state.meta.bpm;
+        points = tempoPoints(state.notes, state.meta.bpm);
+      }
+      if (stopsHeader !== state.headerExtras || stopsExtras !== state.extras || stopsSigs !== state.sigs) {
+        stopsHeader = state.headerExtras;
+        stopsExtras = state.extras;
+        stopsSigs = state.sigs;
+        stops = stopPoints(state.headerExtras ?? [], state.extras ?? [], state.sigs);
+      }
+      player.pump(state.notes, points, stops);
       const tick = Math.max(0, player.tickFor(points, stops));
       const node = playheadRef.current;
       if (node) node.style.setProperty("--play", String(tick));
       const scroller = scrollerRef.current;
-      if (player.playing && scroller && useChart.getState().followPlay) {
+      if (scroller && state.followPlay) {
         const x = tickToX(tick, livePx.current);
         const view = scroller.clientWidth;
-        const tight = useChart.getState().followTight;
-        const amount = useChart.getState().followAmount;
+        const tight = state.followTight;
+        const amount = state.followAmount;
         const anchor = view * (tight ? 0.15 + (1 - amount) * 0.5 : 0.25);
         if (tight || x > scroller.scrollLeft + view * 0.75 || x < scroller.scrollLeft + 16) {
           scroller.scrollLeft = Math.max(0, x - anchor);
@@ -85,8 +106,15 @@ export function Transport({
         setBar(locate(tick, state.sigs, state.measureCount).measure);
       }
     };
-    frame = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(frame);
+    const start = () => {
+      if (!frame && player.playing) frame = requestAnimationFrame(loop);
+    };
+    document.addEventListener("stagepen-playback", start);
+    return () => {
+      alive = false;
+      if (frame) cancelAnimationFrame(frame);
+      document.removeEventListener("stagepen-playback", start);
+    };
   }, [playheadRef, scrollerRef]);
 
   async function playFrom(seconds: number) {
@@ -94,6 +122,7 @@ export function Transport({
     await player.ensure();
     await player.loadUsed(state.notes);
     player.play(Math.max(0, seconds));
+    document.dispatchEvent(new Event("stagepen-playback"));
   }
 
   async function playStart() {
@@ -127,6 +156,7 @@ export function Transport({
     player.stop();
     setClock("0:00.0");
     setBar(0);
+    playheadRef.current?.style.setProperty("--play", "0");
   }
 
   const playStartRef = useRef(playStart);

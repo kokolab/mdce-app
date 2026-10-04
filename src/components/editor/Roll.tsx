@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { memo, useEffect, useRef, useState, type RefObject } from "react";
 import { DISPLAY_LANES, HOLD_KEYS, LANE_BY_ID, LANE_UNITS, noteLabel, noteName, noteTravel, type LaneId } from "@/lib/md/catalog";
 import type { ChartNote } from "@/lib/md/bms";
 import { player } from "@/lib/md/player";
 import { NoteIcon, HoldNote, MasherNote, GearIcon, GeminiIcon, ApproachArrow, BossBadge, bossMark } from "./NoteIcon";
 import { useChart } from "@/lib/md/store";
-import { livePx, measureStart, measureTicks, pxForWidth, secondsAt, snapTick, tempoPoints, tickToX, totalTicks, xToTick, type Sig } from "@/lib/md/timing";
+import { livePx, measureTicks, pxForWidth, secondsAt, snapTick, tempoPoints, tickToX, totalTicks, xToTick, type Sig } from "@/lib/md/timing";
 import { stopPoints } from "@/lib/md/bms";
 
 type Ghost = { lane: LaneId; tick: number; end?: number };
@@ -13,12 +13,20 @@ const GEMINI_LOWER: Partial<Record<LaneId, LaneId>> = { air: "gnd", air2: "gnd2"
 
 function geminiLinks(
   notes: ChartNote[],
-  drafts: Record<string, { tick: number; endTick?: number }>,
   laneHeightOf: (id: LaneId) => number,
   noteSize: number,
+  viewLeft: number,
+  viewRight: number,
+  px: number,
 ) {
-  const tickOf = (note: ChartNote) => drafts[note.id]?.tick ?? note.tick;
-  const gemini = notes.filter((note) => note.key === "0E");
+  const tickOf = (note: ChartNote) => note.tick;
+  const mates = new Map<string, ChartNote>();
+  const gemini: ChartNote[] = [];
+  for (const note of notes) {
+    if (note.key !== "0E") continue;
+    gemini.push(note);
+    mates.set(`${note.lane}:${tickOf(note)}`, note);
+  }
   const laneTop: Partial<Record<LaneId, number>> = {};
   let top = 32;
   for (const id of DISPLAY_LANES) {
@@ -30,7 +38,9 @@ function geminiLinks(
     const lowerLane = GEMINI_LOWER[note.lane];
     if (!lowerLane) continue;
     const tick = tickOf(note);
-    const mate = gemini.find((other) => other.lane === lowerLane && tickOf(other) === tick);
+    const x = tickToX(tick, px);
+    if (x < viewLeft || x > viewRight) continue;
+    const mate = mates.get(`${lowerLane}:${tick}`);
     if (!mate) continue;
     const upperH = laneHeightOf(note.lane);
     const lowerH = laneHeightOf(lowerLane);
@@ -132,9 +142,11 @@ function GridCanvas({
       const viewRight = viewLeft + width;
       const divN = Math.max(1, divide);
       const subN = Math.max(1, sub);
+      let cursor = 0;
       for (let measure = 0; measure < measureCount; measure++) {
-        const start = measureStart(measure, sigs);
+        const start = cursor;
         const len = measureTicks(measure, sigs);
+        cursor += len;
         const x0 = tickToX(start, livePx.current);
         const x1 = tickToX(start + len, livePx.current);
         if (x1 < viewLeft - 2 || x0 > viewRight + 2) continue;
@@ -180,6 +192,185 @@ function GridCanvas({
   return <canvas ref={canvasRef} className="pointer-events-none absolute right-0 left-0 z-[1]" style={{ top, height }} />;
 }
 
+type DragOrigin = { id: string; tick: number; endTick?: number; music: boolean; boxW: number };
+type DragState = {
+  id: string;
+  mode: "move" | "resize";
+  x: number;
+  tick: number;
+  end?: number;
+  origins: DragOrigin[];
+};
+
+function layoutNote(el: HTMLElement, tick: number, endTick: number | undefined, music: boolean, boxW: number) {
+  const held = endTick != null && endTick > tick;
+  el.style.left = music
+    ? `calc(${tick} * var(--px) / 192 * 1px)`
+    : `calc(${tick} * var(--px) / 192 * 1px - ${boxW / 2}px)`;
+  if (held) el.style.width = `calc(${(endTick ?? tick) - tick} * var(--px) / 192 * 1px + ${boxW}px)`;
+}
+
+function noteEl(sheet: HTMLDivElement | null, id: string) {
+  return sheet?.querySelector<HTMLElement>(`[data-note="${CSS.escape(id)}"]`) ?? null;
+}
+
+const NoteChip = memo(function NoteChip({
+  note,
+  laneH,
+  noteSize,
+  showIcons,
+  selected,
+  drag,
+  sheetRef,
+}: {
+  note: ChartNote;
+  laneH: number;
+  noteSize: number;
+  showIcons: boolean;
+  selected: boolean;
+  drag: { current: DragState | null };
+  sheetRef: RefObject<HTMLDivElement | null>;
+}) {
+  const label = note.lane === "bpm" ? String(Math.round(note.bpm ?? 0)) : noteLabel(note.key);
+  const icons = showIcons && note.lane !== "bpm";
+  const size = Math.min(noteSize, Math.max(14, laneH - 6));
+  const masher = note.key === "0G" || note.key === "16" || note.key === "17";
+  const music = note.key === "10";
+  const gear = note.key === "0H" || note.key === "18";
+  const gearHalf = gear && (note.lane === "gnd" || note.lane === "gnd2");
+  const held = note.endTick != null && note.endTick > note.tick;
+  const boxW = music ? Math.max(18, Math.round(size * 0.7)) : size;
+  const boxH = music ? Math.max(size, laneH - 4) : size;
+  const span = held ? `calc(${(note.endTick ?? note.tick) - note.tick} * var(--px) / 192 * 1px + ${size}px)` : `${boxW}px`;
+  const left = music
+    ? `calc(${note.tick} * var(--px) / 192 * 1px)`
+    : `calc(${note.tick} * var(--px) / 192 * 1px - ${boxW / 2}px)`;
+  const round = icons && !held && !music;
+  const travel = round ? noteTravel(note.key) : null;
+  const badge = icons && !held ? bossMark(note.key) : null;
+  return (
+    <button
+      type="button"
+      data-note={note.id}
+      title={note.lane === "bpm" ? `${label} BPM` : noteName(note.key)}
+      onPointerDown={(event) => {
+        if (event.button !== 0) return;
+        event.stopPropagation();
+        const rect = event.currentTarget.getBoundingClientRect();
+        const mode = held && event.clientX > rect.right - 16 ? "resize" : "move";
+        const state = useChart.getState();
+        if (event.shiftKey) {
+          state.select(note.id, true);
+          return;
+        }
+        const inGroup = state.selection.includes(note.id);
+        if (!inGroup) state.select(note.id);
+        const ids = inGroup ? state.selection : [note.id];
+        const xHeight = state.xHeight;
+        const noteSizeNow = Math.max(16, Math.round(30 * xHeight));
+        const origins = state.notes
+          .filter((item) => ids.includes(item.id))
+          .map((item) => {
+            const itemLane = Math.max(22, Math.round(LANE_UNITS[item.lane] * xHeight));
+            const itemSize = Math.min(noteSizeNow, Math.max(14, itemLane - 6));
+            const itemMusic = item.key === "10";
+            return {
+              id: item.id,
+              tick: item.tick,
+              endTick: item.endTick,
+              music: itemMusic,
+              boxW: itemMusic ? Math.max(18, Math.round(itemSize * 0.7)) : itemSize,
+            };
+          });
+        drag.current = { id: note.id, mode, x: event.clientX, tick: note.tick, end: note.endTick, origins };
+        event.currentTarget.setPointerCapture(event.pointerId);
+      }}
+      onPointerMove={(event) => {
+        const active = drag.current;
+        if (!active || active.id !== note.id) return;
+        const state = useChart.getState();
+        const grid = state.snapOn ? state.snap : 192;
+        const delta = xToTick(event.clientX - active.x, livePx.current);
+        const sheet = sheetRef.current;
+        if (active.mode === "resize") {
+          const end = snapTick(Math.max(note.tick, (active.end ?? note.tick) + delta), grid, state.sigs, state.measureCount);
+          const el = noteEl(sheet, note.id);
+          if (el) layoutNote(el, note.tick, end > note.tick ? end : undefined, music, boxW);
+          return;
+        }
+        const snapped = snapTick(Math.max(0, active.tick + delta), grid, state.sigs, state.measureCount);
+        const shift = snapped - active.tick;
+        for (const origin of active.origins) {
+          const el = noteEl(sheet, origin.id);
+          if (!el) continue;
+          const tick = Math.max(0, origin.tick + shift);
+          const length = origin.endTick != null ? origin.endTick - origin.tick : 0;
+          layoutNote(el, tick, length > 0 ? tick + length : undefined, origin.music, origin.boxW);
+        }
+      }}
+      onPointerUp={(event) => {
+        const active = drag.current;
+        if (!active || active.id !== note.id) return;
+        drag.current = null;
+        const delta = xToTick(event.clientX - active.x, livePx.current);
+        const moved = Math.abs(event.clientX - active.x) >= 4;
+        if (!moved) {
+          const sheet = sheetRef.current;
+          for (const origin of active.origins) {
+            const el = noteEl(sheet, origin.id);
+            if (el) layoutNote(el, origin.tick, origin.endTick, origin.music, origin.boxW);
+          }
+          return;
+        }
+        const state = useChart.getState();
+        if (active.mode === "resize") state.resizeNote(note.id, (active.end ?? note.tick) + delta);
+        else state.moveGroup(note.id, Math.max(0, active.tick + delta));
+      }}
+      onContextMenu={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        useChart.getState().remove(note.id);
+      }}
+      className={
+        "absolute z-10 font-mono text-xs font-medium " +
+        (held
+          ? "overflow-visible "
+          : "flex items-center overflow-hidden " +
+            (music ? "justify-center rounded-sm " : round ? "justify-center rounded-full " : "justify-start rounded-md px-1 ") +
+            chipClass(note.lane) +
+            (note.key === "0G" || note.key === "16" || note.key === "17" ? " stripe" : "")) +
+        (selected ? " ring-2 ring-paper" : "")
+      }
+      style={{ left, width: span, height: boxH, top: music ? 2 : (laneH - boxH) / 2 }}
+    >
+      {gear && icons ? (
+        <GearIcon half={gearHalf} boss={note.key === "18"} className="h-[82%] w-[82%]" />
+      ) : music ? (
+        <span className="flex h-full flex-col items-center justify-center gap-px text-[10px] leading-none font-semibold">
+          {"music".split("").map((letter, index) => (
+            <span key={index}>{letter}</span>
+          ))}
+        </span>
+      ) : held ? (
+        masher ? (
+          <MasherNote lane={note.lane} size={size} noteKey={note.key} />
+        ) : (
+          <HoldNote lane={note.lane} size={size} />
+        )
+      ) : icons && note.key === "0E" ? (
+        <GeminiIcon up={note.lane === "gnd" || note.lane === "gnd2"} className="h-[92%] w-[92%]" />
+      ) : icons ? (
+        <NoteIcon noteKey={note.key} className="h-[78%] w-[78%]" />
+      ) : (
+        label
+      )}
+      {icons && note.blood ? <span className="absolute top-1 right-1 size-1.5 rounded-full bg-ink" /> : null}
+      {travel ? <ApproachArrow dir={travel} lane={note.lane} /> : null}
+      {badge ? <BossBadge text={badge} /> : null}
+    </button>
+  );
+});
+
 export function Roll({
   playheadRef,
   scrollerRef,
@@ -200,21 +391,9 @@ export function Roll({
   const showIcons = useChart((state) => state.showIcons);
   const focusTick = useChart((state) => state.focusTick);
   const place = useChart((state) => state.place);
-  const select = useChart((state) => state.select);
-  const moveGroup = useChart((state) => state.moveGroup);
-  const resizeNote = useChart((state) => state.resizeNote);
-  const remove = useChart((state) => state.remove);
   const [ghost, setGhost] = useState<Ghost | null>(null);
   const [viewport, setViewport] = useState({ left: 0, width: 1280 });
-  const drag = useRef<{
-    id: string;
-    mode: "move" | "resize";
-    x: number;
-    tick: number;
-    end?: number;
-    origins: { id: string; tick: number; endTick?: number }[];
-  } | null>(null);
-  const [drafts, setDrafts] = useState<Record<string, { tick: number; endTick?: number }>>({});
+  const drag = useRef<DragState | null>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
   const redrawRef = useRef<(() => void) | null>(null);
   const zooming = useRef(false);
@@ -236,7 +415,7 @@ export function Roll({
       if (zooming.current) return;
       const left = scroller.scrollLeft;
       const width = scroller.clientWidth || 1;
-      setViewport((prev) => (prev.width === width && Math.abs(prev.left - left) < 24 ? prev : { left, width }));
+      setViewport((prev) => (prev.width === width && Math.abs(prev.left - left) < 160 ? prev : { left, width }));
     };
     const schedule = () => {
       if (!frame) frame = requestAnimationFrame(read);
@@ -311,126 +490,6 @@ export function Roll({
     return snapTick(xToTick(clientX - rect.left, livePx.current), snap, sigs, measureCount);
   }
 
-  function renderNote(note: ChartNote, laneH: number) {
-    const liveDraft = drafts[note.id];
-    const live = liveDraft ? { ...note, tick: liveDraft.tick, endTick: liveDraft.endTick } : note;
-    const label = note.lane === "bpm" ? String(Math.round(note.bpm ?? 0)) : noteLabel(note.key);
-    const icons = showIcons && note.lane !== "bpm";
-    const size = Math.min(noteSize, Math.max(14, laneH - 6));
-    const startTick = live.tick;
-    const masher = note.key === "0G" || note.key === "16" || note.key === "17";
-    const music = note.key === "10";
-    const gear = note.key === "0H" || note.key === "18";
-    const gearHalf = gear && (note.lane === "gnd" || note.lane === "gnd2");
-    const held = live.endTick != null && live.endTick > live.tick;
-    const boxW = music ? Math.max(18, Math.round(size * 0.7)) : size;
-    const boxH = music ? Math.max(size, laneH - 4) : size;
-    const span = held ? `calc(${(live.endTick ?? live.tick) - startTick} * var(--px) / 192 * 1px + ${size}px)` : `${boxW}px`;
-    const left = music
-      ? `calc(${startTick} * var(--px) / 192 * 1px)`
-      : `calc(${startTick} * var(--px) / 192 * 1px - ${boxW / 2}px)`;
-    const selected = selection.includes(note.id) || note.id === selectedId;
-    const round = icons && !held && !music;
-    const travel = round ? noteTravel(note.key) : null;
-    return (
-      <button
-        key={note.id}
-        type="button"
-        data-note={note.id}
-        title={note.lane === "bpm" ? `${label} BPM` : noteName(note.key)}
-        onPointerDown={(event) => {
-          if (event.button !== 0) return;
-          event.stopPropagation();
-          const rect = event.currentTarget.getBoundingClientRect();
-          const mode = held && event.clientX > rect.right - 16 ? "resize" : "move";
-          const state = useChart.getState();
-          if (event.shiftKey) {
-            state.select(note.id, true);
-            return;
-          }
-          const inGroup = state.selection.includes(note.id);
-          if (!inGroup) state.select(note.id);
-          const ids = inGroup ? state.selection : [note.id];
-          const origins = state.notes.filter((item) => ids.includes(item.id)).map((item) => ({ id: item.id, tick: item.tick, endTick: item.endTick }));
-          drag.current = { id: note.id, mode, x: event.clientX, tick: note.tick, end: note.endTick, origins };
-          event.currentTarget.setPointerCapture(event.pointerId);
-        }}
-        onPointerMove={(event) => {
-          const active = drag.current;
-          if (!active || active.id !== note.id) return;
-          const state = useChart.getState();
-          const grid = state.snapOn ? state.snap : 192;
-          const delta = xToTick(event.clientX - active.x, livePx.current);
-          if (active.mode === "resize") {
-            const end = snapTick(Math.max(note.tick, (active.end ?? note.tick) + delta), grid, state.sigs, state.measureCount);
-            setDrafts({ [note.id]: { tick: note.tick, endTick: end > note.tick ? end : undefined } });
-            return;
-          }
-          const snapped = snapTick(Math.max(0, active.tick + delta), grid, state.sigs, state.measureCount);
-          const shift = snapped - active.tick;
-          const next: Record<string, { tick: number; endTick?: number }> = {};
-          for (const origin of active.origins) {
-            const tick = Math.max(0, origin.tick + shift);
-            const length = origin.endTick != null ? origin.endTick - origin.tick : 0;
-            next[origin.id] = { tick, endTick: length > 0 ? tick + length : undefined };
-          }
-          setDrafts(next);
-        }}
-        onPointerUp={(event) => {
-          const active = drag.current;
-          if (!active || active.id !== note.id) return;
-          drag.current = null;
-          const delta = xToTick(event.clientX - active.x, livePx.current);
-          setDrafts({});
-          if (Math.abs(event.clientX - active.x) < 4) return;
-          if (active.mode === "resize") resizeNote(note.id, (active.end ?? note.tick) + delta);
-          else moveGroup(note.id, Math.max(0, active.tick + delta));
-        }}
-        onContextMenu={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          remove(note.id);
-        }}
-        className={
-          "absolute z-10 font-mono text-xs font-medium " +
-          (held
-            ? "overflow-visible "
-            : "flex items-center overflow-hidden " +
-              (music ? "justify-center rounded-sm " : round ? "justify-center rounded-full " : "justify-start rounded-md px-1 ") +
-              chipClass(note.lane) +
-              (note.key === "0G" || note.key === "16" || note.key === "17" ? " stripe" : "")) +
-          (selected ? " ring-2 ring-paper" : "")
-        }
-        style={{ left, width: span, height: boxH, top: music ? 2 : (laneH - boxH) / 2 }}
-      >
-        {gear && icons ? (
-          <GearIcon half={gearHalf} boss={note.key === "18"} className="h-[82%] w-[82%]" />
-        ) : music ? (
-          <span className="flex h-full flex-col items-center justify-center gap-px text-[10px] leading-none font-semibold">
-            {"music".split("").map((letter, index) => (
-              <span key={index}>{letter}</span>
-            ))}
-          </span>
-        ) : held ? (
-          masher ? (
-            <MasherNote lane={note.lane} size={size} noteKey={note.key} />
-          ) : (
-            <HoldNote lane={note.lane} size={size} />
-          )
-        ) : icons && note.key === "0E" ? (
-          <GeminiIcon up={note.lane === "gnd" || note.lane === "gnd2"} className="h-[92%] w-[92%]" />
-        ) : icons ? (
-          <NoteIcon noteKey={note.key} className="h-[78%] w-[78%]" />
-        ) : (
-          label
-        )}
-        {icons && note.blood ? <span className="absolute top-1 right-1 size-1.5 rounded-full bg-ink" /> : null}
-        {travel ? <ApproachArrow dir={travel} lane={note.lane} /> : null}
-        {icons && !held && bossMark(note.key) ? <BossBadge text={bossMark(note.key) ?? ""} /> : null}
-      </button>
-    );
-  }
-
   const pxNow = livePx.current;
   const total = totalTicks(measureCount, sigs);
   const width = `calc(${Math.max(total, 192 * 4)} * var(--px) / 192 * 1px)`;
@@ -440,9 +499,8 @@ export function Roll({
   const selected = new Set(selection);
   const visibleNotes = notes.filter((note) => {
     if (selected.has(note.id) || note.id === selectedId) return true;
-    const live = drafts[note.id];
-    const tick = live?.tick ?? note.tick;
-    const end = live?.endTick ?? note.endTick ?? tick;
+    const tick = note.tick;
+    const end = note.endTick ?? tick;
     const x0 = tickToX(Math.min(tick, end), pxNow);
     const x1 = tickToX(Math.max(tick, end), pxNow);
     return x1 >= viewLeft && x0 <= viewRight;
@@ -552,7 +610,18 @@ export function Roll({
                   host.addEventListener("pointerup", up);
                 }}
               >
-                {notesByLane.get(lane.id)?.map((note) => renderNote(note, laneHeightOf(lane.id)))}
+                {notesByLane.get(lane.id)?.map((note) => (
+                  <NoteChip
+                    key={note.id}
+                    note={note}
+                    laneH={laneHeightOf(lane.id)}
+                    noteSize={noteSize}
+                    showIcons={showIcons}
+                    selected={selected.has(note.id) || note.id === selectedId}
+                    drag={drag}
+                    sheetRef={sheetRef}
+                  />
+                ))}
                 {ghost?.lane === lane.id ? (
                   <div
                     className="pointer-events-none absolute overflow-visible"
@@ -574,7 +643,7 @@ export function Roll({
               </div>
             );
           })}
-          {geminiLinks(notes, drafts, laneHeightOf, noteSize)}
+          {geminiLinks(notes, laneHeightOf, noteSize, viewLeft, viewRight, pxNow)}
           <div
             ref={playheadRef}
             className="pointer-events-none absolute top-0 bottom-0 left-0 z-30 w-0.5 bg-pink"
