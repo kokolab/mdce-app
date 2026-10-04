@@ -1,6 +1,9 @@
 import { unzipSync } from "fflate";
 
+export type AlbumChart = { name: string; text: string };
+
 export type AlbumPack = {
+  charts: AlbumChart[];
   bmsName: string;
   bmsText: string;
   infoText: string | null;
@@ -38,6 +41,15 @@ function audioType(name: string): string {
   return "application/octet-stream";
 }
 
+export function chartLabel(name: string): string {
+  const file = name.toLowerCase();
+  if (file === "map1.bms") return "Easy · map1";
+  if (file === "map2.bms") return "Hard · map2";
+  if (file === "map3.bms") return "Master · map3";
+  if (file === "map4.bms") return "Hidden · map4";
+  return name;
+}
+
 export async function readAlbum(file: File): Promise<AlbumPack | null> {
   let entries: Record<string, Uint8Array>;
   try {
@@ -46,12 +58,12 @@ export async function readAlbum(file: File): Promise<AlbumPack | null> {
     return null;
   }
   const paths = Object.keys(entries);
-  const charts = paths.filter((path) => bmsRank(path) < 9).sort((a, b) => bmsRank(a) - bmsRank(b));
+  const charts = paths.filter((path) => bmsRank(path) < 9).sort((a, b) => bmsRank(a) - bmsRank(b) || baseName(a).localeCompare(baseName(b)));
   if (!charts.length) return null;
-  const bmsPath = charts[0];
+  const decoder = new TextDecoder("utf-8");
+  const packed = charts.map((path) => ({ name: baseName(path), text: decoder.decode(entries[path]) }));
   const songs = paths.filter((path) => musicRank(path) < 9).sort((a, b) => musicRank(a) - musicRank(b));
   const infoPath = paths.find((path) => baseName(path) === "info.json");
-  const decoder = new TextDecoder("utf-8");
   const musicPath = songs[0];
   const musicName = musicPath ? baseName(musicPath) : "";
   const musicBytes = musicPath ? entries[musicPath] : undefined;
@@ -60,8 +72,9 @@ export async function readAlbum(file: File): Promise<AlbumPack | null> {
       ? new File([Uint8Array.from(musicBytes)], musicName, { type: audioType(musicName) })
       : null;
   return {
-    bmsName: baseName(bmsPath),
-    bmsText: decoder.decode(entries[bmsPath]),
+    charts: packed,
+    bmsName: packed[0].name,
+    bmsText: packed[0].text,
     infoText: infoPath ? decoder.decode(entries[infoPath]) : null,
     music,
   };

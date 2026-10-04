@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { DISPLAY_LANES } from "@/lib/md/catalog";
-import { readAlbum } from "@/lib/md/album";
+import { chartLabel, readAlbum } from "@/lib/md/album";
+import { currentChartName, setAlbumCharts, useAlbumCharts } from "@/lib/md/pack";
 import { musicFileName, type Meta } from "@/lib/md/bms";
 import { player } from "@/lib/md/player";
 import { persistChart, restoreChart, useChart } from "@/lib/md/store";
@@ -70,6 +71,7 @@ export function Editor() {
   const showStage = useChart((state) => state.showStage);
   const songName = useChart((state) => state.songName);
   const selected = notes.find((note) => note.id === selectedId);
+  const album = useAlbumCharts();
 
   useLayoutEffect(() => {
     document.documentElement.classList.toggle("dark", localStorage.getItem("stagepen-dark") !== "0");
@@ -175,6 +177,7 @@ export function Editor() {
           continue;
         }
         state.loadText(pack.bmsText);
+        setAlbumCharts(pack.charts, pack.bmsName);
         loadedChart = true;
         if (pack.infoText) await takeFile(new File([pack.infoText], "info.json", { type: "application/json" }));
         if (pack.music) audio.push(pack.music);
@@ -182,6 +185,7 @@ export function Editor() {
       }
       if (lower.endsWith(".bms") || lower.endsWith(".bme") || lower.endsWith(".bml")) {
         state.loadText(await file.text());
+        setAlbumCharts([], "");
         loadedChart = true;
         continue;
       }
@@ -199,7 +203,7 @@ export function Editor() {
       await player.ensure();
       await player.loadMusic(song);
       chart.setSongName(song.name);
-      chart.setBanner(loadedChart ? `Chart and song ready: ${song.name}. Press play.` : `Song ready: ${song.name}. Press play.`);
+      chart.setBanner(loadedChart ? `Opened ${chartLabel(currentChartName())}. Song ready: ${song.name}. Press play.` : `Song ready: ${song.name}. Press play.`);
       return;
     }
     if (loadedChart) {
@@ -263,7 +267,7 @@ export function Editor() {
       <MenuBar
         onOpen={() => bmsInput.current?.click()}
         onSong={() => audioInput.current?.click()}
-        onSaveBms={() => download("map2.bms", useChart.getState().exportBms(), "text/plain")}
+        onSaveBms={() => download(currentChartName(), useChart.getState().exportBms(), "text/plain")}
         onSaveInfo={() => download("info.json", useChart.getState().exportInfo(), "application/json")}
       />
       <div className="flex h-11 items-center gap-2 overflow-x-auto border-b border-dock-line bg-menubar px-2 text-dock-ink">
@@ -277,6 +281,28 @@ export function Editor() {
         <button type="button" className="h-8 rounded border border-dock-line bg-field px-2 text-sm lg:hidden" onClick={() => setSongOpen(!songOpen)}>
           Panel
         </button>
+        {album.charts.length > 1 ? (
+          <label className="flex h-8 shrink-0 items-center gap-2 text-sm">
+            Chart
+            <select
+              className="h-8 rounded border border-dock-line bg-field px-2"
+              value={album.current}
+              onChange={(event) => {
+                const next = album.charts.find((chart) => chart.name === event.target.value);
+                if (!next) return;
+                useChart.getState().loadText(next.text);
+                setAlbumCharts(album.charts, next.name);
+                useChart.getState().setBanner(`Editing ${chartLabel(next.name)}. The song stays loaded.`);
+              }}
+            >
+              {album.charts.map((chart) => (
+                <option key={chart.name} value={chart.name}>
+                  {chartLabel(chart.name)}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
       </div>
       {selected?.lane === "bpm" ? (
         <div className="flex items-center gap-3 border-b border-white/10 px-3 py-2 text-sm">
