@@ -109,70 +109,16 @@ type ChartState = {
 
 const STORAGE_KEY = "stagepen.v1";
 
-function at(measure: number, step: number, index: number): number {
-  return measure * 192 + Math.round((index / step) * 192);
-}
-
-function demoNotes(): ChartNote[] {
-  const add = (lane: LaneId, key: string, tick: number, endTick?: number): ChartNote => ({
-    id: nextId(),
-    lane,
-    key,
-    tick,
-    endTick,
-  });
-  return [
-    add("bgm", "10", 0),
-    add("boss", "0P", 0),
-    add("gnd", "04", at(0, 4, 0)),
-    add("gnd", "04", at(0, 4, 1)),
-    add("air", "01", at(0, 8, 3)),
-    add("gnd", "04", at(0, 4, 2)),
-    add("air", "01", at(0, 8, 7)),
-    add("gnd", "0A", at(1, 4, 0)),
-    add("air", "0D", at(1, 4, 1)),
-    add("gnd", "07", at(1, 4, 2)),
-    add("air", "05", at(1, 4, 3)),
-    add("gnd", "0F", at(2, 4, 0), at(2, 4, 2)),
-    add("air", "02", at(2, 8, 5)),
-    add("air", "03", at(2, 8, 7)),
-    add("gnd", "0E", at(3, 4, 0)),
-    add("air", "0E", at(3, 4, 0)),
-    add("gnd", "0C", at(3, 4, 2)),
-    add("gnd", "0H", at(3, 4, 3)),
-    add("gnd", "04", at(4, 4, 0)),
-    add("gnd", "04", at(4, 8, 3)),
-    add("air", "07", at(4, 4, 2)),
-    add("boss", "13", at(5, 4, 0)),
-    add("gnd", "04", at(5, 4, 1)),
-    add("air", "04", at(5, 4, 2)),
-    add("gnd", "0B", at(5, 4, 3)),
-    add("air2", "01", at(6, 4, 0)),
-    add("gnd", "0F", at(6, 4, 1), at(6, 4, 3)),
-    add("gnd", "22", at(7, 4, 0)),
-    add("air", "23", at(7, 4, 2)),
-  ];
-}
-
-function demo(): Snapshot & { wavExtra: { key: string; name: string }[]; wavNames: Record<string, string>; headerExtras: string[] } {
+function blank(): Snapshot & { wavExtra: { key: string; name: string }[]; wavNames: Record<string, string>; headerExtras: string[] } {
   return {
-    meta: {
-      ...EMPTY_META,
-      title: "Warm-up",
-      artist: "Muse Dash Chart Editor",
-      designer: "Kokomilk",
-      genre: "scene_05",
-      bpm: 148,
-      difficulty2: "4",
-      tags: "warmup",
-    },
-    notes: demoNotes(),
+    meta: { ...EMPTY_META },
+    notes: [],
     sigs: [],
     extras: [],
     wavExtra: [],
     wavNames: {},
     headerExtras: [],
-    measureCount: 24,
+    measureCount: 16,
   };
 }
 
@@ -195,7 +141,7 @@ function remember(state: ChartState, patch: Partial<ChartState>): Partial<ChartS
   };
 }
 
-const seed = demo();
+const seed = blank();
 
 export const useChart = create<ChartState>((set, get) => ({
   ...seed,
@@ -504,8 +450,8 @@ export const useChart = create<ChartState>((set, get) => ({
     }),
   reset: () =>
     set((state) => {
-      const fresh = demo();
-      return remember(state, { ...fresh, selectedId: null, selection: [], banner: "Fresh warm-up chart.", confirmNew: false });
+      const fresh = blank();
+      return remember(state, { ...fresh, selectedId: null, selection: [], banner: "New chart.", confirmNew: false });
     }),
   exportBms: () => {
     const state = get();
@@ -565,6 +511,7 @@ export function restoreChart() {
     if (!raw) return;
     const data = JSON.parse(raw) as Partial<ChartState>;
     if (!data.notes || !data.meta) return;
+    if (data.meta.title === "Warm-up" && data.meta.tags === "warmup") return;
     useChart.setState({
       meta: { ...EMPTY_META, ...data.meta },
       notes: data.notes,
