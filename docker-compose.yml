@@ -8,3 +8,13 @@ services:
     restart: unless-stopped
     ports:
       - "8090:8080"
+    expose:
+      - "8080"
+    labels:
+      proxy.aliases: mdce
+      proxy.mdce: |
+        port: 8080
+        scheme: http
+        homepage:
+          name: Muse Dash Chart Editor
+          category: Apps

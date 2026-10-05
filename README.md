@@ -21,6 +21,25 @@ Docker already runs on the Proxmox VM **services** (VM 103). Portainer on that V
 
 The first build takes a few minutes. Then open `http://<services-vm-ip>:8090`.
 
+## GoDoxy (`mdce.kokomilk.net`)
+
+GoDoxy reads Docker labels on this stack. The compose file already sets alias `mdce`, so the route is `mdce.kokomilk.net` if GoDoxy's domain is `kokomilk.net`.
+
+1. DNS: if you already have `*.kokomilk.net` pointing at the GoDoxy host, skip this. Otherwise add:
+
+```text
+A    mdce.kokomilk.net    <godoxy-public-or-LAN-IP>
+```
+
+or a CNAME to the same name your other apps use.
+
+2. Pull and redeploy the Portainer stack with **Re-pull image** off so the new labels apply.
+3. Open [https://mdce.kokomilk.net](https://mdce.kokomilk.net). GoDoxy should issue the cert if autocert is already on for `kokomilk.net`.
+
+The container still listens on LAN port 8090. GoDoxy talks to container port **8080**, not 8090.
+
+If the page does not appear, in the GoDoxy web UI confirm a route named `mdce` exists and is healthy. The GoDoxy container must be able to see Docker on the **services** VM (same host, or a docker-socket provider pointed at that VM).
+
 If port 8090 is already taken, change the left number in `docker-compose.yml` (`"8090:8080"`) before deploying. The right number stays 8080.
 
 To pick up later edits, push to `main` and use **Pull and redeploy** on that stack. Turn on **GitOps updates** if you want Portainer to do that by itself.
