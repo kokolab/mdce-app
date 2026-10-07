@@ -179,17 +179,19 @@ function GridCanvas({
     };
     schedule();
     redrawRef.current = draw;
+    livePx.redraw = draw;
     scroller.addEventListener("scroll", schedule, { passive: true });
     window.addEventListener("resize", schedule);
     return () => {
       if (redrawRef.current === draw) redrawRef.current = null;
+      if (livePx.redraw === draw) livePx.redraw = null;
       if (frame) cancelAnimationFrame(frame);
       scroller.removeEventListener("scroll", schedule);
       window.removeEventListener("resize", schedule);
     };
   }, [scrollerRef, sigs, measureCount, px, divide, sub, height, redrawRef]);
 
-  return <canvas ref={canvasRef} className="pointer-events-none absolute right-0 left-0 z-[1]" style={{ top, height }} />;
+  return <canvas ref={canvasRef} data-roll-grid className="pointer-events-none absolute right-0 left-0 z-[1]" style={{ top, height }} />;
 }
 
 type DragOrigin = { id: string; tick: number; endTick?: number; music: boolean; boxW: number };
@@ -545,6 +547,7 @@ export function Roll({
       <div ref={scrollerRef} className="roll h-full overflow-x-auto overflow-y-hidden" onContextMenu={(event) => event.preventDefault()}>
         <div
           ref={sheetRef}
+          data-roll-sheet
           className="relative"
           style={{ width, ["--px" as string]: pxNow }}
         >

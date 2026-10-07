@@ -36,26 +36,40 @@ function StopIcon() {
   );
 }
 
-function panSheet(scroller: HTMLElement, sheet: HTMLElement | null, target: number, follow: boolean) {
-  if (!sheet || !follow) {
-    if (sheet) {
-      sheet.style.transform = "";
-      sheet.style.willChange = "";
-    }
-    return;
-  }
-  const whole = Math.floor(target);
-  const frac = target - whole;
-  if (scroller.scrollLeft !== whole) scroller.scrollLeft = whole;
-  sheet.style.willChange = "transform";
-  sheet.style.transform = `translate3d(${-frac}px,0,0)`;
+function followNodes(scroller: HTMLElement, playhead: HTMLElement | null) {
+  const host = scroller.parentElement;
+  return {
+    sheet: host?.querySelector<HTMLElement>("[data-roll-sheet]") ?? playhead?.parentElement ?? null,
+    grid: host?.querySelector<HTMLElement>("[data-roll-grid]") ?? null,
+  };
 }
 
-function clearPan(playhead: HTMLElement | null) {
-  const sheet = playhead?.parentElement;
-  if (!sheet) return;
-  sheet.style.transform = "";
-  sheet.style.willChange = "";
+function setPan(node: HTMLElement | null, value: string) {
+  if (!node) return;
+  if (value) node.style.willChange = "transform";
+  else node.style.willChange = "";
+  node.style.transform = value;
+}
+
+function panFollow(scroller: HTMLElement, playhead: HTMLElement | null, target: number) {
+  const { sheet, grid } = followNodes(scroller, playhead);
+  const view = scroller.clientWidth || 1;
+  const step = Math.max(256, Math.floor(view / 2));
+  const whole = Math.floor(target / step) * step;
+  const rest = target - whole;
+  const jumped = scroller.scrollLeft !== whole;
+  if (jumped) scroller.scrollLeft = whole;
+  const pan = `translate3d(${-rest}px,0,0)`;
+  setPan(sheet, pan);
+  setPan(grid, pan);
+  if (jumped) livePx.redraw?.();
+}
+
+function clearPan(scroller: HTMLElement | null, playhead: HTMLElement | null) {
+  const sheet = playhead?.parentElement ?? scroller?.querySelector<HTMLElement>("[data-roll-sheet]") ?? null;
+  const grid = scroller?.parentElement?.querySelector<HTMLElement>("[data-roll-grid]") ?? null;
+  setPan(sheet, "");
+  setPan(grid, "");
 }
 
 const toolButton = "flex h-8 shrink-0 items-center gap-1.5 rounded border px-2 text-sm text-dock-ink";
@@ -96,7 +110,7 @@ export function Transport({
       }
       if (!player.playing) {
         frame = 0;
-        clearPan(playheadRef.current);
+        clearPan(scrollerRef.current, playheadRef.current);
         return;
       }
       frame = requestAnimationFrame(loop);
@@ -117,16 +131,15 @@ export function Transport({
       const node = playheadRef.current;
       if (node) node.style.setProperty("--play", String(tick));
       const scroller = scrollerRef.current;
-      const sheet = node?.parentElement ?? null;
       if (scroller && state.followPlay) {
         const x = tickToX(tick, livePx.current);
         const view = scroller.clientWidth || 1;
         const amount = state.followAmount;
         const tight = state.followTight;
         const anchor = view * (tight ? 0.12 + (1 - amount) * 0.38 : 0.22 + (1 - amount) * 0.28);
-        panSheet(scroller, sheet, Math.max(0, x - anchor), true);
+        panFollow(scroller, node, Math.max(0, x - anchor));
       } else {
-        clearPan(node);
+        clearPan(scroller, node);
       }
       if (now - lastPaint > 180) {
         lastPaint = now;
@@ -185,7 +198,7 @@ export function Transport({
     setClock("0:00.0");
     setBar(0);
     playheadRef.current?.style.setProperty("--play", "0");
-    clearPan(playheadRef.current);
+    clearPan(scrollerRef.current, playheadRef.current);
   }
 
   const playStartRef = useRef(playStart);
