@@ -92,13 +92,11 @@ export function Transport({
       const scroller = scrollerRef.current;
       if (scroller && state.followPlay) {
         const x = tickToX(tick, livePx.current);
-        const view = scroller.clientWidth;
-        const tight = state.followTight;
+        const view = scroller.clientWidth || 1;
         const amount = state.followAmount;
-        const anchor = view * (tight ? 0.15 + (1 - amount) * 0.5 : 0.25);
-        if (tight || x > scroller.scrollLeft + view * 0.75 || x < scroller.scrollLeft + 16) {
-          scroller.scrollLeft = Math.max(0, x - anchor);
-        }
+        const tight = state.followTight;
+        const anchor = view * (tight ? 0.12 + (1 - amount) * 0.38 : 0.22 + (1 - amount) * 0.28);
+        scroller.scrollLeft = Math.max(0, x - anchor);
       }
       if (now - lastPaint > 180) {
         lastPaint = now;
