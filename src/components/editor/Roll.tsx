@@ -646,8 +646,8 @@ export function Roll({
           {geminiLinks(notes, laneHeightOf, noteSize, viewLeft, viewRight, pxNow)}
           <div
             ref={playheadRef}
-            className="pointer-events-none absolute top-0 bottom-0 left-0 z-30 w-0.5 bg-pink"
-            style={{ transform: "translateX(calc(var(--play, 0) * var(--px) / 192 * 1px))" }}
+            className="pointer-events-none absolute top-0 bottom-0 left-0 z-30 w-0.5 bg-pink [backface-visibility:hidden]"
+            style={{ transform: "translate3d(calc(var(--play, 0) * var(--px) / 192 * 1px),0,0)" }}
           />
         </div>
       </div>

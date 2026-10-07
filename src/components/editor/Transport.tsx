@@ -36,6 +36,28 @@ function StopIcon() {
   );
 }
 
+function panSheet(scroller: HTMLElement, sheet: HTMLElement | null, target: number, follow: boolean) {
+  if (!sheet || !follow) {
+    if (sheet) {
+      sheet.style.transform = "";
+      sheet.style.willChange = "";
+    }
+    return;
+  }
+  const whole = Math.floor(target);
+  const frac = target - whole;
+  if (scroller.scrollLeft !== whole) scroller.scrollLeft = whole;
+  sheet.style.willChange = "transform";
+  sheet.style.transform = `translate3d(${-frac}px,0,0)`;
+}
+
+function clearPan(playhead: HTMLElement | null) {
+  const sheet = playhead?.parentElement;
+  if (!sheet) return;
+  sheet.style.transform = "";
+  sheet.style.willChange = "";
+}
+
 const toolButton = "flex h-8 shrink-0 items-center gap-1.5 rounded border px-2 text-sm text-dock-ink";
 
 export function Transport({
@@ -68,8 +90,13 @@ export function Transport({
     let stopsExtras: unknown = null;
     let stopsSigs: unknown = null;
     const loop = (now: number) => {
-      if (!alive || !player.playing) {
+      if (!alive) {
         frame = 0;
+        return;
+      }
+      if (!player.playing) {
+        frame = 0;
+        clearPan(playheadRef.current);
         return;
       }
       frame = requestAnimationFrame(loop);
@@ -90,13 +117,16 @@ export function Transport({
       const node = playheadRef.current;
       if (node) node.style.setProperty("--play", String(tick));
       const scroller = scrollerRef.current;
+      const sheet = node?.parentElement ?? null;
       if (scroller && state.followPlay) {
         const x = tickToX(tick, livePx.current);
         const view = scroller.clientWidth || 1;
         const amount = state.followAmount;
         const tight = state.followTight;
         const anchor = view * (tight ? 0.12 + (1 - amount) * 0.38 : 0.22 + (1 - amount) * 0.28);
-        scroller.scrollLeft = Math.max(0, x - anchor);
+        panSheet(scroller, sheet, Math.max(0, x - anchor), true);
+      } else {
+        clearPan(node);
       }
       if (now - lastPaint > 180) {
         lastPaint = now;
@@ -155,6 +185,7 @@ export function Transport({
     setClock("0:00.0");
     setBar(0);
     playheadRef.current?.style.setProperty("--play", "0");
+    clearPan(playheadRef.current);
   }
 
   const playStartRef = useRef(playStart);
