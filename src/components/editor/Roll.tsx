@@ -136,9 +136,11 @@ function GridCanvas({
       }
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
+      const camera = livePx.follow ? livePx.camera : scroller.scrollLeft;
+      canvas.style.transform = `translate3d(${camera}px,0,0)`;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, width, cssHeight);
-      const viewLeft = scroller.scrollLeft;
+      const viewLeft = camera;
       const viewRight = viewLeft + width;
       const divN = Math.max(1, divide);
       const subN = Math.max(1, sub);
@@ -191,7 +193,7 @@ function GridCanvas({
     };
   }, [scrollerRef, sigs, measureCount, px, divide, sub, height, redrawRef]);
 
-  return <canvas ref={canvasRef} data-roll-grid className="pointer-events-none absolute right-0 left-0 z-[1]" style={{ top, height }} />;
+  return <canvas ref={canvasRef} className="pointer-events-none absolute left-0 z-[1]" style={{ top, height }} />;
 }
 
 type DragOrigin = { id: string; tick: number; endTick?: number; music: boolean; boxW: number };
@@ -551,7 +553,18 @@ export function Roll({
           className="relative"
           style={{ width, ["--px" as string]: pxNow }}
         >
-          <div className="flex h-8">
+          <GridCanvas
+            scrollerRef={scrollerRef}
+            sigs={sigs}
+            measureCount={measureCount}
+            px={px}
+            divide={divide}
+            sub={sub}
+            top={32}
+            height={stackHeight}
+            redrawRef={redrawRef}
+          />
+          <div className="relative z-20 flex h-8">
             {measureLabels.map(({ measure, tick: measureTick, len }) => {
               return (
                 <button
@@ -654,17 +667,6 @@ export function Roll({
           />
         </div>
       </div>
-      <GridCanvas
-        scrollerRef={scrollerRef}
-        sigs={sigs}
-        measureCount={measureCount}
-        px={px}
-        divide={divide}
-        sub={sub}
-        top={32}
-        height={stackHeight}
-        redrawRef={redrawRef}
-      />
       </div>
     </div>
   );

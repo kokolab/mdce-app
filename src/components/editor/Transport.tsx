@@ -36,40 +36,37 @@ function StopIcon() {
   );
 }
 
-function followNodes(scroller: HTMLElement, playhead: HTMLElement | null) {
-  const host = scroller.parentElement;
-  return {
-    sheet: host?.querySelector<HTMLElement>("[data-roll-sheet]") ?? playhead?.parentElement ?? null,
-    grid: host?.querySelector<HTMLElement>("[data-roll-grid]") ?? null,
-  };
+function sheetOf(scroller: HTMLElement | null, playhead: HTMLElement | null) {
+  return playhead?.parentElement ?? scroller?.querySelector<HTMLElement>("[data-roll-sheet]") ?? null;
 }
 
-function setPan(node: HTMLElement | null, value: string) {
-  if (!node) return;
-  if (value) node.style.willChange = "transform";
-  else node.style.willChange = "";
-  node.style.transform = value;
-}
-
-function panFollow(scroller: HTMLElement, playhead: HTMLElement | null, target: number) {
-  const { sheet, grid } = followNodes(scroller, playhead);
+function panFollow(scroller: HTMLElement, sheet: HTMLElement | null, target: number) {
+  livePx.follow = true;
+  livePx.camera = target;
   const view = scroller.clientWidth || 1;
-  const step = Math.max(256, Math.floor(view / 2));
+  const step = Math.max(256, view >> 1);
   const whole = Math.floor(target / step) * step;
-  const rest = target - whole;
-  const jumped = scroller.scrollLeft !== whole;
-  if (jumped) scroller.scrollLeft = whole;
-  const pan = `translate3d(${-rest}px,0,0)`;
-  setPan(sheet, pan);
-  setPan(grid, pan);
-  if (jumped) livePx.redraw?.();
+  if (scroller.scrollLeft !== whole) scroller.scrollLeft = whole;
+  if (sheet) {
+    sheet.style.willChange = "transform";
+    sheet.style.transform = `translate3d(${-(target - whole)}px,0,0)`;
+  }
+  livePx.redraw?.();
 }
 
 function clearPan(scroller: HTMLElement | null, playhead: HTMLElement | null) {
-  const sheet = playhead?.parentElement ?? scroller?.querySelector<HTMLElement>("[data-roll-sheet]") ?? null;
-  const grid = scroller?.parentElement?.querySelector<HTMLElement>("[data-roll-grid]") ?? null;
-  setPan(sheet, "");
-  setPan(grid, "");
+  const sheet = sheetOf(scroller, playhead);
+  const camera = livePx.camera;
+  livePx.follow = false;
+  if (sheet) {
+    sheet.style.transform = "";
+    sheet.style.willChange = "";
+  }
+  if (scroller) {
+    scroller.scrollLeft = camera;
+    livePx.camera = scroller.scrollLeft;
+  }
+  livePx.redraw?.();
 }
 
 const toolButton = "flex h-8 shrink-0 items-center gap-1.5 rounded border px-2 text-sm text-dock-ink";
@@ -137,7 +134,7 @@ export function Transport({
         const amount = state.followAmount;
         const tight = state.followTight;
         const anchor = view * (tight ? 0.12 + (1 - amount) * 0.38 : 0.22 + (1 - amount) * 0.28);
-        panFollow(scroller, node, Math.max(0, x - anchor));
+        panFollow(scroller, sheetOf(scroller, node), Math.max(0, x - anchor));
       } else {
         clearPan(scroller, node);
       }
