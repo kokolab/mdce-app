@@ -22,19 +22,18 @@ export function totalTicks(measureCount: number, sigs: Sig[]): number {
   return measureStart(measureCount, sigs);
 }
 
-export function locate(tick: number, sigs: Sig[], measureCount: number) {
+export function locate(tick: number, sigs: Sig[], _measureCount = 0) {
   let measure = 0;
   let start = 0;
-  const limit = Math.max(measureCount + 8, measure + 1);
-  while (measure < limit) {
+  const target = Math.max(0, tick);
+  while (measure < 20000) {
     const len = measureTicks(measure, sigs);
-    if (tick < start + len || measure === limit - 1) {
-      return { measure, local: Math.max(0, tick - start), start, len };
-    }
+    if (target < start + len) return { measure, local: target - start, start, len };
     start += len;
     measure += 1;
   }
-  return { measure, local: 0, start, len: measureTicks(measure, sigs) };
+  const len = measureTicks(measure, sigs);
+  return { measure, local: Math.max(0, target - start), start, len };
 }
 
 export function snapTick(tick: number, snap: number, sigs: Sig[], measureCount: number): number {

@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef } from "react";
 import { DISPLAY_LANES } from "@/lib/md/catalog";
 import { chartLabel, readAlbum } from "@/lib/md/album";
 import { currentChartName, setAlbumCharts, useAlbumCharts } from "@/lib/md/pack";
-import { musicFileName, type Meta } from "@/lib/md/bms";
+import { musicFileName, rememberInfo, type Meta } from "@/lib/md/bms";
 import { player } from "@/lib/md/player";
 import { persistChart, restoreChart, useChart } from "@/lib/md/store";
 import { Palette } from "./Palette";
@@ -226,7 +226,8 @@ export function Editor() {
     }
     if (lower.endsWith(".json")) {
       try {
-        const data = JSON.parse(await file.text()) as Partial<Record<keyof Meta | "name" | "author" | "scene" | "levelDesigner" | "searchTags" | "bpm", unknown>>;
+        const data = JSON.parse(await file.text()) as Record<string, unknown>;
+        rememberInfo(data);
         const tags = Array.isArray(data.searchTags) ? data.searchTags.map(String).join(", ") : undefined;
         state.patchMeta({
           title: typeof data.name === "string" ? data.name : undefined,

@@ -283,14 +283,16 @@ function pushHit(
 }
 
 export function serializeBms(
-  chart: Pick<BmsChart, "meta" | "notes" | "sigs" | "extras" | "wavExtra" | "headerExtras">,
+  chart: Pick<BmsChart, "meta" | "notes" | "sigs" | "extras" | "wavExtra" | "headerExtras"> &
+    Partial<Pick<BmsChart, "wavNames" | "measureCount">>,
 ): string {
   const { meta, notes, sigs, extras, wavExtra, headerExtras } = chart;
   const lastMeasure = Math.max(
     0,
-    ...notes.map((note) => locate(note.endTick ?? note.tick, sigs, 1).measure),
+    ...notes.map((note) => locate(note.endTick ?? note.tick, sigs, 0).measure),
     ...sigs.map((sig) => sig.measure),
     ...extras.map((extra) => extra.measure),
+    Math.max(0, (chart.measureCount ?? 1) - 1),
   );
   const lines: string[] = [
     "*---------------------- HEADER FIELD",
@@ -308,6 +310,9 @@ export function serializeBms(
 
   const wavs = new Map<string, string>();
   for (const item of WAV_HEADER) wavs.set(item.key, item.name);
+  for (const [key, name] of Object.entries(chart.wavNames ?? {})) {
+    if (key && name) wavs.set(key.toUpperCase(), name);
+  }
   for (const item of wavExtra) wavs.set(item.key.toUpperCase(), item.name);
   for (const [key, name] of wavs) lines.push(`#WAV${key} ${name}`);
 
@@ -361,7 +366,7 @@ export function serializeBms(
 
   for (const extra of extras) lines.push(`#${padMeasure(extra.measure)}${extra.channel}:${extra.data}`);
   lines.push("");
-  return lines.join("\n");
+  return lines.join("\r\n");
 }
 
 function trimNum(value: number): string {
@@ -414,32 +419,59 @@ function fileTail(name: string | undefined): string | null {
   return name.split(/[/\\]/).pop() ?? null;
 }
 
+let loadedInfo: Record<string, unknown> | null = null;
+
+/** Keep the info.json that was opened so saving does not drop fields the game reads. */
+export function rememberInfo(data: Record<string, unknown> | null) {
+  loadedInfo = data;
+}
+
 export function infoJson(meta: Meta): string {
   const tags = meta.tags
     .split(",")
     .map((tag) => tag.trim())
     .filter(Boolean);
-  return JSON.stringify(
-    {
-      name: meta.title,
-      author: meta.artist,
-      bpm: String(Math.round(meta.bpm)),
-      scene: meta.genre,
-      searchTags: tags.length ? tags : ["tag1"],
-      levelDesigner: meta.designer,
-      levelDesigner1: meta.designer,
-      levelDesigner2: meta.designer,
-      levelDesigner3: meta.designer,
-      levelDesigner4: meta.designer,
-      difficulty1: meta.difficulty1,
-      difficulty2: meta.difficulty2,
-      difficulty3: meta.difficulty3,
-      difficulty4: meta.difficulty4,
-      unlockLevel: meta.unlockLevel,
-    },
-    null,
-    2,
-  );
+  const file: Record<string, unknown> = {
+    name: "",
+    name_romanized: "",
+    author: "",
+    bpm: "0",
+    scene: "scene_01",
+    levelDesigner: "",
+    levelDesigner1: "",
+    levelDesigner2: "",
+    levelDesigner3: "",
+    levelDesigner4: "",
+    hideBmsMode: "CLICK",
+    hideBmsMessage: ["", "", ""],
+    hideBmsDifficulty: "?",
+    difficulty1: "0",
+    difficulty2: "0",
+    difficulty3: "0",
+    difficulty4: "0",
+    unlockLevel: "0",
+    searchTags: [] as string[],
+    ...(loadedInfo ?? {}),
+  };
+  file.name = meta.title;
+  file.author = meta.artist;
+  file.bpm = String(Math.round(meta.bpm));
+  file.scene = meta.genre || "scene_01";
+  file.levelDesigner = meta.designer;
+  file.difficulty1 = meta.difficulty1 || "0";
+  file.difficulty2 = meta.difficulty2 || "0";
+  file.difficulty3 = meta.difficulty3 || "0";
+  file.difficulty4 = meta.difficulty4 || "0";
+  file.unlockLevel = meta.unlockLevel || "0";
+  file.searchTags = tags;
+  if (!loadedInfo) {
+    const designer = (slot: string) => (slot && slot !== "0" ? meta.designer : "");
+    file.levelDesigner1 = designer(meta.difficulty1);
+    file.levelDesigner2 = designer(meta.difficulty2);
+    file.levelDesigner3 = designer(meta.difficulty3);
+    file.levelDesigner4 = designer(meta.difficulty4);
+  }
+  return JSON.stringify(file, null, 4);
 }
 
 export type ChartIssue = {

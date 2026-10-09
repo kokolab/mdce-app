@@ -6,6 +6,7 @@ import {
   infoJson,
   nextId,
   parseBms,
+  rememberInfo,
   serializeBms,
   type ChartNote,
   type Meta,
@@ -450,12 +451,15 @@ export const useChart = create<ChartState>((set, get) => ({
     }),
   reset: () =>
     set((state) => {
+      rememberInfo(null);
       const fresh = blank();
       return remember(state, { ...fresh, selectedId: null, selection: [], banner: "New chart.", confirmNew: false });
     }),
   exportBms: () => {
     const state = get();
-    return serializeBms(state);
+    const wavNames = { ...state.wavNames };
+    if (state.songName) wavNames["10"] = state.songName;
+    return serializeBms({ ...state, wavNames });
   },
   exportInfo: () => infoJson(get().meta),
 }));
@@ -478,6 +482,7 @@ export function persistChart() {
     sigs: state.sigs,
     extras: state.extras,
     wavExtra: state.wavExtra,
+    wavNames: state.wavNames,
     headerExtras: state.headerExtras,
     measureCount: state.measureCount,
     brush: state.brush,
@@ -518,6 +523,7 @@ export function restoreChart() {
       sigs: data.sigs ?? [],
       extras: data.extras ?? [],
       wavExtra: data.wavExtra ?? [],
+      wavNames: data.wavNames ?? {},
       headerExtras: data.headerExtras ?? [],
       measureCount: data.measureCount ?? 24,
       brush: data.brush ?? "04",
