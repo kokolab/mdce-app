@@ -53,7 +53,7 @@ export function MenuBar({
       <div className="relative" onPointerDown={(event) => event.stopPropagation()}>
         <button
           type="button"
-          className={"h-8 px-3 text-sm " + (open === id ? "bg-field text-dock-ink" : "text-dock-ink")}
+          className={"h-11 shrink-0 px-3 text-sm lg:h-8 " + (open === id ? "bg-field text-dock-ink" : "text-dock-ink")}
           onClick={() => setOpen(open === id ? null : id)}
         >
           {label}
@@ -66,7 +66,7 @@ export function MenuBar({
   const state = useChart.getState;
 
   return (
-    <div className="flex h-8 items-stretch border-b border-dock-line bg-menubar">
+    <div className="flex h-11 items-stretch overflow-x-auto border-b border-dock-line bg-menubar lg:h-8">
       {menu("file", "File", <>
         {item("New", () => state().reset())}
         {item("Open chart…", onOpen)}

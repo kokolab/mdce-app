@@ -73,6 +73,11 @@
 }
 
 .roll {
+  touch-action: pan-x pan-y;
+  -webkit-overflow-scrolling: touch;
+}
+
+.roll-draw {
   touch-action: none;
 }
 

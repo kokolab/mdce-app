@@ -336,7 +336,7 @@ const NoteChip = memo(function NoteChip({
         useChart.getState().remove(note.id);
       }}
       className={
-        "absolute z-10 font-mono text-xs font-medium " +
+        "absolute z-10 touch-none font-mono text-xs font-medium " +
         (held
           ? "overflow-visible "
           : "flex items-center overflow-hidden " +
@@ -378,9 +378,11 @@ const NoteChip = memo(function NoteChip({
 export function Roll({
   playheadRef,
   scrollerRef,
+  drawTouch,
 }: {
   playheadRef: RefObject<HTMLDivElement | null>;
   scrollerRef: RefObject<HTMLDivElement | null>;
+  drawTouch: boolean;
 }) {
   const notes = useChart((state) => state.notes);
   const sigs = useChart((state) => state.sigs);
@@ -401,13 +403,23 @@ export function Roll({
   const sheetRef = useRef<HTMLDivElement>(null);
   const redrawRef = useRef<(() => void) | null>(null);
   const zooming = useRef(false);
-  const laneHeightOf = (id: LaneId) => Math.max(22, Math.round(LANE_UNITS[id] * xHeight));
+  const hand = useRef(false);
+  const [coarse, setCoarse] = useState(false);
+  const laneHeightOf = (id: LaneId) => Math.max(coarse ? 44 : 22, Math.round(LANE_UNITS[id] * xHeight));
   const stackHeight = DISPLAY_LANES.reduce((sum, id) => sum + laneHeightOf(id), 0);
   const noteSize = Math.max(16, Math.round(30 * xHeight));
 
   useEffect(() => {
     const { xWidth, px: current } = useChart.getState();
     if (Math.abs(current - pxForWidth(xWidth)) > 1) useChart.getState().setXWidth(xWidth);
+  }, []);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(pointer: coarse)");
+    const apply = () => setCoarse(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
   }, []);
 
   useEffect(() => {
@@ -480,6 +492,69 @@ export function Roll({
   }, [scrollerRef]);
 
   useEffect(() => {
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+    const pts = new Map<number, { x: number; y: number }>();
+    let baseDist = 0;
+    let basePx = 0;
+    let lastMid = 0;
+    const zoomToward = (clientX: number, nextPx: number) => {
+      const before = livePx.current;
+      if (nextPx === before) return;
+      const rect = scroller.getBoundingClientRect();
+      const tick = xToTick(clientX - rect.left + scroller.scrollLeft, before);
+      zooming.current = true;
+      livePx.current = nextPx;
+      sheetRef.current?.style.setProperty("--px", String(nextPx));
+      redrawRef.current?.();
+      scroller.scrollLeft = tickToX(tick, nextPx) - (clientX - rect.left);
+    };
+    const down = (event: PointerEvent) => {
+      if (event.pointerType !== "touch") return;
+      pts.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (pts.size >= 2) {
+        const [a, b] = [...pts.values()];
+        baseDist = Math.hypot(a.x - b.x, a.y - b.y) || 1;
+        basePx = livePx.current;
+        lastMid = (a.x + b.x) / 2;
+        hand.current = true;
+      }
+    };
+    const move = (event: PointerEvent) => {
+      if (!pts.has(event.pointerId)) return;
+      pts.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (pts.size < 2) return;
+      event.preventDefault();
+      const [a, b] = [...pts.values()];
+      const dist = Math.hypot(a.x - b.x, a.y - b.y) || 1;
+      const mid = (a.x + b.x) / 2;
+      scroller.scrollLeft -= mid - lastMid;
+      lastMid = mid;
+      const next = Math.round(Math.min(16, Math.max(0.5, ((basePx / 192) * dist) / baseDist)) * 192);
+      if (Math.abs(next - livePx.current) >= 8) zoomToward(mid, next);
+    };
+    const up = (event: PointerEvent) => {
+      pts.delete(event.pointerId);
+      if (pts.size >= 2) return;
+      hand.current = false;
+      if (!zooming.current) return;
+      zooming.current = false;
+      useChart.getState().setXWidth(livePx.current / 32);
+      setViewport({ left: scroller.scrollLeft, width: scroller.clientWidth || 1 });
+    };
+    scroller.addEventListener("pointerdown", down);
+    scroller.addEventListener("pointermove", move);
+    scroller.addEventListener("pointerup", up);
+    scroller.addEventListener("pointercancel", up);
+    return () => {
+      scroller.removeEventListener("pointerdown", down);
+      scroller.removeEventListener("pointermove", move);
+      scroller.removeEventListener("pointerup", up);
+      scroller.removeEventListener("pointercancel", up);
+    };
+  }, [scrollerRef]);
+
+  useEffect(() => {
     if (focusTick == null) return;
     const id = useChart.getState().selectedId;
     const scroller = scrollerRef.current;
@@ -546,7 +621,7 @@ export function Roll({
         })}
       </div>
       <div className="relative min-h-0 min-w-0 flex-1">
-      <div ref={scrollerRef} className="roll h-full overflow-x-auto overflow-y-hidden" onContextMenu={(event) => event.preventDefault()}>
+      <div ref={scrollerRef} className={"roll h-full overflow-auto " + (drawTouch ? "roll-draw" : "")} onContextMenu={(event) => event.preventDefault()}>
         <div
           ref={sheetRef}
           data-roll-sheet
@@ -597,11 +672,32 @@ export function Roll({
                 onPointerDown={(event) => {
                   if (event.button !== 0) return;
                   if ((event.target as HTMLElement).closest("button")) return;
+                  const host = event.currentTarget;
+                  const coarse = window.matchMedia("(pointer: coarse)").matches;
+                  if (coarse && !drawTouch) {
+                    const originX = event.clientX;
+                    const originY = event.clientY;
+                    const pointer = event.pointerId;
+                    const start = tickAt(event.clientX, host);
+                    const up = (ev: PointerEvent) => {
+                      if (ev.pointerId !== pointer) return;
+                      host.removeEventListener("pointerup", up);
+                      host.removeEventListener("pointercancel", up);
+                      if (Math.hypot(ev.clientX - originX, ev.clientY - originY) > 12) return;
+                      if (useChart.getState().tool === "select") {
+                        useChart.getState().select(null);
+                        return;
+                      }
+                      place(lane.id, start);
+                    };
+                    host.addEventListener("pointerup", up);
+                    host.addEventListener("pointercancel", up);
+                    return;
+                  }
                   if (useChart.getState().tool === "select") {
                     useChart.getState().select(null);
                     return;
                   }
-                  const host = event.currentTarget;
                   const start = tickAt(event.clientX, host);
                   const brush = useChart.getState().brush;
                   const canHold = HOLD_KEYS.has(brush) && lane.id !== "bpm" && lane.id !== "bgm";

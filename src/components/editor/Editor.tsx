@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { DISPLAY_LANES } from "@/lib/md/catalog";
 import { chartLabel, readAlbum } from "@/lib/md/album";
 import { currentChartName, setAlbumCharts, useAlbumCharts } from "@/lib/md/pack";
@@ -72,6 +72,7 @@ export function Editor() {
   const songName = useChart((state) => state.songName);
   const selected = notes.find((note) => note.id === selectedId);
   const album = useAlbumCharts();
+  const [drawTouch, setDrawTouch] = useState(false);
 
   useLayoutEffect(() => {
     document.documentElement.classList.toggle("dark", localStorage.getItem("stagepen-dark") !== "0");
@@ -279,9 +280,28 @@ export function Editor() {
         <button type="button" className="h-8 rounded border border-dock-line bg-field px-2 text-sm" onClick={() => useChart.getState().redo()}>
           Redo
         </button>
-        <button type="button" className="h-8 rounded border border-dock-line bg-field px-2 text-sm lg:hidden" onClick={() => setSongOpen(!songOpen)}>
+        <button
+          type="button"
+          className={"h-11 shrink-0 rounded border px-3 text-sm lg:hidden " + (!drawTouch ? "border-pink bg-pink text-ink" : "border-dock-line bg-field")}
+          onClick={() => setDrawTouch(false)}
+        >
+          Scroll
+        </button>
+        <button
+          type="button"
+          className={"h-11 shrink-0 rounded border px-3 text-sm lg:hidden " + (drawTouch ? "border-pink bg-pink text-ink" : "border-dock-line bg-field")}
+          onClick={() => setDrawTouch(true)}
+        >
+          Draw
+        </button>
+        <button type="button" className="h-11 shrink-0 rounded border border-dock-line bg-field px-3 text-sm lg:hidden" onClick={() => setSongOpen(!songOpen)}>
           Panel
         </button>
+        {selectedId ? (
+          <button type="button" className="h-11 shrink-0 rounded border border-dock-line bg-field px-3 text-sm" onClick={() => useChart.getState().remove(selectedId)}>
+            Delete
+          </button>
+        ) : null}
         {album.charts.length > 1 ? (
           <label className="flex h-8 shrink-0 items-center gap-2 text-sm">
             Chart
@@ -330,7 +350,7 @@ export function Editor() {
           </div>
           {showStage ? <Stage /> : null}
           <div className="min-h-0 flex-1 overflow-y-auto">
-            <Roll playheadRef={playheadRef} scrollerRef={scrollerRef} />
+            <Roll playheadRef={playheadRef} scrollerRef={scrollerRef} drawTouch={drawTouch} />
           </div>
         </div>
         <aside className="dock hidden w-80 shrink-0 overflow-y-auto border-l border-dock-line p-3 lg:block">
