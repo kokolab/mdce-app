@@ -107,6 +107,12 @@ export function Editor() {
         state.redo();
         return;
       }
+      if ((event.ctrlKey || event.metaKey) && (event.key === "ArrowUp" || event.key === "ArrowDown")) {
+        event.preventDefault();
+        const step = event.shiftKey ? 5 : 1;
+        state.setPlayBpm(state.playBpm + (event.key === "ArrowUp" ? step : -step));
+        return;
+      }
       if (event.key === "Delete" || event.key === "Backspace") {
         if (state.selectedId) {
           event.preventDefault();

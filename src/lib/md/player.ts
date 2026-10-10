@@ -50,6 +50,16 @@ export class Player {
     await Promise.all(jobs);
   }
 
+  setRate(rate: number) {
+    const next = Math.min(4, Math.max(0.25, rate));
+    if (this.playing && this.ctx) {
+      this.originSong = this.songSeconds();
+      this.originCtx = this.ctx.currentTime;
+    }
+    this.rate = next;
+    for (const source of this.sources) source.playbackRate.value = next;
+  }
+
   setMix(bgm: number, sfx: number) {
     this.bgmVolume = bgm;
     this.sfxVolume = sfx;

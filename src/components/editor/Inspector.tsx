@@ -272,7 +272,7 @@ export function Inspector() {
       <Group title="#WAV">
         <label className="flex h-7 items-center gap-2 text-xs">
           <span className="w-[4.5rem] shrink-0 text-right">BGM Speed</span>
-          <input type="range" min={0.25} max={2} step={0.05} value={bgmSpeed} aria-label="BGM speed" onChange={(event) => useChart.getState().setBgmSpeed(Number(event.target.value))} className="min-w-0 flex-1" />
+          <input type="range" min={0.25} max={4} step={0.05} value={bgmSpeed} aria-label="BGM speed" onChange={(event) => useChart.getState().setBgmSpeed(Number(event.target.value))} className="min-w-0 flex-1" />
           <span className="w-8 font-mono">{bgmSpeed.toFixed(2)}</span>
         </label>
         <label className="flex h-7 items-center gap-2 text-xs">

@@ -87,6 +87,8 @@ export function Transport({
   const sigs = useChart((state) => state.sigs);
   const setSig = useChart((state) => state.setSig);
   const measureCount = useChart((state) => state.measureCount);
+  const playBpm = useChart((state) => state.playBpm);
+  const chartBpm = useChart((state) => state.meta.bpm);
   const tool = useChart((state) => state.tool);
 
   useEffect(() => {
@@ -261,6 +263,24 @@ export function Transport({
         Edit
       </button>
       <span className="min-w-16 font-mono text-sm text-dock-ink">{clock}</span>
+      <label className="flex h-8 items-center gap-1 rounded border border-dock-line bg-field px-1 text-sm text-dock-ink" title={`Chart is ${chartBpm} BPM. This changes playback speed, including the play line.`}>
+        BPM
+        <button type="button" className="h-6 w-6 rounded border border-dock-line" aria-label="Slower BPM" onClick={() => useChart.getState().setPlayBpm(playBpm - 1)}>
+          −
+        </button>
+        <input
+          type="number"
+          min={1}
+          max={999}
+          value={playBpm}
+          aria-label="Playback BPM"
+          onChange={(event) => useChart.getState().setPlayBpm(Number(event.target.value) || 1)}
+          className="h-6 w-14 bg-transparent text-center font-mono text-dock-ink"
+        />
+        <button type="button" className="h-6 w-6 rounded border border-dock-line" aria-label="Faster BPM" onClick={() => useChart.getState().setPlayBpm(playBpm + 1)}>
+          +
+        </button>
+      </label>
       <label className="flex h-8 items-center gap-2 rounded border border-dock-line bg-field px-2 text-sm text-dock-ink">
         Grid
         <select value={divide} onChange={(event) => setDivide(Number(event.target.value))} className="bg-transparent font-mono text-dock-ink">

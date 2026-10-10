@@ -46,6 +46,7 @@ type ChartState = {
   followTight: boolean;
   followAmount: number;
   bgmSpeed: number;
+  playBpm: number;
   musicOffset: number;
   bgmVolume: number;
   sfxVolume: number;
@@ -71,6 +72,7 @@ type ChartState = {
   setFollowTight: (on: boolean) => void;
   setFollowAmount: (amount: number) => void;
   setBgmSpeed: (speed: number) => void;
+  setPlayBpm: (bpm: number) => void;
   setMusicOffset: (ms: number) => void;
   setMix: (bgm: number, sfx: number) => void;
   gotoMeasure: (measure: number) => void;
@@ -154,6 +156,7 @@ export const useChart = create<ChartState>((set, get) => ({
   followTight: false,
   followAmount: 1,
   bgmSpeed: 1,
+  playBpm: 120,
   musicOffset: 0,
   bgmVolume: 0.25,
   sfxVolume: 0.25,
@@ -185,10 +188,16 @@ export const useChart = create<ChartState>((set, get) => ({
   setFollowTight: (followTight) => set({ followTight }),
   setFollowAmount: (followAmount) => set({ followAmount: Math.min(1, Math.max(0, followAmount)) }),
   setBgmSpeed: (speed) => {
-    const bgmSpeed = Math.min(2, Math.max(0.25, Math.round(speed * 100) / 100));
-    player.rate = bgmSpeed;
-    if (player.playing) player.rearm();
-    set({ bgmSpeed });
+    const chartBpm = Math.max(1, get().meta.bpm);
+    const bgmSpeed = Math.min(4, Math.max(0.25, Math.round(speed * 100) / 100));
+    player.setRate(bgmSpeed);
+    set({ bgmSpeed: player.rate, playBpm: Math.round(chartBpm * player.rate) });
+  },
+  setPlayBpm: (bpm) => {
+    const chartBpm = Math.max(1, get().meta.bpm);
+    const playBpm = Math.min(999, Math.max(1, Math.round(bpm)));
+    player.setRate(playBpm / chartBpm);
+    set({ playBpm: Math.round(chartBpm * player.rate), bgmSpeed: Math.round(player.rate * 100) / 100 });
   },
   setMusicOffset: (ms) => {
     const musicOffset = Math.min(5000, Math.max(-5000, Math.round(ms)));
@@ -354,7 +363,7 @@ export const useChart = create<ChartState>((set, get) => ({
       (Object.entries(patch) as [keyof Meta, Meta[keyof Meta]][]).forEach(([key, value]) => {
         if (value !== undefined) meta[key] = value as never;
       });
-      return { meta };
+      return { meta, playBpm: patch.bpm != null ? Math.max(1, Math.round(Number(patch.bpm) * state.bgmSpeed)) : state.playBpm };
     }),
   setSig: (measure, ratio) =>
     set((state) => {
@@ -442,8 +451,11 @@ export const useChart = create<ChartState>((set, get) => ({
   loadText: (text) =>
     set((state) => {
       const parsed = parseBms(text);
+      player.setRate(1);
       return remember(state, {
         ...parsed,
+        playBpm: Math.max(1, Math.round(parsed.meta.bpm || 120)),
+        bgmSpeed: 1,
         selectedId: null,
         selection: [],
         banner: `Opened ${parsed.meta.title || "chart"} · ${parsed.notes.length} notes`,
@@ -453,7 +465,8 @@ export const useChart = create<ChartState>((set, get) => ({
     set((state) => {
       rememberInfo(null);
       const fresh = blank();
-      return remember(state, { ...fresh, selectedId: null, selection: [], banner: "New chart.", confirmNew: false });
+      player.setRate(1);
+      return remember(state, { ...fresh, playBpm: 120, bgmSpeed: 1, selectedId: null, selection: [], banner: "New chart.", confirmNew: false });
     }),
   exportBms: () => {
     const state = get();
@@ -493,6 +506,7 @@ export function persistChart() {
     followTight: state.followTight,
     followAmount: state.followAmount,
     bgmSpeed: state.bgmSpeed,
+    playBpm: state.playBpm,
     musicOffset: state.musicOffset,
     bgmVolume: state.bgmVolume,
     sfxVolume: state.sfxVolume,
@@ -534,6 +548,7 @@ export function restoreChart() {
       followTight: data.followTight ?? false,
       followAmount: data.followAmount ?? 1,
       bgmSpeed: data.bgmSpeed ?? 1,
+      playBpm: data.playBpm ?? Math.round((data.meta.bpm || 120) * (data.bgmSpeed ?? 1)),
       musicOffset: data.musicOffset ?? 0,
       bgmVolume: data.bgmVolume == null || data.bgmVolume === 0.85 ? 0.25 : data.bgmVolume,
       sfxVolume: data.sfxVolume == null || data.sfxVolume === 0.8 ? 0.25 : data.sfxVolume,
@@ -549,7 +564,9 @@ export function restoreChart() {
     });
     livePx.current = pxForWidth(data.xWidth ?? 4.75);
     player.setMix(data.bgmVolume == null || data.bgmVolume === 0.85 ? 0.25 : data.bgmVolume, data.sfxVolume == null || data.sfxVolume === 0.8 ? 0.25 : data.sfxVolume);
-    player.rate = data.bgmSpeed ?? 1;
+    const chartBpm = Math.max(1, data.meta.bpm || 120);
+    const playBpm = data.playBpm ?? Math.round(chartBpm * (data.bgmSpeed ?? 1));
+    player.setRate(playBpm / chartBpm);
     player.musicOffset = (data.musicOffset ?? 0) / 1000;
   } catch {
     /* ignore broken saves */
