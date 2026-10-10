@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { chartIssues } from "@/lib/md/bms";
 import { useChart } from "@/lib/md/store";
 
@@ -16,6 +16,8 @@ export function MenuBar({
   onSaveInfo: () => void;
 }) {
   const [open, setOpen] = useState<MenuId | null>(null);
+  const [anchor, setAnchor] = useState({ top: 0, left: 0 });
+  const barRef = useRef<HTMLDivElement>(null);
   const tool = useChart((state) => state.tool);
   const showIcons = useChart((state) => state.showIcons);
   const showStage = useChart((state) => state.showStage);
@@ -26,16 +28,23 @@ export function MenuBar({
 
   useEffect(() => {
     if (!open) return;
-    const close = () => setOpen(null);
-    window.addEventListener("pointerdown", close);
-    return () => window.removeEventListener("pointerdown", close);
+    const close = (event: PointerEvent) => {
+      const node = event.target;
+      if (node instanceof Node && barRef.current?.contains(node)) return;
+      setOpen(null);
+    };
+    const timer = window.setTimeout(() => window.addEventListener("pointerdown", close), 250);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("pointerdown", close);
+    };
   }, [open]);
 
   function item(label: string, action: () => void, mark?: boolean) {
     return (
       <button
         type="button"
-        className="flex h-9 w-full items-center justify-between px-3 text-left text-sm text-dock-ink hover:bg-pink/30"
+        className="flex h-12 w-full touch-manipulation items-center justify-between px-3 text-left text-base text-dock-ink"
         onClick={(event) => {
           event.stopPropagation();
           setOpen(null);
@@ -50,15 +59,31 @@ export function MenuBar({
 
   function menu(id: MenuId, label: string, children: ReactNode) {
     return (
-      <div className="relative" onPointerDown={(event) => event.stopPropagation()}>
+      <div className="relative shrink-0" onPointerDown={(event) => event.stopPropagation()}>
         <button
           type="button"
-          className={"h-11 shrink-0 px-3 text-sm lg:h-8 " + (open === id ? "bg-field text-dock-ink" : "text-dock-ink")}
-          onClick={() => setOpen(open === id ? null : id)}
+          className={"h-11 shrink-0 touch-manipulation px-4 text-base " + (open === id ? "bg-field text-dock-ink" : "text-dock-ink")}
+          onPointerDown={(event) => {
+            event.currentTarget.dataset.x = String(event.clientX);
+            event.currentTarget.dataset.y = String(event.clientY);
+          }}
+          onPointerUp={(event) => {
+            if (event.pointerType === "mouse" && event.button !== 0) return;
+            const x = Number(event.currentTarget.dataset.x ?? event.clientX);
+            const y = Number(event.currentTarget.dataset.y ?? event.clientY);
+            if (Math.hypot(event.clientX - x, event.clientY - y) > 10) return;
+            const rect = event.currentTarget.getBoundingClientRect();
+            setAnchor({ top: rect.bottom, left: Math.max(8, Math.min(rect.left, window.innerWidth - 220)) });
+            setOpen(open === id ? null : id);
+          }}
         >
           {label}
         </button>
-        {open === id ? <div className="absolute left-0 z-40 min-w-52 border border-dock-line bg-field py-1 shadow-sm">{children}</div> : null}
+        {open === id ? (
+          <div className="fixed z-[80] max-h-[70dvh] min-w-56 overflow-y-auto border border-dock-line bg-field py-1 shadow-lg" style={{ top: anchor.top, left: anchor.left }}>
+            {children}
+          </div>
+        ) : null}
       </div>
     );
   }
@@ -66,7 +91,7 @@ export function MenuBar({
   const state = useChart.getState;
 
   return (
-    <div className="flex h-11 items-stretch overflow-x-auto border-b border-dock-line bg-menubar lg:h-8">
+    <div ref={barRef} className="relative z-50 flex h-11 touch-manipulation items-stretch overflow-x-auto border-b border-dock-line bg-menubar lg:h-8">
       {menu("file", "File", <>
         {item("New", () => state().reset())}
         {item("Open chart…", onOpen)}
@@ -92,7 +117,6 @@ export function MenuBar({
           localStorage.setItem("stagepen-dark", next ? "1" : "0");
           setDark(next);
         }, dark)}
-        {item("Stage preview", () => state().setShowStage(!showStage), showStage)}
         {item("Stage preview", () => state().setShowStage(!showStage), showStage)}
         {item("Follow play line", () => state().setFollowPlay(!followPlay), followPlay)}
         {item("Horizontal view", () => undefined, true)}
