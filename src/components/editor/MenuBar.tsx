@@ -18,6 +18,7 @@ export function MenuBar({
   const [open, setOpen] = useState<MenuId | null>(null);
   const [anchor, setAnchor] = useState({ top: 0, left: 0 });
   const barRef = useRef<HTMLDivElement>(null);
+  const drag = useRef({ x: 0, left: 0, moved: false, id: "" });
   const tool = useChart((state) => state.tool);
   const showIcons = useChart((state) => state.showIcons);
   const showStage = useChart((state) => state.showStage);
@@ -59,28 +60,21 @@ export function MenuBar({
 
   function menu(id: MenuId, label: string, children: ReactNode) {
     return (
-      <div className="relative shrink-0" onPointerDown={(event) => event.stopPropagation()}>
+      <div className="relative shrink-0">
         <button
           type="button"
-          className={"h-11 shrink-0 touch-manipulation px-4 text-base " + (open === id ? "bg-field text-dock-ink" : "text-dock-ink")}
-          onPointerDown={(event) => {
-            event.currentTarget.dataset.x = String(event.clientX);
-            event.currentTarget.dataset.y = String(event.clientY);
-          }}
-          onPointerUp={(event) => {
-            if (event.pointerType === "mouse" && event.button !== 0) return;
-            const x = Number(event.currentTarget.dataset.x ?? event.clientX);
-            const y = Number(event.currentTarget.dataset.y ?? event.clientY);
-            if (Math.hypot(event.clientX - x, event.clientY - y) > 10) return;
-            const rect = event.currentTarget.getBoundingClientRect();
-            setAnchor({ top: rect.bottom, left: Math.max(8, Math.min(rect.left, window.innerWidth - 220)) });
-            setOpen(open === id ? null : id);
-          }}
+          data-menu={id}
+          className={"h-11 shrink-0 px-4 text-base " + (open === id ? "bg-field text-dock-ink" : "text-dock-ink")}
+          style={{ touchAction: "none" }}
         >
           {label}
         </button>
         {open === id ? (
-          <div className="fixed z-[80] max-h-[70dvh] min-w-56 overflow-y-auto border border-dock-line bg-field py-1 shadow-lg" style={{ top: anchor.top, left: anchor.left }}>
+          <div
+            data-menu-panel
+            className="fixed z-[80] max-h-[70dvh] min-w-56 overflow-y-auto border border-dock-line bg-field py-1 shadow-lg"
+            style={{ top: anchor.top, left: anchor.left, touchAction: "pan-y" }}
+          >
             {children}
           </div>
         ) : null}
@@ -91,7 +85,36 @@ export function MenuBar({
   const state = useChart.getState;
 
   return (
-    <div ref={barRef} className="relative z-50 flex h-11 touch-manipulation items-stretch overflow-x-auto border-b border-dock-line bg-menubar lg:h-8">
+    <div
+      ref={barRef}
+      className="relative z-50 flex h-11 items-stretch overflow-x-auto border-b border-dock-line bg-menubar lg:h-8"
+      style={{ touchAction: "none" }}
+      onPointerDown={(event) => {
+        if ((event.target as HTMLElement).closest("[data-menu-panel]")) return;
+        if (event.pointerType === "touch") event.preventDefault();
+        drag.current = { x: event.clientX, left: event.currentTarget.scrollLeft, moved: false, id: "" };
+        const button = (event.target as HTMLElement).closest<HTMLElement>("[data-menu]");
+        if (button) drag.current.id = button.dataset.menu ?? "";
+      }}
+      onPointerMove={(event) => {
+        if ((event.target as HTMLElement).closest("[data-menu-panel]")) return;
+        const dx = event.clientX - drag.current.x;
+        if (Math.abs(dx) > 12) drag.current.moved = true;
+        if (drag.current.moved) event.currentTarget.scrollLeft = drag.current.left - dx;
+      }}
+      onPointerUp={(event) => {
+        if ((event.target as HTMLElement).closest("[data-menu-panel]")) return;
+        const id = drag.current.id as MenuId;
+        const moved = drag.current.moved;
+        drag.current = { x: 0, left: 0, moved: false, id: "" };
+        if (moved || !id) return;
+        const button = barRef.current?.querySelector<HTMLElement>(`[data-menu="${id}"]`);
+        const rect = button?.getBoundingClientRect();
+        if (!rect) return;
+        setAnchor({ top: rect.bottom, left: Math.max(8, Math.min(rect.left, window.innerWidth - 220)) });
+        setOpen(open === id ? null : id);
+      }}
+    >
       {menu("file", "File", <>
         {item("New", () => state().reset())}
         {item("Open chart…", onOpen)}
