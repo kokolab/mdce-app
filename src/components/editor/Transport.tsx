@@ -52,6 +52,7 @@ function panFollow(scroller: HTMLElement, sheet: HTMLElement | null, target: num
     sheet.style.transform = `translate3d(${-(target - whole)}px,0,0)`;
   }
   livePx.redraw?.();
+  livePx.wave?.();
 }
 
 function clearPan(scroller: HTMLElement | null, playhead: HTMLElement | null) {
@@ -67,16 +68,45 @@ function clearPan(scroller: HTMLElement | null, playhead: HTMLElement | null) {
     livePx.camera = scroller.scrollLeft;
   }
   livePx.redraw?.();
+  livePx.wave?.();
 }
 
 const toolButton = "flex h-8 shrink-0 items-center gap-1.5 rounded border px-2 text-sm text-dock-ink";
 
+function MeasureJump() {
+  const [value, setValue] = useState("");
+  return (
+    <form
+      className="flex h-8 items-center gap-1 rounded border border-dock-line bg-field px-2 text-sm text-dock-ink"
+      onSubmit={(event) => {
+        event.preventDefault();
+        useChart.getState().gotoMeasure(Number(value) || 0);
+      }}
+    >
+      <label htmlFor="measure-jump">Go</label>
+      <input
+        id="measure-jump"
+        inputMode="numeric"
+        placeholder="000"
+        value={value}
+        onChange={(event) => setValue(event.target.value)}
+        className="w-12 bg-transparent text-center font-mono text-dock-ink"
+        aria-label="Go to measure"
+      />
+    </form>
+  );
+}
+
 export function Transport({
   playheadRef,
   scrollerRef,
+  compact = false,
+  live = true,
 }: {
   playheadRef: RefObject<HTMLDivElement | null>;
   scrollerRef: RefObject<HTMLDivElement | null>;
+  compact?: boolean;
+  live?: boolean;
 }) {
   const [clock, setClock] = useState("0:00.0");
   const [bar, setBar] = useState(0);
@@ -92,6 +122,7 @@ export function Transport({
   const tool = useChart((state) => state.tool);
 
   useEffect(() => {
+    if (!live) return;
     let frame = 0;
     let lastPaint = 0;
     let alive = true;
@@ -155,7 +186,7 @@ export function Transport({
       if (frame) cancelAnimationFrame(frame);
       document.removeEventListener("stagepen-playback", start);
     };
-  }, [playheadRef, scrollerRef]);
+  }, [playheadRef, scrollerRef, live]);
 
   async function playFrom(seconds: number) {
     const state = useChart.getState();
@@ -204,6 +235,7 @@ export function Transport({
   playStartRef.current = playStart;
 
   useEffect(() => {
+    if (!live) return;
     const onKey = (event: KeyboardEvent) => {
       if (event.code !== "Space" || typingTarget(event.target)) return;
       event.preventDefault();
@@ -228,43 +260,49 @@ export function Transport({
   const ratio = sigs.reduce((current, sig) => (sig.measure <= bar ? sig.ratio : current), 1);
 
   return (
-    <div className="flex shrink-0 items-center gap-2">
+    <div className={"flex shrink-0 items-center " + (compact ? "gap-1" : "gap-2")}>
       <button type="button" onClick={() => void playStart()} className={toolButton + " border-dock-line bg-field"} aria-label="Play from the beginning">
         <PlayStartIcon />
-        Play
+        {compact ? null : "Play"}
       </button>
-      <button type="button" onClick={() => void playMeasure()} className={toolButton + " border-dock-line bg-field"} aria-label="Play from the measure on screen">
-        <PlayMeasureIcon />
-        Measure
-      </button>
+      {compact ? null : (
+        <button type="button" onClick={() => void playMeasure()} className={toolButton + " border-dock-line bg-field"} aria-label="Play from the measure on screen">
+          <PlayMeasureIcon />
+          Measure
+        </button>
+      )}
       <button type="button" onClick={stop} className={toolButton + " border-dock-line bg-field"} aria-label="Stop">
         <StopIcon />
-        Stop
+        {compact ? null : "Stop"}
       </button>
-      <span className="px-0.5 text-dock-line" aria-hidden>
-        |
-      </span>
-      <button
-        type="button"
-        onClick={() => useChart.getState().setTool("select")}
-        className={toolButton + (tool === "select" ? " border-pink bg-pink/20" : " border-dock-line bg-field")}
-        aria-label="Select"
-      >
-        <MousePointer2 className="size-4 shrink-0" />
-        Select
-      </button>
-      <button
-        type="button"
-        onClick={() => useChart.getState().setTool("write")}
-        className={toolButton + (tool === "write" ? " border-pink bg-pink/20" : " border-dock-line bg-field")}
-        aria-label="Edit"
-      >
-        <Pencil className="size-4 shrink-0 text-amber-400" />
-        Edit
-      </button>
-      <span className="min-w-16 font-mono text-sm text-dock-ink">{clock}</span>
+      {compact ? null : (
+        <>
+          <span className="px-0.5 text-dock-line" aria-hidden>
+            |
+          </span>
+          <button
+            type="button"
+            onClick={() => useChart.getState().setTool("select")}
+            className={toolButton + (tool === "select" ? " border-pink bg-pink/20" : " border-dock-line bg-field")}
+            aria-label="Select"
+          >
+            <MousePointer2 className="size-4 shrink-0" />
+            Select
+          </button>
+          <button
+            type="button"
+            onClick={() => useChart.getState().setTool("write")}
+            className={toolButton + (tool === "write" ? " border-pink bg-pink/20" : " border-dock-line bg-field")}
+            aria-label="Edit"
+          >
+            <Pencil className="size-4 shrink-0 text-amber-400" />
+            Edit
+          </button>
+          <span className="min-w-16 font-mono text-sm text-dock-ink">{clock}</span>
+        </>
+      )}
       <label className="flex h-8 items-center gap-1 rounded border border-dock-line bg-field px-1 text-sm text-dock-ink" title={`Chart is ${chartBpm} BPM. This changes playback speed, including the play line.`}>
-        BPM
+        {compact ? null : "BPM"}
         <button type="button" className="h-6 w-6 rounded border border-dock-line" aria-label="Slower BPM" onClick={() => useChart.getState().setPlayBpm(playBpm - 1)}>
           −
         </button>
@@ -275,12 +313,14 @@ export function Transport({
           value={playBpm}
           aria-label="Playback BPM"
           onChange={(event) => useChart.getState().setPlayBpm(Number(event.target.value) || 1)}
-          className="h-6 w-14 bg-transparent text-center font-mono text-dock-ink"
+          className="h-6 w-12 bg-transparent text-center font-mono text-dock-ink"
         />
         <button type="button" className="h-6 w-6 rounded border border-dock-line" aria-label="Faster BPM" onClick={() => useChart.getState().setPlayBpm(playBpm + 1)}>
           +
         </button>
       </label>
+      {compact ? null : (
+        <>
       <label className="flex h-8 items-center gap-2 rounded border border-dock-line bg-field px-2 text-sm text-dock-ink">
         Grid
         <select value={divide} onChange={(event) => setDivide(Number(event.target.value))} className="bg-transparent font-mono text-dock-ink">
@@ -315,6 +355,9 @@ export function Transport({
           +
         </button>
       </div>
+      <MeasureJump />
+        </>
+      )}
     </div>
   );
 }

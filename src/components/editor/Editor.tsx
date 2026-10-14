@@ -8,7 +8,7 @@ import { persistChart, restoreChart, useChart } from "@/lib/md/store";
 import { Palette } from "./Palette";
 import { Roll } from "./Roll";
 import { Inspector } from "./Inspector";
-import { MenuBar } from "./MenuBar";
+import { MenuBar, MobileMenu } from "./MenuBar";
 import { Stage } from "./Stage";
 import { Transport } from "./Transport";
 
@@ -72,7 +72,8 @@ export function Editor() {
   const songName = useChart((state) => state.songName);
   const selected = notes.find((note) => note.id === selectedId);
   const album = useAlbumCharts();
-  const [drawTouch, setDrawTouch] = useState(false);
+  const [notesOpen, setNotesOpen] = useState(false);
+  const [saved, setSaved] = useState("Saved");
 
   useLayoutEffect(() => {
     document.documentElement.classList.toggle("dark", localStorage.getItem("stagepen-dark") !== "0");
@@ -83,7 +84,11 @@ export function Editor() {
     let timer = 0;
     const unsub = useChart.subscribe(() => {
       window.clearTimeout(timer);
-      timer = window.setTimeout(() => persistChart(), 500);
+      setSaved("Saving");
+      timer = window.setTimeout(() => {
+        persistChart();
+        setSaved("Saved");
+      }, 500);
     });
     return () => {
       unsub();
@@ -183,7 +188,7 @@ export function Editor() {
           state.setBanner("That file is not a chart pack. Use a .mdm (or .md zip) with the chart and music inside.");
           continue;
         }
-        state.loadText(pack.bmsText);
+        state.loadText(pack.bmsText, pack.bmsName);
         setAlbumCharts(pack.charts, pack.bmsName);
         loadedChart = true;
         if (pack.infoText) await takeFile(new File([pack.infoText], "info.json", { type: "application/json" }));
@@ -191,7 +196,7 @@ export function Editor() {
         continue;
       }
       if (lower.endsWith(".bms") || lower.endsWith(".bme") || lower.endsWith(".bml")) {
-        state.loadText(await file.text());
+        state.loadText(await file.text(), file.name);
         setAlbumCharts([], "");
         loadedChart = true;
         continue;
@@ -228,7 +233,7 @@ export function Editor() {
     const state = useChart.getState();
     const lower = file.name.toLowerCase();
     if (lower.endsWith(".bms") || lower.endsWith(".bme") || lower.endsWith(".bml")) {
-      state.loadText(await file.text());
+      state.loadText(await file.text(), file.name);
       return;
     }
     if (lower.endsWith(".json")) {
@@ -266,7 +271,7 @@ export function Editor() {
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-chart text-paper">
-      <div className="flex h-8 items-center bg-ink px-3 text-xs text-mute">
+      <div className="hidden h-8 items-center bg-ink px-3 text-xs text-mute lg:flex">
         <span className="truncate">
           {(title || "untitled") + ".bms"}
           {songName ? ` — ${songName}` : ""} — Muse Dash Chart Editor
@@ -278,7 +283,23 @@ export function Editor() {
         onSaveBms={() => download(currentChartName(), useChart.getState().exportBms(), "text/plain")}
         onSaveInfo={() => download("info.json", useChart.getState().exportInfo(), "application/json")}
       />
-      <div className="flex h-11 items-center gap-2 overflow-x-auto border-b border-dock-line bg-menubar px-2 text-dock-ink">
+      <div className="flex h-12 items-center gap-1.5 border-b border-dock-line bg-menubar px-2 text-dock-ink lg:hidden">
+        <MobileMenu
+          onOpen={() => bmsInput.current?.click()}
+          onSong={() => audioInput.current?.click()}
+          onSaveBms={() => download(currentChartName(), useChart.getState().exportBms(), "text/plain")}
+          onSaveInfo={() => download("info.json", useChart.getState().exportInfo(), "application/json")}
+        />
+        <Transport compact live={false} playheadRef={playheadRef} scrollerRef={scrollerRef} />
+        <button type="button" className="h-10 shrink-0 rounded border border-dock-line bg-field px-3 text-sm" onClick={() => setNotesOpen(true)}>
+          Notes
+        </button>
+        <button type="button" className="h-10 shrink-0 rounded border border-dock-line bg-field px-3 text-sm" onClick={() => setSongOpen(!songOpen)}>
+          Panel
+        </button>
+        <span className="ml-auto shrink-0 text-[11px] text-mute">{saved}</span>
+      </div>
+      <div className="hidden h-11 items-center gap-2 overflow-x-auto border-b border-dock-line bg-menubar px-2 text-dock-ink lg:flex">
         <Transport playheadRef={playheadRef} scrollerRef={scrollerRef} />
         <button type="button" className="h-8 rounded border border-dock-line bg-field px-2 text-sm" onClick={() => useChart.getState().undo()}>
           Undo
@@ -286,28 +307,6 @@ export function Editor() {
         <button type="button" className="h-8 rounded border border-dock-line bg-field px-2 text-sm" onClick={() => useChart.getState().redo()}>
           Redo
         </button>
-        <button
-          type="button"
-          className={"h-11 shrink-0 rounded border px-3 text-sm lg:hidden " + (!drawTouch ? "border-pink bg-pink text-ink" : "border-dock-line bg-field")}
-          onClick={() => setDrawTouch(false)}
-        >
-          Scroll
-        </button>
-        <button
-          type="button"
-          className={"h-11 shrink-0 rounded border px-3 text-sm lg:hidden " + (drawTouch ? "border-pink bg-pink text-ink" : "border-dock-line bg-field")}
-          onClick={() => setDrawTouch(true)}
-        >
-          Draw
-        </button>
-        <button type="button" className="h-11 shrink-0 rounded border border-dock-line bg-field px-3 text-sm lg:hidden" onClick={() => setSongOpen(!songOpen)}>
-          Panel
-        </button>
-        {selectedId ? (
-          <button type="button" className="h-11 shrink-0 rounded border border-dock-line bg-field px-3 text-sm" onClick={() => useChart.getState().remove(selectedId)}>
-            Delete
-          </button>
-        ) : null}
         {album.charts.length > 1 ? (
           <label className="flex h-8 shrink-0 items-center gap-2 text-sm">
             Chart
@@ -317,7 +316,7 @@ export function Editor() {
               onChange={(event) => {
                 const next = album.charts.find((chart) => chart.name === event.target.value);
                 if (!next) return;
-                useChart.getState().loadText(next.text);
+                useChart.getState().loadText(next.text, next.name);
                 setAlbumCharts(album.charts, next.name);
                 useChart.getState().setBanner(`Editing ${chartLabel(next.name)}. The song stays loaded.`);
               }}
@@ -351,24 +350,32 @@ export function Editor() {
       ) : null}
       <div className="flex min-h-0 flex-1">
         <div className="chart-bg flex min-h-0 min-w-0 flex-1 flex-col">
-          <div className="lg:hidden">
-            <Palette />
-          </div>
           {showStage ? <Stage /> : null}
-          <div className="min-h-0 flex-1 overflow-y-auto">
-            <Roll playheadRef={playheadRef} scrollerRef={scrollerRef} drawTouch={drawTouch} />
+          <div className="min-h-0 flex-1 overflow-hidden">
+            <Roll playheadRef={playheadRef} scrollerRef={scrollerRef} />
           </div>
         </div>
         <aside className="dock hidden w-80 shrink-0 overflow-y-auto border-l border-dock-line p-3 lg:block">
           <Inspector />
         </aside>
       </div>
-      <footer className="flex h-7 items-center gap-4 overflow-x-auto border-t border-dock-line bg-menubar px-3 font-mono text-xs text-dock-ink">
+      <footer className="hidden h-7 items-center gap-4 overflow-x-auto border-t border-dock-line bg-menubar px-3 font-mono text-xs text-dock-ink lg:flex">
         <span>Notes {notes.length}</span>
         <span>Brush {brush}</span>
         <span>{tool === "write" ? "Write" : "Select"}</span>
         <span>{showIcons ? "Icons" : "Labels"}</span>
+        <span className="ml-auto">{saved}</span>
       </footer>
+      {notesOpen ? (
+        <div className="fixed inset-0 z-40 flex items-end bg-ink/80 lg:hidden" onClick={() => setNotesOpen(false)}>
+          <div className="max-h-[70dvh] w-full overflow-y-auto rounded-t-lg border border-dock-line bg-panel p-2" onClick={(event) => event.stopPropagation()}>
+            <Palette />
+            <button type="button" className="mt-2 h-11 w-full rounded bg-paper text-sm font-semibold text-ink" onClick={() => setNotesOpen(false)}>
+              Done
+            </button>
+          </div>
+        </div>
+      ) : null}
       {songOpen ? (
         <div className="fixed inset-0 z-40 flex items-end bg-ink/80 lg:hidden" onClick={() => setSongOpen(false)}>
           <div className="dock max-h-[80dvh] w-full overflow-y-auto rounded-t-lg border border-dock-line p-4" onClick={(event) => event.stopPropagation()}>

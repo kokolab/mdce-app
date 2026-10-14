@@ -73,6 +73,10 @@ export class Player {
     this.musicName = file.name;
   }
 
+  duration() {
+    return this.music?.duration ?? 0;
+  }
+
   peaks(buckets = 240): number[] {
     if (!this.music) return [];
     const data = this.music.getChannelData(0);

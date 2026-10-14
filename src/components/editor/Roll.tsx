@@ -196,6 +196,78 @@ function GridCanvas({
   return <canvas ref={canvasRef} className="pointer-events-none absolute left-0 z-[1]" style={{ top, height }} />;
 }
 
+const WAVE_H = 28;
+
+function Waveform({ scrollerRef, songName, top }: { scrollerRef: RefObject<HTMLDivElement | null>; songName: string; top: number }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const notes = useChart((state) => state.notes);
+  const bpm = useChart((state) => state.meta.bpm);
+  const sigs = useChart((state) => state.sigs);
+  const extras = useChart((state) => state.extras);
+  const headerExtras = useChart((state) => state.headerExtras);
+  const peaksRef = useRef<number[]>([]);
+
+  useEffect(() => {
+    peaksRef.current = songName ? player.peaks(640) : [];
+  }, [songName]);
+
+  useEffect(() => {
+    const scroller = scrollerRef.current;
+    const canvas = canvasRef.current;
+    if (!scroller || !canvas || !songName) return;
+    let frame = 0;
+    const draw = () => {
+      frame = 0;
+      const peaks = peaksRef.current;
+      const duration = player.duration();
+      const dpr = window.devicePixelRatio || 1;
+      const width = Math.max(1, scroller.clientWidth);
+      const nextW = Math.max(1, Math.floor(width * dpr));
+      const nextH = Math.max(1, Math.floor(WAVE_H * dpr));
+      if (canvas.width !== nextW || canvas.height !== nextH) {
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${WAVE_H}px`;
+        canvas.width = nextW;
+        canvas.height = nextH;
+      }
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      const camera = livePx.follow ? livePx.camera : scroller.scrollLeft;
+      canvas.style.transform = `translate3d(${camera}px,0,0)`;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, width, WAVE_H);
+      if (!peaks.length || duration <= 0) return;
+      const state = useChart.getState();
+      const points = tempoPoints(state.notes, state.meta.bpm);
+      const stops = stopPoints(state.headerExtras ?? [], state.extras ?? [], state.sigs);
+      ctx.fillStyle = "rgba(255,255,255,0.4)";
+      for (let x = 0; x < width; x += 2) {
+        const tick = xToTick(camera + x, livePx.current);
+        const sec = Math.max(0, secondsAt(tick, points, stops));
+        const index = Math.min(peaks.length - 1, Math.floor((sec / duration) * peaks.length));
+        const h = Math.max(1, (peaks[index] ?? 0) * (WAVE_H - 2));
+        ctx.fillRect(x, (WAVE_H - h) / 2, 2, h);
+      }
+    };
+    const schedule = () => {
+      if (!frame) frame = requestAnimationFrame(draw);
+    };
+    schedule();
+    livePx.wave = draw;
+    scroller.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule);
+    return () => {
+      if (livePx.wave === draw) livePx.wave = null;
+      if (frame) cancelAnimationFrame(frame);
+      scroller.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+    };
+  }, [scrollerRef, songName, notes, bpm, sigs, extras, headerExtras]);
+
+  if (!songName) return null;
+  return <canvas ref={canvasRef} className="pointer-events-none absolute left-0 z-[1]" style={{ top, height: WAVE_H }} />;
+}
+
 type DragOrigin = { id: string; tick: number; endTick?: number; music: boolean; boxW: number };
 type DragState = {
   id: string;
@@ -290,6 +362,10 @@ const NoteChip = memo(function NoteChip({
         event.currentTarget.setPointerCapture(event.pointerId);
       }}
       onPointerMove={(event) => {
+        if ((event.currentTarget.closest(".roll") as HTMLElement | null)?.dataset.pan === "1") {
+          drag.current = null;
+          return;
+        }
         const active = drag.current;
         if (!active || active.id !== note.id) return;
         const state = useChart.getState();
@@ -316,6 +392,7 @@ const NoteChip = memo(function NoteChip({
         const active = drag.current;
         if (!active || active.id !== note.id) return;
         drag.current = null;
+        if ((event.currentTarget.closest(".roll") as HTMLElement | null)?.dataset.pan === "1") return;
         const delta = xToTick(event.clientX - active.x, livePx.current);
         const moved = Math.abs(event.clientX - active.x) >= 4;
         if (!moved) {
@@ -371,6 +448,21 @@ const NoteChip = memo(function NoteChip({
       {icons && note.blood ? <span className="absolute top-1 right-1 size-1.5 rounded-full bg-ink" /> : null}
       {travel ? <ApproachArrow dir={travel} lane={note.lane} /> : null}
       {badge ? <BossBadge text={badge} /> : null}
+      {selected ? (
+        <span
+          role="button"
+          aria-label="Delete note"
+          className="absolute -top-1.5 -right-1.5 z-30 flex size-5 items-center justify-center rounded-full bg-ink text-xs leading-none text-paper"
+          onPointerDown={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            drag.current = null;
+            useChart.getState().remove(note.id);
+          }}
+        >
+          ×
+        </span>
+      ) : null}
     </button>
   );
 });
@@ -378,11 +470,9 @@ const NoteChip = memo(function NoteChip({
 export function Roll({
   playheadRef,
   scrollerRef,
-  drawTouch,
 }: {
   playheadRef: RefObject<HTMLDivElement | null>;
   scrollerRef: RefObject<HTMLDivElement | null>;
-  drawTouch: boolean;
 }) {
   const notes = useChart((state) => state.notes);
   const sigs = useChart((state) => state.sigs);
@@ -396,6 +486,7 @@ export function Roll({
   const selection = useChart((state) => state.selection);
   const showIcons = useChart((state) => state.showIcons);
   const focusTick = useChart((state) => state.focusTick);
+  const songName = useChart((state) => state.songName);
   const place = useChart((state) => state.place);
   const [ghost, setGhost] = useState<Ghost | null>(null);
   const [viewport, setViewport] = useState({ left: 0, width: 1280 });
@@ -498,6 +589,8 @@ export function Roll({
     let baseDist = 0;
     let basePx = 0;
     let lastMid = 0;
+    let lastMidY = 0;
+    let multi = false;
     const zoomToward = (clientX: number, nextPx: number) => {
       const before = livePx.current;
       if (nextPx === before) return;
@@ -511,12 +604,16 @@ export function Roll({
     };
     const down = (event: PointerEvent) => {
       if (event.pointerType !== "touch") return;
+      if (!(event.target instanceof Node) || !scroller.contains(event.target)) return;
       pts.set(event.pointerId, { x: event.clientX, y: event.clientY });
       if (pts.size >= 2) {
         const [a, b] = [...pts.values()];
         baseDist = Math.hypot(a.x - b.x, a.y - b.y) || 1;
         basePx = livePx.current;
         lastMid = (a.x + b.x) / 2;
+        lastMidY = (a.y + b.y) / 2;
+        multi = true;
+        scroller.dataset.pan = "1";
         hand.current = true;
       }
     };
@@ -528,29 +625,36 @@ export function Roll({
       const [a, b] = [...pts.values()];
       const dist = Math.hypot(a.x - b.x, a.y - b.y) || 1;
       const mid = (a.x + b.x) / 2;
+      const midY = (a.y + b.y) / 2;
       scroller.scrollLeft -= mid - lastMid;
+      scroller.scrollTop -= midY - lastMidY;
       lastMid = mid;
-      const next = Math.round(Math.min(16, Math.max(0.5, ((basePx / 192) * dist) / baseDist)) * 192);
+      lastMidY = midY;
+      const pinch = dist / baseDist;
+      if (Math.abs(pinch - 1) < 0.08) return;
+      const next = Math.round(Math.min(16, Math.max(0.5, ((basePx / 192) * pinch))) * 192);
       if (Math.abs(next - livePx.current) >= 8) zoomToward(mid, next);
     };
     const up = (event: PointerEvent) => {
       pts.delete(event.pointerId);
-      if (pts.size >= 2) return;
+      if (pts.size > 0) return;
+      if (multi) scroller.dataset.pan = "";
+      multi = false;
       hand.current = false;
       if (!zooming.current) return;
       zooming.current = false;
       useChart.getState().setXWidth(livePx.current / 32);
       setViewport({ left: scroller.scrollLeft, width: scroller.clientWidth || 1 });
     };
-    scroller.addEventListener("pointerdown", down);
-    scroller.addEventListener("pointermove", move);
-    scroller.addEventListener("pointerup", up);
-    scroller.addEventListener("pointercancel", up);
+    window.addEventListener("pointerdown", down, true);
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up);
     return () => {
-      scroller.removeEventListener("pointerdown", down);
-      scroller.removeEventListener("pointermove", move);
-      scroller.removeEventListener("pointerup", up);
-      scroller.removeEventListener("pointercancel", up);
+      window.removeEventListener("pointerdown", down, true);
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
     };
   }, [scrollerRef]);
 
@@ -619,9 +723,14 @@ export function Roll({
             </div>
           );
         })}
+        {songName ? (
+          <div className="flex items-center bg-chart px-1.5 text-[10px] font-semibold text-mute" style={{ height: WAVE_H }}>
+            WAV
+          </div>
+        ) : null}
       </div>
       <div className="relative min-h-0 min-w-0 flex-1">
-      <div ref={scrollerRef} className={"roll h-full overflow-auto " + (drawTouch ? "roll-draw" : "")} onContextMenu={(event) => event.preventDefault()}>
+      <div ref={scrollerRef} className="roll h-full overflow-auto" onContextMenu={(event) => event.preventDefault()}>
         <div
           ref={sheetRef}
           data-roll-sheet
@@ -639,6 +748,7 @@ export function Roll({
             height={stackHeight}
             redrawRef={redrawRef}
           />
+          <Waveform scrollerRef={scrollerRef} songName={songName} top={32 + stackHeight} />
           <div className="relative z-20 flex h-8">
             {measureLabels.map(({ measure, tick: measureTick, len }) => {
               return (
@@ -672,28 +782,8 @@ export function Roll({
                 onPointerDown={(event) => {
                   if (event.button !== 0) return;
                   if ((event.target as HTMLElement).closest("button")) return;
+                  if ((event.currentTarget.closest(".roll") as HTMLElement | null)?.dataset.pan === "1") return;
                   const host = event.currentTarget;
-                  const coarse = window.matchMedia("(pointer: coarse)").matches;
-                  if (coarse && !drawTouch) {
-                    const originX = event.clientX;
-                    const originY = event.clientY;
-                    const pointer = event.pointerId;
-                    const start = tickAt(event.clientX, host);
-                    const up = (ev: PointerEvent) => {
-                      if (ev.pointerId !== pointer) return;
-                      host.removeEventListener("pointerup", up);
-                      host.removeEventListener("pointercancel", up);
-                      if (Math.hypot(ev.clientX - originX, ev.clientY - originY) > 12) return;
-                      if (useChart.getState().tool === "select") {
-                        useChart.getState().select(null);
-                        return;
-                      }
-                      place(lane.id, start);
-                    };
-                    host.addEventListener("pointerup", up);
-                    host.addEventListener("pointercancel", up);
-                    return;
-                  }
                   if (useChart.getState().tool === "select") {
                     useChart.getState().select(null);
                     return;
@@ -713,8 +803,9 @@ export function Roll({
                     if (ev.pointerId !== pointer) return;
                     host.removeEventListener("pointermove", move);
                     host.removeEventListener("pointerup", up);
-                    const end = tickAt(ev.clientX, host);
                     setGhost(null);
+                    if ((host.closest(".roll") as HTMLElement | null)?.dataset.pan === "1") return;
+                    const end = tickAt(ev.clientX, host);
                     if (canHold && Math.abs(ev.clientX - origin) > 6 && end !== start) place(lane.id, start, end);
                     else place(lane.id, start);
                   };

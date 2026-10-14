@@ -30,6 +30,7 @@ export type Meta = {
   playlevel: string;
   rank: string;
   player: string;
+  chartDifficulty: "easy" | "hard" | "master" | "hidden" | "";
   difficulty1: string;
   difficulty2: string;
   difficulty3: string;
@@ -61,6 +62,7 @@ export const EMPTY_META: Meta = {
   playlevel: "1",
   rank: "1",
   player: "3",
+  chartDifficulty: "hard",
   difficulty1: "0",
   difficulty2: "1",
   difficulty3: "0",
@@ -108,12 +110,36 @@ type RawHit = {
   bpm?: number;
 };
 
+export function difficultyFromValue(value: string): Meta["chartDifficulty"] {
+  const text = value.trim().toLowerCase().replace(/^:/, "");
+  if (text === "1" || text === "easy" || text === "beginner") return "easy";
+  if (text === "3" || text === "master" || text === "hyper") return "master";
+  if (text === "4" || text === "5" || text === "hidden" || text === "another" || text === "insane") return "hidden";
+  if (text === "2" || text === "hard" || text === "normal") return "hard";
+  return "";
+}
+
+export function difficultyFromName(name?: string): Exclude<Meta["chartDifficulty"], ""> {
+  const text = (name ?? "").toLowerCase();
+  if (/map1|\beasy\b|beginner/.test(text)) return "easy";
+  if (/map3|\bmaster\b|hyper/.test(text)) return "master";
+  if (/map4|\bhidden\b|another/.test(text)) return "hidden";
+  return "hard";
+}
+
+const DIFFICULTY_CODE: Record<Exclude<Meta["chartDifficulty"], "">, string> = {
+  easy: "1",
+  hard: "2",
+  master: "3",
+  hidden: "4",
+};
+
 function padMeasure(measure: number): string {
   return String(measure).padStart(3, "0");
 }
 
 export function parseBms(text: string): BmsChart {
-  const meta: Meta = { ...EMPTY_META };
+  const meta: Meta = { ...EMPTY_META, chartDifficulty: "" };
   const sigs: Sig[] = [];
   const extras: RawEvent[] = [];
   const headerExtras: string[] = [];
@@ -166,7 +192,8 @@ export function parseBms(text: string): BmsChart {
     } else if (cmd === "PLAYLEVEL") meta.playlevel = value || meta.playlevel;
     else if (cmd === "RANK") meta.rank = value || meta.rank;
     else if (cmd === "PLAYER") meta.player = value || meta.player;
-    else if (cmd !== "LNTYPE") headerExtras.push(line);
+    else if (cmd === "DIFFICULTY") meta.chartDifficulty = difficultyFromValue(value);
+    else if (cmd !== "LNTYPE" && cmd !== "DIFFICULTY") headerExtras.push(line);
   }
 
   const hits: RawHit[] = [];
@@ -304,8 +331,9 @@ export function serializeBms(
     `#BPM ${Math.round(meta.bpm)}`,
     `#PLAYLEVEL ${meta.playlevel || "1"}`,
     `#RANK ${meta.rank || "1"}`,
+    `#DIFFICULTY ${DIFFICULTY_CODE[meta.chartDifficulty || "hard"]}`,
     "#LNTYPE 1",
-    ...headerExtras,
+    ...headerExtras.filter((line) => !/^#DIFFICULTY\b/i.test(line.trim())),
   ];
 
   const wavs = new Map<string, string>();

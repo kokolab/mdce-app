@@ -3,6 +3,7 @@ import { HOLD_KEYS, PARTNER, type LaneId } from "./catalog";
 import {
   EMPTY_META,
   chartIssues,
+  difficultyFromName,
   infoJson,
   nextId,
   parseBms,
@@ -104,7 +105,7 @@ type ChartState = {
   patchSelected: (patch: Partial<ChartNote>) => void;
   undo: () => void;
   redo: () => void;
-  loadText: (text: string) => void;
+  loadText: (text: string, name?: string) => void;
   reset: () => void;
   exportBms: () => string;
   exportInfo: () => string;
@@ -233,12 +234,25 @@ export const useChart = create<ChartState>((set, get) => ({
   },
   setSpeed: (key) =>
     set((state) => {
-      const speeds = new Set(["0O", "0P", "0Q"]);
-      const existing = state.notes.find((note) => note.lane === "boss" && note.tick === 0 && speeds.has(note.key));
+      const both: Record<string, string> = {
+        "0O": "0O",
+        "0R": "0O",
+        "0U": "0O",
+        "0P": "0P",
+        "0S": "0P",
+        "0V": "0P",
+        "0Q": "0Q",
+        "0T": "0Q",
+        "0W": "0Q",
+      };
+      const next = both[key] ?? key;
+      const existing = state.notes
+        .filter((note) => both[note.key])
+        .sort((a, b) => a.tick - b.tick)[0];
       const notes = existing
-        ? state.notes.map((note) => (note.id === existing.id ? { ...note, key } : note))
-        : [...state.notes, { id: nextId(), lane: "boss" as const, key, tick: 0 }];
-      return remember(state, { notes, brush: key, banner: "Note speed written on BOSS at the start." });
+        ? state.notes.map((note) => (note.id === existing.id ? { ...note, key: next } : note))
+        : [...state.notes, { id: nextId(), lane: "boss" as const, key: next, tick: 0 }];
+      return remember(state, { notes, brush: next, banner: "Note speed written on the first speed note." });
     }),
   setTool: (tool) => set({ tool }),
   setSongName: (songName) => set({ songName }),
@@ -448,9 +462,10 @@ export const useChart = create<ChartState>((set, get) => ({
       if (!next) return {};
       return { ...next, future: state.future.slice(0, -1), past: [...state.past, shot(state)], selectedId: null, selection: [] };
     }),
-  loadText: (text) =>
+  loadText: (text, name) =>
     set((state) => {
       const parsed = parseBms(text);
+      if (!parsed.meta.chartDifficulty) parsed.meta.chartDifficulty = difficultyFromName(name);
       player.setRate(1);
       return remember(state, {
         ...parsed,
@@ -519,6 +534,7 @@ export function persistChart() {
   };
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    document.dispatchEvent(new CustomEvent("stagepen-saved"));
   } catch {
     /* quota */
   }

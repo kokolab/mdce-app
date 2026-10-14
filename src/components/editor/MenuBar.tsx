@@ -87,7 +87,7 @@ export function MenuBar({
   return (
     <div
       ref={barRef}
-      className="relative z-50 flex h-11 items-stretch overflow-x-auto border-b border-dock-line bg-menubar lg:h-8"
+      className="relative z-50 hidden h-11 items-stretch overflow-x-auto border-b border-dock-line bg-menubar lg:flex lg:h-8"
       style={{ touchAction: "none" }}
       onPointerDown={(event) => {
         if ((event.target as HTMLElement).closest("[data-menu-panel]")) return;
@@ -188,5 +188,121 @@ export function MenuBar({
         {item("BMS chart editor", () => state().setBanner("Browser chart editor for Muse Dash BMS files. Note chips are original."))}
       </>)}
     </div>
+  );
+}
+
+export function MobileMenu({
+  onOpen,
+  onSong,
+  onSaveBms,
+  onSaveInfo,
+}: {
+  onOpen: () => void;
+  onSong: () => void;
+  onSaveBms: () => void;
+  onSaveInfo: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [bar, setBar] = useState("0");
+  const [dark, setDark] = useState(() => typeof localStorage === "undefined" || localStorage.getItem("stagepen-dark") !== "0");
+  const tool = useChart((state) => state.tool);
+  const showIcons = useChart((state) => state.showIcons);
+  const showStage = useChart((state) => state.showStage);
+  const snapOn = useChart((state) => state.snapOn);
+  const lockLane = useChart((state) => state.lockLane);
+  const followPlay = useChart((state) => state.followPlay);
+  const state = useChart.getState;
+
+  function go(action: () => void) {
+    setOpen(false);
+    action();
+  }
+
+  function row(label: string, action: () => void, mark?: boolean) {
+    return (
+      <button type="button" className="flex h-12 w-full items-center justify-between border-b border-white/10 px-4 text-left text-base" onClick={() => go(action)}>
+        <span>{label}</span>
+        {mark ? <span aria-hidden>✓</span> : null}
+      </button>
+    );
+  }
+
+  return (
+    <>
+      <button type="button" className="h-10 shrink-0 rounded border border-dock-line bg-field px-3 text-sm" onClick={() => setOpen(true)}>
+        Menu
+      </button>
+      {open ? (
+        <div className="fixed inset-0 z-[80] flex flex-col bg-ink text-paper">
+          <div className="flex h-12 shrink-0 items-center justify-between border-b border-white/10 px-3">
+            <span className="text-base font-semibold">Menu</span>
+            <button type="button" className="h-10 rounded border border-white/20 px-3" onClick={() => setOpen(false)}>
+              Close
+            </button>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto pb-8">
+            <form
+              className="flex items-center gap-2 border-b border-white/10 px-4 py-3"
+              onSubmit={(event) => {
+                event.preventDefault();
+                state().gotoMeasure(Number(bar) || 0);
+                setOpen(false);
+              }}
+            >
+              <label className="text-sm" htmlFor="jump-bar">
+                Go to bar
+              </label>
+              <input id="jump-bar" inputMode="numeric" value={bar} onChange={(event) => setBar(event.target.value)} className="h-11 w-20 rounded border border-white/20 bg-chart px-2 text-center font-mono" />
+              <button type="submit" className="h-11 rounded bg-paper px-4 text-sm font-semibold text-ink">
+                Go
+              </button>
+            </form>
+            <p className="px-4 pt-3 text-xs tracking-wide text-mute uppercase">File</p>
+            {row("New", () => state().reset())}
+            {row("Open chart…", onOpen)}
+            {row("Open song…", onSong)}
+            {row("Save BMS", onSaveBms)}
+            {row("Save info.json", onSaveInfo)}
+            <p className="px-4 pt-3 text-xs tracking-wide text-mute uppercase">Edit</p>
+            {row("Undo", () => state().undo())}
+            {row("Redo", () => state().redo())}
+            {row("Copy", () => state().copySelected())}
+            {row("Paste", () => state().pasteClipboard())}
+            {row("Delete", () => {
+              const id = state().selectedId;
+              if (id) state().remove(id);
+            })}
+            <p className="px-4 pt-3 text-xs tracking-wide text-mute uppercase">View</p>
+            {row("Note icons", () => state().setShowIcons(!showIcons), showIcons)}
+            {row("Dark mode", () => {
+              const next = !document.documentElement.classList.contains("dark");
+              document.documentElement.classList.toggle("dark", next);
+              localStorage.setItem("stagepen-dark", next ? "1" : "0");
+              setDark(next);
+            }, dark)}
+            {row("Stage preview", () => state().setShowStage(!showStage), showStage)}
+            {row("Follow play line", () => state().setFollowPlay(!followPlay), followPlay)}
+            <p className="px-4 pt-3 text-xs tracking-wide text-mute uppercase">Options</p>
+            {row("Snap to grid", () => state().setSnapOn(!snapOn), snapOn)}
+            {row("Disable vertical moves", () => state().setLockLane(!lockLane), lockLane)}
+            {row("Write tool", () => state().setTool("write"), tool === "write")}
+            {row("Select tool", () => state().setTool("select"), tool === "select")}
+            <p className="px-4 pt-3 text-xs tracking-wide text-mute uppercase">Tools</p>
+            {row("Swap air and ground", () => state().swapGroundAir())}
+            {row("Find current note", () => state().findBrush())}
+            {row("Error check", () => {
+              const found = chartIssues(state().notes, state().sigs);
+              const first = found[0];
+              if (!first) {
+                state().setBanner("No chart problems found.");
+                return;
+              }
+              state().revealNotes(first.ids);
+              state().setBanner(first.text);
+            })}
+          </div>
+        </div>
+      ) : null}
+    </>
   );
 }

@@ -9,7 +9,24 @@ const SPEEDS = [
   { key: "0Q", label: "Speed 3" },
 ];
 
-const DIFFICULTIES = ["Easy", "Normal", "Hard", "Master"];
+const SPEED_BOTH: Record<string, string> = {
+  "0O": "0O",
+  "0R": "0O",
+  "0U": "0O",
+  "0P": "0P",
+  "0S": "0P",
+  "0V": "0P",
+  "0Q": "0Q",
+  "0T": "0Q",
+  "0W": "0Q",
+};
+
+const DIFFICULTIES = [
+  { id: "easy", label: "Easy" },
+  { id: "hard", label: "Hard" },
+  { id: "master", label: "Master" },
+  { id: "hidden", label: "Hidden" },
+];
 
 function Group({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -59,7 +76,10 @@ export function Inspector() {
   const [gridMore, setGridMore] = useState(false);
   const [wavMore, setWavMore] = useState(true);
   const knownScene = SCENES.some((scene) => scene.id === meta.genre);
-  const speed = notes.find((note) => note.lane === "boss" && note.tick === 0 && SPEEDS.some((item) => item.key === note.key));
+  const speed = notes
+    .filter((note) => SPEED_BOTH[note.key])
+    .sort((a, b) => a.tick - b.tick)[0];
+  const speedValue = speed ? SPEED_BOTH[speed.key] : "";
   const selected = notes.find((note) => note.id === selectedId);
   const spot = selected ? locate(selected.tick, sigs, measureCount) : null;
 
@@ -104,7 +124,7 @@ export function Inspector() {
         </Row>
         <Row label="NoteSpeed">
           <select
-            value={speed?.key ?? ""}
+            value={speedValue}
             onChange={(event) => {
               if (event.target.value) useChart.getState().setSpeed(event.target.value);
             }}
@@ -120,18 +140,15 @@ export function Inspector() {
         </Row>
         <Row label="Difficulty">
           <select
-            value={DIFFICULTIES.includes(meta.difficulty2) ? meta.difficulty2 : "custom"}
-            onChange={(event) => {
-              if (event.target.value !== "custom") patchMeta({ difficulty2: event.target.value });
-            }}
+            value={meta.chartDifficulty || "hard"}
+            onChange={(event) => patchMeta({ chartDifficulty: event.target.value as typeof meta.chartDifficulty })}
             className={field}
           >
-            {DIFFICULTIES.map((name) => (
-              <option key={name} value={name}>
-                {name}
+            {DIFFICULTIES.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.label}
               </option>
             ))}
-            <option value="custom">{meta.difficulty2 || "Custom"}</option>
           </select>
         </Row>
         <Row label="Level">
