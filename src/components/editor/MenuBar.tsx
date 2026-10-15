@@ -25,6 +25,7 @@ export function MenuBar({
   const snapOn = useChart((state) => state.snapOn);
   const lockLane = useChart((state) => state.lockLane);
   const followPlay = useChart((state) => state.followPlay);
+  const followTight = useChart((state) => state.followTight);
   const [dark, setDark] = useState(() => typeof localStorage === "undefined" || localStorage.getItem("stagepen-dark") !== "0");
 
   useEffect(() => {
@@ -84,6 +85,19 @@ export function MenuBar({
 
   const state = useChart.getState;
 
+  function zoom(dir: number) {
+    state().setXWidth(state().xWidth + dir * 0.5);
+    state().setBanner(dir > 0 ? "Zoomed in." : "Zoomed out.");
+  }
+
+  function jump() {
+    const raw = window.prompt("Go to this measure", "0");
+    if (raw == null) return;
+    const measure = Number(raw) || 0;
+    state().gotoMeasure(measure);
+    state().setBanner(`Jumped to measure ${measure}.`);
+  }
+
   return (
     <div
       ref={barRef}
@@ -119,18 +133,23 @@ export function MenuBar({
         {item("New", () => state().reset())}
         {item("Open chart…", onOpen)}
         {item("Open song…", onSong)}
-        {item("Save BMS", onSaveBms)}
-        {item("Save info.json", onSaveInfo)}
+        {item("Save BMS", () => {
+          onSaveBms();
+          state().setBanner("Downloaded the BMS file.");
+        })}
+        {item("Save info.json", () => {
+          onSaveInfo();
+          state().setBanner("Downloaded info.json.");
+        })}
       </>)}
       {menu("edit", "Edit", <>
         {item("Undo", () => state().undo())}
         {item("Redo", () => state().redo())}
+        {item("Cut", () => state().cutSelected())}
         {item("Copy", () => state().copySelected())}
         {item("Paste", () => state().pasteClipboard())}
-        {item("Delete", () => {
-          const id = state().selectedId;
-          if (id) state().remove(id);
-        })}
+        {item("Delete", () => state().deleteSelection())}
+        {item("Select all", () => state().selectAll())}
       </>)}
       {menu("view", "View", <>
         {item("Note icons", () => state().setShowIcons(!showIcons), showIcons)}
@@ -142,7 +161,10 @@ export function MenuBar({
         }, dark)}
         {item("Stage preview", () => state().setShowStage(!showStage), showStage)}
         {item("Follow play line", () => state().setFollowPlay(!followPlay), followPlay)}
-        {item("Horizontal view", () => undefined, true)}
+        {item("Keep play line tight", () => state().setFollowTight(!followTight), followTight)}
+        {item("Zoom in", () => zoom(1))}
+        {item("Zoom out", () => zoom(-1))}
+        {item("Go to measure…", jump)}
       </>)}
       {menu("options", "Options", <>
         {item("Snap to grid", () => state().setSnapOn(!snapOn), snapOn)}
@@ -152,6 +174,8 @@ export function MenuBar({
       </>)}
       {menu("convert", "Conversion", <>
         {item("Swap air and ground", () => state().swapGroundAir())}
+        {item("Swap upper and lower lanes", () => state().mirrorLanes())}
+        {item("Quantize selection", () => state().quantizeSelection())}
       </>)}
       {menu("preview", "Preview", <>
         {item("Play or pause", () => {
@@ -183,9 +207,13 @@ export function MenuBar({
           useChart.getState().revealNotes(first.ids);
           state().setBanner(first.text);
         })}
+        {item("Count notes", () => state().setBanner(`${state().notes.length} notes in this chart.`))}
       </>)}
       {menu("about", "About", <>
-        {item("BMS chart editor", () => state().setBanner("Browser chart editor for Muse Dash BMS files. Note chips are original."))}
+        {item("Chart info", () => {
+          const chart = state();
+          state().setBanner(`${chart.meta.title || "Untitled"} · ${chart.meta.chartDifficulty || "hard"} · ${chart.notes.length} notes · ${Math.round(chart.meta.bpm)} BPM`);
+        })}
       </>)}
     </div>
   );
@@ -211,6 +239,7 @@ export function MobileMenu({
   const snapOn = useChart((state) => state.snapOn);
   const lockLane = useChart((state) => state.lockLane);
   const followPlay = useChart((state) => state.followPlay);
+  const followTight = useChart((state) => state.followTight);
   const state = useChart.getState;
 
   function go(action: () => void) {
@@ -261,17 +290,22 @@ export function MobileMenu({
             {row("New", () => state().reset())}
             {row("Open chart…", onOpen)}
             {row("Open song…", onSong)}
-            {row("Save BMS", onSaveBms)}
-            {row("Save info.json", onSaveInfo)}
+            {row("Save BMS", () => {
+              onSaveBms();
+              state().setBanner("Downloaded the BMS file.");
+            })}
+            {row("Save info.json", () => {
+              onSaveInfo();
+              state().setBanner("Downloaded info.json.");
+            })}
             <p className="px-4 pt-3 text-xs tracking-wide text-mute uppercase">Edit</p>
             {row("Undo", () => state().undo())}
             {row("Redo", () => state().redo())}
+            {row("Cut", () => state().cutSelected())}
             {row("Copy", () => state().copySelected())}
             {row("Paste", () => state().pasteClipboard())}
-            {row("Delete", () => {
-              const id = state().selectedId;
-              if (id) state().remove(id);
-            })}
+            {row("Delete", () => state().deleteSelection())}
+            {row("Select all", () => state().selectAll())}
             <p className="px-4 pt-3 text-xs tracking-wide text-mute uppercase">View</p>
             {row("Note icons", () => state().setShowIcons(!showIcons), showIcons)}
             {row("Dark mode", () => {
@@ -282,14 +316,33 @@ export function MobileMenu({
             }, dark)}
             {row("Stage preview", () => state().setShowStage(!showStage), showStage)}
             {row("Follow play line", () => state().setFollowPlay(!followPlay), followPlay)}
+            {row("Keep play line tight", () => state().setFollowTight(!followTight), followTight)}
+            {row("Zoom in", () => state().setXWidth(state().xWidth + 0.5))}
+            {row("Zoom out", () => state().setXWidth(state().xWidth - 0.5))}
             <p className="px-4 pt-3 text-xs tracking-wide text-mute uppercase">Options</p>
             {row("Snap to grid", () => state().setSnapOn(!snapOn), snapOn)}
             {row("Disable vertical moves", () => state().setLockLane(!lockLane), lockLane)}
             {row("Write tool", () => state().setTool("write"), tool === "write")}
             {row("Select tool", () => state().setTool("select"), tool === "select")}
-            <p className="px-4 pt-3 text-xs tracking-wide text-mute uppercase">Tools</p>
+            <p className="px-4 pt-3 text-xs tracking-wide text-mute uppercase">Conversion</p>
             {row("Swap air and ground", () => state().swapGroundAir())}
+            {row("Swap upper and lower lanes", () => state().mirrorLanes())}
+            {row("Quantize selection", () => state().quantizeSelection())}
+            <p className="px-4 pt-3 text-xs tracking-wide text-mute uppercase">Preview</p>
+            {row("Play or pause", () => document.dispatchEvent(new CustomEvent("stagepen-toggle-play")))}
+            {row("Stop", () => document.dispatchEvent(new CustomEvent("stagepen-stop")))}
+            <p className="px-4 pt-3 text-xs tracking-wide text-mute uppercase">Tools</p>
             {row("Find current note", () => state().findBrush())}
+            {row("Insert measure…", () => {
+              const raw = window.prompt("Insert an empty measure before this number", "0");
+              if (raw == null) return;
+              state().insertMeasure(Number(raw) || 0);
+            })}
+            {row("Remove measure…", () => {
+              const raw = window.prompt("Remove this measure number. Notes inside it are deleted.", "0");
+              if (raw == null) return;
+              state().removeMeasure(Number(raw) || 0);
+            })}
             {row("Error check", () => {
               const found = chartIssues(state().notes, state().sigs);
               const first = found[0];
@@ -299,6 +352,11 @@ export function MobileMenu({
               }
               state().revealNotes(first.ids);
               state().setBanner(first.text);
+            })}
+            {row("Count notes", () => state().setBanner(`${state().notes.length} notes in this chart.`))}
+            {row("Chart info", () => {
+              const chart = state();
+              state().setBanner(`${chart.meta.title || "Untitled"} · ${chart.meta.chartDifficulty || "hard"} · ${chart.notes.length} notes · ${Math.round(chart.meta.bpm)} BPM`);
             })}
           </div>
         </div>

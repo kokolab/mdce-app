@@ -70,6 +70,7 @@ export function Editor() {
   const tool = useChart((state) => state.tool);
   const showStage = useChart((state) => state.showStage);
   const songName = useChart((state) => state.songName);
+  const banner = useChart((state) => state.banner);
   const selected = notes.find((note) => note.id === selectedId);
   const album = useAlbumCharts();
   const [notesOpen, setNotesOpen] = useState(false);
@@ -299,6 +300,7 @@ export function Editor() {
         </button>
         <span className="ml-auto shrink-0 text-[11px] text-mute">{saved}</span>
       </div>
+      {banner ? <div className="truncate border-b border-dock-line bg-field px-3 py-1 text-xs text-dock-ink">{banner}</div> : null}
       <div className="hidden h-11 items-center gap-2 overflow-x-auto border-b border-dock-line bg-menubar px-2 text-dock-ink lg:flex">
         <Transport playheadRef={playheadRef} scrollerRef={scrollerRef} />
         <button type="button" className="h-8 rounded border border-dock-line bg-field px-2 text-sm" onClick={() => useChart.getState().undo()}>

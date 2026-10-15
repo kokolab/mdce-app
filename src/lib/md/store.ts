@@ -52,7 +52,7 @@ type ChartState = {
   bgmVolume: number;
   sfxVolume: number;
   focusTick: number | null;
-  clipboard: ChartNote | null;
+  clipboard: ChartNote[];
   tool: "write" | "select";
   songName: string;
   showStage: boolean;
@@ -79,6 +79,11 @@ type ChartState = {
   gotoMeasure: (measure: number) => void;
   copySelected: () => void;
   pasteClipboard: () => void;
+  cutSelected: () => void;
+  deleteSelection: () => void;
+  selectAll: () => void;
+  mirrorLanes: () => void;
+  quantizeSelection: () => void;
   setSpeed: (key: string) => void;
   setTool: (tool: "write" | "select") => void;
   setSongName: (name: string) => void;
@@ -162,7 +167,7 @@ export const useChart = create<ChartState>((set, get) => ({
   bgmVolume: 0.25,
   sfxVolume: 0.25,
   focusTick: null,
-  clipboard: null,
+  clipboard: [],
   tool: "write",
   songName: "",
   showStage: false,
@@ -216,22 +221,88 @@ export const useChart = create<ChartState>((set, get) => ({
     })),
   copySelected: () => {
     const state = get();
-    const note = state.notes.find((item) => item.id === state.selectedId);
-    if (!note) return;
-    set({ clipboard: { ...note }, banner: "Copied the selected note." });
+    const ids = new Set(state.selection.length ? state.selection : state.selectedId ? [state.selectedId] : []);
+    const notes = state.notes.filter((note) => ids.has(note.id));
+    if (!notes.length) {
+      set({ banner: "Select a note before copying." });
+      return;
+    }
+    set({ clipboard: notes.map((note) => ({ ...note })), banner: notes.length === 1 ? "Copied the selected note." : `Copied ${notes.length} notes.` });
   },
   pasteClipboard: () => {
     const state = get();
-    const clip = state.clipboard;
-    if (!clip) return;
+    if (!state.clipboard.length) {
+      set({ banner: "Nothing to paste." });
+      return;
+    }
     const step = 192 / (state.snapOn ? state.snap : 16);
-    const tick = clip.tick + step;
-    const length = clip.endTick != null ? clip.endTick - clip.tick : 0;
-    set({ brush: clip.lane === "bpm" ? state.brush : clip.key });
-    get().place(clip.lane, tick, length > 0 ? tick + length : undefined);
-    const created = get().notes.find((note) => note.id === get().selectedId);
-    if (created && clip.bpm) get().patchSelected({ bpm: clip.bpm });
+    const created = state.clipboard.map((clip) => ({
+      ...clip,
+      id: nextId(),
+      tick: clip.tick + step,
+      endTick: clip.endTick != null ? clip.endTick + step : undefined,
+    }));
+    set(
+      remember(state, {
+        notes: [...state.notes, ...created],
+        selectedId: created[0]?.id ?? null,
+        selection: created.map((note) => note.id),
+        banner: created.length === 1 ? "Pasted the note." : `Pasted ${created.length} notes.`,
+      }),
+    );
   },
+  cutSelected: () => {
+    const state = get();
+    const ids = new Set(state.selection.length ? state.selection : state.selectedId ? [state.selectedId] : []);
+    const notes = state.notes.filter((note) => ids.has(note.id));
+    if (!notes.length) {
+      set({ banner: "Select a note before cutting." });
+      return;
+    }
+    set({ clipboard: notes.map((note) => ({ ...note })) });
+    get().deleteSelection();
+  },
+  deleteSelection: () =>
+    set((state) => {
+      const ids = new Set(state.selection.length ? state.selection : state.selectedId ? [state.selectedId] : []);
+      if (!ids.size) {
+        return { banner: "Select a note before deleting." };
+      }
+      return remember(state, {
+        notes: state.notes.filter((note) => !ids.has(note.id)),
+        selectedId: null,
+        selection: [],
+        banner: ids.size === 1 ? "Deleted the note." : `Deleted ${ids.size} notes.`,
+      });
+    }),
+  selectAll: () =>
+    set((state) => {
+      const ids = state.notes.map((note) => note.id);
+      if (!ids.length) return { banner: "This chart has no notes." };
+      return { selectedId: ids[0], selection: ids, banner: `Selected ${ids.length} notes.` };
+    }),
+  mirrorLanes: () =>
+    set((state) => {
+      const swap: Partial<Record<LaneId, LaneId>> = { air: "air2", air2: "air", gnd: "gnd2", gnd2: "gnd" };
+      const notes = state.notes.map((note) => {
+        const lane = swap[note.lane];
+        return lane ? { ...note, lane } : note;
+      });
+      return remember(state, { notes, banner: "Swapped the upper and lower lanes." });
+    }),
+  quantizeSelection: () =>
+    set((state) => {
+      const ids = new Set(state.selection.length ? state.selection : state.selectedId ? [state.selectedId] : []);
+      if (!ids.size) return { banner: "Select notes before quantizing." };
+      const grid = state.snapOn ? state.snap : 192;
+      const notes = state.notes.map((note) => {
+        if (!ids.has(note.id)) return note;
+        const tick = snapTick(note.tick, grid, state.sigs, state.measureCount);
+        const length = note.endTick != null ? note.endTick - note.tick : 0;
+        return { ...note, tick, endTick: length > 0 ? tick + length : note.endTick };
+      });
+      return remember(state, { notes, banner: `Snapped ${ids.size} note${ids.size === 1 ? "" : "s"} to the grid.` });
+    }),
   setSpeed: (key) =>
     set((state) => {
       const both: Record<string, string> = {
