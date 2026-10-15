@@ -313,7 +313,7 @@ export function Transport({
           value={playBpm}
           aria-label="Playback BPM"
           onChange={(event) => useChart.getState().setPlayBpm(Number(event.target.value) || 1)}
-          className="h-6 w-12 bg-transparent text-center font-mono text-dock-ink"
+          className="h-6 w-14 appearance-none bg-transparent text-center font-mono text-dock-ink [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
         />
         <button type="button" className="h-6 w-6 rounded border border-dock-line" aria-label="Faster BPM" onClick={() => useChart.getState().setPlayBpm(playBpm + 1)}>
           +
@@ -337,7 +337,7 @@ export function Transport({
         <select
           value={ratio}
           onChange={(event) => setSig(bar, Number(event.target.value))}
-          className="bg-transparent font-mono text-paper"
+          className="bg-transparent font-mono text-dock-ink"
         >
           <option value={1}>4/4</option>
           <option value={0.75}>3/4</option>

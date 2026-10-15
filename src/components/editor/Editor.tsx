@@ -272,11 +272,12 @@ export function Editor() {
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-chart text-paper">
-      <div className="hidden h-8 items-center bg-ink px-3 text-xs text-mute lg:flex">
-        <span className="truncate">
+      <div className="hidden h-8 items-center gap-4 bg-ink px-3 text-xs text-mute lg:flex">
+        <span className="min-w-0 truncate">
           {(title || "untitled") + ".bms"}
           {songName ? ` — ${songName}` : ""} — Muse Dash Chart Editor
         </span>
+        {banner ? <span className="ml-auto min-w-0 truncate text-dock-ink">{banner}</span> : null}
       </div>
       <MenuBar
         onOpen={() => bmsInput.current?.click()}
@@ -300,7 +301,7 @@ export function Editor() {
         </button>
         <span className="ml-auto shrink-0 text-[11px] text-mute">{saved}</span>
       </div>
-      {banner ? <div className="truncate border-b border-dock-line bg-field px-3 py-1 text-xs text-dock-ink">{banner}</div> : null}
+      {banner ? <div className="truncate border-b border-dock-line bg-field px-3 py-1 text-xs text-dock-ink lg:hidden">{banner}</div> : null}
       <div className="hidden h-11 items-center gap-2 overflow-x-auto border-b border-dock-line bg-menubar px-2 text-dock-ink lg:flex">
         <Transport playheadRef={playheadRef} scrollerRef={scrollerRef} />
         <button type="button" className="h-8 rounded border border-dock-line bg-field px-2 text-sm" onClick={() => useChart.getState().undo()}>

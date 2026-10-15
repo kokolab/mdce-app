@@ -65,7 +65,7 @@ export function MenuBar({
         <button
           type="button"
           data-menu={id}
-          className={"h-11 shrink-0 px-4 text-base " + (open === id ? "bg-field text-dock-ink" : "text-dock-ink")}
+          className={"flex h-full shrink-0 items-center px-3 text-sm " + (open === id ? "bg-field text-dock-ink" : "text-dock-ink")}
           style={{ touchAction: "none" }}
         >
           {label}
@@ -101,7 +101,7 @@ export function MenuBar({
   return (
     <div
       ref={barRef}
-      className="relative z-50 hidden h-11 items-stretch overflow-x-auto border-b border-dock-line bg-menubar lg:flex lg:h-8"
+      className="relative z-50 hidden h-8 items-stretch overflow-x-auto border-b border-dock-line bg-menubar lg:flex"
       style={{ touchAction: "none" }}
       onPointerDown={(event) => {
         if ((event.target as HTMLElement).closest("[data-menu-panel]")) return;
