@@ -456,21 +456,6 @@ const NoteChip = memo(function NoteChip({
       {icons && note.blood ? <span className="absolute top-1 right-1 size-1.5 rounded-full bg-ink" /> : null}
       {travel ? <ApproachArrow dir={travel} lane={note.lane} /> : null}
       {badge ? <BossBadge text={badge} /> : null}
-      {selected ? (
-        <span
-          role="button"
-          aria-label="Delete note"
-          className="absolute -top-1.5 -right-1.5 z-30 flex size-5 items-center justify-center rounded-full bg-ink text-xs leading-none text-paper"
-          onPointerDown={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            drag.current = null;
-            useChart.getState().remove(note.id);
-          }}
-        >
-          ×
-        </span>
-      ) : null}
     </button>
   );
 });
