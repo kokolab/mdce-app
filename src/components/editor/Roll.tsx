@@ -298,6 +298,7 @@ const NoteChip = memo(function NoteChip({
   selected,
   drag,
   sheetRef,
+  laneTop = 0,
 }: {
   note: ChartNote;
   laneH: number;
@@ -306,6 +307,7 @@ const NoteChip = memo(function NoteChip({
   selected: boolean;
   drag: { current: DragState | null };
   sheetRef: RefObject<HTMLDivElement | null>;
+  laneTop?: number;
 }) {
   const label = note.lane === "bpm" ? String(Math.round(note.bpm ?? 0)) : noteLabel(note.key);
   const icons = showIcons && note.lane !== "bpm";
@@ -330,6 +332,12 @@ const NoteChip = memo(function NoteChip({
       data-note={note.id}
       title={note.lane === "bpm" ? `${label} BPM` : noteName(note.key)}
       onPointerDown={(event) => {
+        if (event.button === 2) {
+          event.preventDefault();
+          event.stopPropagation();
+          useChart.getState().remove(note.id);
+          return;
+        }
         if (event.button !== 0) return;
         event.stopPropagation();
         const rect = event.currentTarget.getBoundingClientRect();
@@ -413,7 +421,7 @@ const NoteChip = memo(function NoteChip({
         useChart.getState().remove(note.id);
       }}
       className={
-        "absolute z-10 touch-none font-mono text-xs font-medium " +
+        "absolute z-10 touch-none pointer-events-auto font-mono text-xs font-medium " +
         (held
           ? "overflow-visible "
           : "flex items-center overflow-hidden " +
@@ -422,7 +430,7 @@ const NoteChip = memo(function NoteChip({
             (note.key === "0G" || note.key === "16" || note.key === "17" ? " stripe" : "")) +
         (selected ? " ring-2 ring-paper" : "")
       }
-      style={{ left, width: span, height: boxH, top: music ? 2 : (laneH - boxH) / 2 }}
+      style={{ left, width: span, height: boxH, top: laneTop + (music ? 2 : (laneH - boxH) / 2) }}
     >
       {gear && icons ? (
         <GearIcon half={gearHalf} boss={note.key === "18"} className="h-[82%] w-[82%]" />
@@ -847,18 +855,6 @@ export function Roll({
                   host.addEventListener("pointerup", up);
                 }}
               >
-                {notesByLane.get(lane.id)?.map((note) => (
-                  <NoteChip
-                    key={note.id}
-                    note={note}
-                    laneH={laneHeightOf(lane.id)}
-                    noteSize={noteSize}
-                    showIcons={showIcons}
-                    selected={selected.has(note.id) || note.id === selectedId}
-                    drag={drag}
-                    sheetRef={sheetRef}
-                  />
-                ))}
                 {ghost?.lane === lane.id ? (
                   <div
                     className="pointer-events-none absolute overflow-visible"
@@ -880,6 +876,28 @@ export function Roll({
               </div>
             );
           })}
+          <div className="pointer-events-none absolute right-0 left-0 z-20" style={{ top: 32, height: stackHeight }}>
+            {visibleNotes.map((note) => {
+              let laneTop = 0;
+              for (const id of DISPLAY_LANES) {
+                if (id === note.lane) break;
+                laneTop += laneHeightOf(id);
+              }
+              return (
+                <NoteChip
+                  key={note.id}
+                  note={note}
+                  laneH={laneHeightOf(note.lane)}
+                  noteSize={noteSize}
+                  showIcons={showIcons}
+                  selected={selected.has(note.id) || note.id === selectedId}
+                  drag={drag}
+                  sheetRef={sheetRef}
+                  laneTop={laneTop}
+                />
+              );
+            })}
+          </div>
           {geminiLinks(notes, laneHeightOf, noteSize, viewLeft, viewRight, pxNow)}
           <div
             ref={playheadRef}
