@@ -52,6 +52,17 @@ export function tickToX(tick: number, pxPerMeasure: number): number {
 /** Pixels per measure. iBMSC draws one 4/4 bar as 192 × the width slider. */
 export const livePx = { current: 912, camera: 0, follow: false, redraw: null as (() => void) | null, wave: null as (() => void) | null };
 
+/** Hover time readout between the grid and bar controls. Updated without a React render. */
+export const hoverTime = {
+  node: null as HTMLElement | null,
+  text: "",
+  set(text: string) {
+    if (this.text === text) return;
+    this.text = text;
+    if (this.node) this.node.textContent = text;
+  },
+};
+
 export function pxForWidth(xWidth: number): number {
   return Math.round(xWidth * TICKS);
 }

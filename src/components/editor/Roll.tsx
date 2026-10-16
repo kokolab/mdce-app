@@ -4,7 +4,7 @@ import type { ChartNote } from "@/lib/md/bms";
 import { player } from "@/lib/md/player";
 import { NoteIcon, HoldNote, MasherNote, GearIcon, GeminiIcon, ApproachArrow, BossBadge, bossMark } from "./NoteIcon";
 import { useChart } from "@/lib/md/store";
-import { livePx, measureTicks, pxForWidth, secondsAt, snapTick, tempoPoints, tickToX, totalTicks, xToTick, type Sig } from "@/lib/md/timing";
+import { hoverTime, livePx, locate, measureTicks, pxForWidth, secondsAt, snapTick, tempoPoints, tickToX, totalTicks, xToTick, type Sig } from "@/lib/md/timing";
 import { stopPoints } from "@/lib/md/bms";
 
 type Ghost = { lane: LaneId; tick: number; end?: number };
@@ -492,6 +492,7 @@ export function Roll({
   const [viewport, setViewport] = useState({ left: 0, width: 1280 });
   const drag = useRef<DragState | null>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
+  const hoverRef = useRef<HTMLDivElement>(null);
   const redrawRef = useRef<(() => void) | null>(null);
   const zooming = useRef(false);
   const hand = useRef(false);
@@ -673,6 +674,31 @@ export function Roll({
     return snapTick(xToTick(clientX - rect.left, livePx.current), snap, sigs, measureCount);
   }
 
+  function showHover(clientX: number, host: HTMLElement) {
+    const state = useChart.getState();
+    const raw = xToTick(clientX - host.getBoundingClientRect().left, livePx.current);
+    const grid = Math.max(1, state.divide);
+    const end = totalTicks(state.measureCount, state.sigs);
+    const spot = locate(Math.max(0, raw), state.sigs, state.measureCount);
+    const step = 192 / grid;
+    let local = Math.round(spot.local / step) * step;
+    if (local < 0) local = 0;
+    if (local >= spot.len - 0.001) local = spot.len;
+    const tick = Math.min(end, spot.start + local);
+    const line = hoverRef.current;
+    if (line) {
+      line.style.display = "block";
+      line.style.transform = `translate3d(calc(${tick} * var(--px) / 192 * 1px),0,0)`;
+    }
+    const seconds = secondsAt(tick, tempoPoints(state.notes, state.meta.bpm), stopPoints(state.headerExtras ?? [], state.extras ?? [], state.sigs));
+    hoverTime.set(`${seconds.toFixed(4)} s`);
+  }
+
+  function hideHover() {
+    if (hoverRef.current) hoverRef.current.style.display = "none";
+    hoverTime.set("");
+  }
+
   const pxNow = livePx.current;
   const total = totalTicks(measureCount, sigs);
   const width = `calc(${Math.max(total, 192 * 4)} * var(--px) / 192 * 1px)`;
@@ -736,6 +762,14 @@ export function Roll({
           data-roll-sheet
           className="relative"
           style={{ width, ["--px" as string]: pxNow }}
+          onPointerMove={(event) => {
+            if ((event.currentTarget.closest(".roll") as HTMLElement | null)?.dataset.pan === "1") {
+              hideHover();
+              return;
+            }
+            showHover(event.clientX, event.currentTarget);
+          }}
+          onPointerLeave={hideHover}
         >
           <GridCanvas
             scrollerRef={scrollerRef}
@@ -852,6 +886,7 @@ export function Roll({
             className="pointer-events-none absolute top-0 bottom-0 left-0 z-30 w-0.5 bg-pink [backface-visibility:hidden]"
             style={{ transform: "translate3d(calc(var(--play, 0) * var(--px) / 192 * 1px),0,0)" }}
           />
+          <div ref={hoverRef} className="pointer-events-none absolute top-0 bottom-0 left-0 z-[26] w-px bg-cyan-200" style={{ display: "none" }} />
         </div>
       </div>
       </div>

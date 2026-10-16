@@ -3,7 +3,7 @@ import { MousePointer2, Pencil } from "lucide-react";
 import { stopPoints } from "@/lib/md/bms";
 import { player } from "@/lib/md/player";
 import { useChart } from "@/lib/md/store";
-import { formatClock, livePx, locate, measureStart, measureTicks, secondsAt, tempoPoints, tickToX, xToTick } from "@/lib/md/timing";
+import { formatClock, hoverTime, livePx, locate, measureStart, measureTicks, secondsAt, tempoPoints, tickToX, xToTick } from "@/lib/md/timing";
 
 function typingTarget(target: EventTarget | null): boolean {
   return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement;
@@ -332,6 +332,13 @@ export function Transport({
           {[1, 2, 4, 6, 8, 12, 16, 24, 32, 48, 64, 96, 192].includes(divide) ? null : <option value={divide}>{divide}</option>}
         </select>
       </label>
+      <span
+        ref={(node) => {
+          hoverTime.node = node;
+          if (node) node.textContent = hoverTime.text;
+        }}
+        className="min-w-24 text-center font-mono text-sm text-dock-ink tabular-nums"
+      />
       <label className="flex h-8 items-center gap-2 rounded border border-dock-line bg-field px-2 text-sm text-dock-ink">
         Bar {String(bar).padStart(3, "0")}
         <select
