@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { type LaneId } from "@/lib/md/catalog";
+import { NOTE_BY_KEY, type LaneId } from "@/lib/md/catalog";
 
 const FLIP = new Set(["0I", "0J"]);
 
@@ -338,9 +338,11 @@ export function NoteIcon({ noteKey, className = "size-6" }: { noteKey: string; c
   if (noteKey === "0C" || noteKey === "0I") return <RaiderIcon flip={false} className={className} />;
   if (noteKey === "0E") return <GeminiIcon className={className} />;
   if (noteKey === "21") return <GhostIcon className={className} />;
+  const dir = NOTE_BY_KEY[noteKey]?.dir;
   const bullet = noteKey === "30" || noteKey === "34" || noteKey === "38";
   return (
     <svg viewBox="0 0 24 24" className={"shrink-0 " + className} aria-hidden>
+      <circle cx="12" cy="12" r={dir || bullet ? "8.1" : "9.2"} fill="none" stroke="currentColor" strokeWidth="1.7" />
       <g transform={FLIP.has(noteKey) ? "rotate(180 12 12)" : undefined}>{mark(noteKey)}</g>
       {bullet ? <path d="M3.2 12h3.2" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" /> : null}
     </svg>
