@@ -889,7 +889,7 @@ export function Roll({
             className="pointer-events-none absolute top-0 bottom-0 left-0 z-30 w-0.5 bg-pink [backface-visibility:hidden]"
             style={{ transform: "translate3d(calc(var(--play, 0) * var(--px) / 192 * 1px),0,0)" }}
           />
-          <div ref={hoverRef} className="pointer-events-none absolute top-0 bottom-0 left-0 z-[26] w-px bg-cyan-200" style={{ display: "none" }} />
+          <div ref={hoverRef} className="pointer-events-none absolute top-0 bottom-0 left-0 z-[2] w-px bg-cyan-200" style={{ display: "none" }} />
         </div>
       </div>
       </div>
