@@ -268,11 +268,12 @@ function Waveform({ scrollerRef, songName, top }: { scrollerRef: RefObject<HTMLD
   return <canvas ref={canvasRef} className="pointer-events-none absolute left-0 z-[1]" style={{ top, height: WAVE_H }} />;
 }
 
-type DragOrigin = { id: string; tick: number; endTick?: number; music: boolean; boxW: number };
+type DragOrigin = { id: string; tick: number; endTick?: number; music: boolean; boxW: number; lane: LaneId; top: string };
 type DragState = {
   id: string;
   mode: "move" | "resize";
   x: number;
+  y: number;
   tick: number;
   end?: number;
   origins: DragOrigin[];
@@ -288,6 +289,34 @@ function layoutNote(el: HTMLElement, tick: number, endTick: number | undefined, 
 
 function noteEl(sheet: HTMLDivElement | null, id: string) {
   return sheet?.querySelector<HTMLElement>(`[data-note="${CSS.escape(id)}"]`) ?? null;
+}
+
+function laneAt(sheet: HTMLElement, clientY: number): LaneId | null {
+  const rows = [...sheet.querySelectorAll<HTMLElement>("[data-lane]")];
+  if (!rows.length) return null;
+  for (const row of rows) {
+    const rect = row.getBoundingClientRect();
+    if (clientY >= rect.top && clientY < rect.bottom) return (row.dataset.lane as LaneId) ?? null;
+  }
+  const first = rows[0].getBoundingClientRect();
+  const last = rows[rows.length - 1].getBoundingClientRect();
+  if (clientY < first.top) return (rows[0].dataset.lane as LaneId) ?? null;
+  if (clientY >= last.bottom) return (rows[rows.length - 1].dataset.lane as LaneId) ?? null;
+  return null;
+}
+
+function laneShifted(from: LaneId, anchorFrom: LaneId, anchorTo: LaneId): LaneId {
+  const delta = DISPLAY_LANES.indexOf(anchorTo) - DISPLAY_LANES.indexOf(anchorFrom);
+  const next = DISPLAY_LANES.indexOf(from) + delta;
+  return DISPLAY_LANES[Math.max(0, Math.min(DISPLAY_LANES.length - 1, next))] ?? from;
+}
+
+function placeInLane(el: HTMLElement, sheet: HTMLElement, lane: LaneId) {
+  const row = sheet.querySelector<HTMLElement>(`[data-lane="${lane}"]`);
+  const overlay = el.offsetParent as HTMLElement | null;
+  if (!row || !overlay) return;
+  const top = row.offsetTop - overlay.offsetTop + (row.offsetHeight - el.offsetHeight) / 2;
+  el.style.top = `${top}px`;
 }
 
 const NoteChip = memo(function NoteChip({
@@ -358,15 +387,18 @@ const NoteChip = memo(function NoteChip({
             const itemLane = Math.max(22, Math.round(LANE_UNITS[item.lane] * xHeight));
             const itemSize = Math.min(noteSizeNow, Math.max(14, itemLane - 6));
             const itemMusic = item.key === "10";
+            const el = noteEl(sheetRef.current, item.id);
             return {
               id: item.id,
               tick: item.tick,
               endTick: item.endTick,
               music: itemMusic,
               boxW: itemMusic ? Math.max(18, Math.round(itemSize * 0.7)) : itemSize,
+              lane: item.lane,
+              top: el?.style.top ?? "",
             };
           });
-        drag.current = { id: note.id, mode, x: event.clientX, tick: note.tick, end: note.endTick, origins };
+        drag.current = { id: note.id, mode, x: event.clientX, y: event.clientY, tick: note.tick, end: note.endTick, origins };
         event.currentTarget.setPointerCapture(event.pointerId);
       }}
       onPointerMove={(event) => {
@@ -388,12 +420,15 @@ const NoteChip = memo(function NoteChip({
         }
         const snapped = snapTick(Math.max(0, active.tick + delta), grid, state.sigs, state.measureCount);
         const shift = snapped - active.tick;
+        const anchor = active.origins.find((item) => item.id === active.id);
+        const target = !state.lockLane && sheet ? laneAt(sheet, event.clientY) : null;
         for (const origin of active.origins) {
           const el = noteEl(sheet, origin.id);
           if (!el) continue;
           const tick = Math.max(0, origin.tick + shift);
           const length = origin.endTick != null ? origin.endTick - origin.tick : 0;
           layoutNote(el, tick, length > 0 ? tick + length : undefined, origin.music, origin.boxW);
+          if (target && anchor && sheet) placeInLane(el, sheet, laneShifted(origin.lane, anchor.lane, target));
         }
       }}
       onPointerUp={(event) => {
@@ -402,18 +437,23 @@ const NoteChip = memo(function NoteChip({
         drag.current = null;
         if ((event.currentTarget.closest(".roll") as HTMLElement | null)?.dataset.pan === "1") return;
         const delta = xToTick(event.clientX - active.x, livePx.current);
-        const moved = Math.abs(event.clientX - active.x) >= 4;
+        const moved = Math.abs(event.clientX - active.x) >= 4 || Math.abs(event.clientY - active.y) >= 4;
+        const sheet = sheetRef.current;
         if (!moved) {
-          const sheet = sheetRef.current;
           for (const origin of active.origins) {
             const el = noteEl(sheet, origin.id);
-            if (el) layoutNote(el, origin.tick, origin.endTick, origin.music, origin.boxW);
+            if (!el) continue;
+            layoutNote(el, origin.tick, origin.endTick, origin.music, origin.boxW);
+            el.style.top = origin.top;
           }
           return;
         }
         const state = useChart.getState();
         if (active.mode === "resize") state.resizeNote(note.id, (active.end ?? note.tick) + delta);
-        else state.moveGroup(note.id, Math.max(0, active.tick + delta));
+        else {
+          const lane = !state.lockLane && sheet ? (laneAt(sheet, event.clientY) ?? undefined) : undefined;
+          state.moveGroup(note.id, Math.max(0, active.tick + delta), lane);
+        }
       }}
       onContextMenu={(event) => {
         event.preventDefault();
@@ -805,6 +845,7 @@ export function Roll({
               <div
                 key={lane.id}
                 className={"relative border-b border-white/10 " + wash(lane.id)}
+                data-lane={lane.id}
                 style={{ height: laneHeightOf(lane.id) }}
                 onPointerDown={(event) => {
                   if (event.button !== 0) return;

@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { HOLD_KEYS, PARTNER, type LaneId } from "./catalog";
+import { DISPLAY_LANES, HOLD_KEYS, PARTNER, type LaneId } from "./catalog";
 import {
   EMPTY_META,
   chartIssues,
@@ -100,7 +100,7 @@ type ChartState = {
   setXHeight: (height: number) => void;
   setPx: (px: number) => void;
   select: (id: string | null, extend?: boolean) => void;
-  moveGroup: (anchorId: string, tick: number) => void;
+  moveGroup: (anchorId: string, tick: number, lane?: LaneId) => void;
   patchMeta: (patch: Partial<Meta>) => void;
   setSig: (measure: number, ratio: number) => void;
   place: (lane: LaneId, tick: number, endTick?: number) => void;
@@ -426,19 +426,24 @@ export const useChart = create<ChartState>((set, get) => ({
         : [...state.selection, selectedId];
       return { selectedId, selection: selection.length ? selection : [selectedId] };
     }),
-  moveGroup: (anchorId, tick) =>
+  moveGroup: (anchorId, tick, lane) =>
     set((state) => {
       const anchor = state.notes.find((note) => note.id === anchorId);
       if (!anchor) return {};
       const snapped = snapTick(Math.max(0, tick), state.snapOn ? state.snap : 192, state.sigs, state.measureCount);
       const shift = snapped - anchor.tick;
-      if (shift === 0) return {};
+      const from = DISPLAY_LANES.indexOf(anchor.lane);
+      const to = lane && !state.lockLane ? DISPLAY_LANES.indexOf(lane) : from;
+      const laneShift = to - from;
+      if (shift === 0 && laneShift === 0) return {};
       const ids = new Set(state.selection.includes(anchorId) ? state.selection : [anchorId]);
       const notes = state.notes.map((note) => {
         if (!ids.has(note.id)) return note;
         const next = Math.max(0, note.tick + shift);
         const length = note.endTick != null ? note.endTick - note.tick : 0;
-        return { ...note, tick: next, endTick: length > 0 ? next + length : note.endTick };
+        const index = DISPLAY_LANES.indexOf(note.lane) + laneShift;
+        const nextLane = DISPLAY_LANES[Math.max(0, Math.min(DISPLAY_LANES.length - 1, index))] ?? note.lane;
+        return { ...note, lane: nextLane, tick: next, endTick: length > 0 ? next + length : note.endTick };
       });
       return remember(state, { notes, selectedId: anchorId });
     }),
