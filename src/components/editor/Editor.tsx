@@ -6,6 +6,7 @@ import { musicFileName, rememberInfo, type Meta } from "@/lib/md/bms";
 import { player } from "@/lib/md/player";
 import { persistChart, restoreChart, useChart } from "@/lib/md/store";
 import { Palette } from "./Palette";
+import { NotePicker } from "./NotePicker";
 import { Roll } from "./Roll";
 import { Inspector } from "./Inspector";
 import { MenuBar, MobileMenu } from "./MenuBar";
@@ -74,6 +75,7 @@ export function Editor() {
   const selected = notes.find((note) => note.id === selectedId);
   const album = useAlbumCharts();
   const [notesOpen, setNotesOpen] = useState(false);
+  const [picker, setPicker] = useState(() => typeof localStorage === "undefined" || localStorage.getItem("mdce-note-picker") !== "0");
   const [saved, setSaved] = useState("Saved");
 
   useLayoutEffect(() => {
@@ -304,6 +306,17 @@ export function Editor() {
       {banner ? <div className="truncate border-b border-dock-line bg-field px-3 py-1 text-xs text-dock-ink lg:hidden">{banner}</div> : null}
       <div className="hidden h-11 items-center gap-2 overflow-x-auto border-b border-dock-line bg-menubar px-2 text-dock-ink lg:flex">
         <Transport playheadRef={playheadRef} scrollerRef={scrollerRef} />
+        <button
+          type="button"
+          className={"h-8 rounded border px-2 text-sm " + (picker ? "border-pink bg-pink/20" : "border-dock-line bg-field")}
+          onClick={() => {
+            const next = !picker;
+            setPicker(next);
+            localStorage.setItem("mdce-note-picker", next ? "1" : "0");
+          }}
+        >
+          Notes
+        </button>
         <button type="button" className="h-8 rounded border border-dock-line bg-field px-2 text-sm" onClick={() => useChart.getState().undo()}>
           Undo
         </button>
@@ -352,6 +365,14 @@ export function Editor() {
         </div>
       ) : null}
       <div className="flex min-h-0 flex-1">
+        {picker ? (
+          <NotePicker
+            onClose={() => {
+              setPicker(false);
+              localStorage.setItem("mdce-note-picker", "0");
+            }}
+          />
+        ) : null}
         <div className="chart-bg flex min-h-0 min-w-0 flex-1 flex-col">
           {showStage ? <Stage /> : null}
           <div className="min-h-0 flex-1 overflow-hidden">
