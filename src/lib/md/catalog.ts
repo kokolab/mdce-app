@@ -112,7 +112,7 @@ export function channelFor(note: {
   return String(base).padStart(2, "0");
 }
 
-export type NoteGroup = "tap" | "accent" | "hold" | "boss" | "speed" | "item" | "fx";
+export type NoteGroup = "tap" | "accent" | "hold" | "gear" | "boss" | "speed" | "item" | "fx";
 
 export type NoteDef = {
   key: string;
@@ -143,7 +143,7 @@ export const NOTES: NoteDef[] = [
   { key: "0J", name: "Hammer flipped", short: "HAM*", group: "accent", sound: "hammer-flip" },
   { key: "0F", name: "Hold", short: "HOLD", group: "hold", hold: true, sound: "hold" },
   { key: "0G", name: "Masher", short: "MASH", group: "hold", hold: true, sound: "masher" },
-  { key: "0H", name: "Gear", short: "GEAR", group: "hold", sound: "gear" },
+  { key: "0H", name: "Gear", short: "GEAR", group: "gear", sound: "gear" },
   { key: "11", name: "Boss melee 1", short: "BM1", group: "boss", sound: "boss-melee1" },
   { key: "12", name: "Boss melee 2", short: "BM2", group: "boss", sound: "boss-melee2" },
   { key: "13", name: "Boss shot 1", short: "BP1", group: "boss", sound: "boss-proj1" },
@@ -195,6 +195,52 @@ export const NOTES: NoteDef[] = [
   { key: "26", name: "Show background", short: "SBG", group: "fx" },
   { key: "2Y", name: "Autoplay on", short: "AUTO", group: "fx" },
   { key: "2Z", name: "Autoplay off", short: "PLAY", group: "fx" },
+  { key: "27", name: "Screen Scroll UP", short: "UP", group: "fx" },
+  { key: "28", name: "Screen Scroll DOWN", short: "DOWN", group: "fx" },
+  { key: "29", name: "Screen Scroll OFF", short: "OFF", group: "fx" },
+  { key: "2A", name: "Scanline Ripples ON", short: "SCAN", group: "fx" },
+  { key: "2B", name: "Scanline Ripples OFF", short: "SCAN*", group: "fx" },
+  { key: "2C", name: "Chromatic Aberration ON", short: "CA", group: "fx" },
+  { key: "2D", name: "Chromatic Aberration OFF", short: "CA*", group: "fx" },
+  { key: "2E", name: "Vignette ON", short: "VIG", group: "fx" },
+  { key: "2F", name: "Vignette OFF", short: "VIG*", group: "fx" },
+  { key: "2G", name: "TV Static ON", short: "STATIC", group: "fx" },
+  { key: "2H", name: "TV Static OFF", short: "STAT*", group: "fx" },
+  { key: "2I", name: "Flashbang START", short: "FB1", group: "fx" },
+  { key: "2J", name: "Flashbang MID", short: "FB2", group: "fx" },
+  { key: "2K", name: "Flashbang END", short: "FB3", group: "fx" },
+  { key: "2N", name: "BG Stop ON", short: "STOP", group: "fx" },
+  { key: "2O", name: "BG Stop OFF", short: "STOP*", group: "fx" },
+  { key: "2P", name: "Mosaic ON", short: "MOS", group: "fx" },
+  { key: "2Q", name: "Mosaic OFF", short: "MOS*", group: "fx" },
+  { key: "2R", name: "Sepia ON", short: "SEP", group: "fx" },
+  { key: "2S", name: "Sepia OFF", short: "SEP*", group: "fx" },
+  { key: "2T", name: "Focus Lines BLACK", short: "FLB", group: "fx" },
+  { key: "2U", name: "Focus Lines WHITE", short: "FLW", group: "fx" },
+  { key: "2V", name: "Focus Lines OFF", short: "FL*", group: "fx" },
+  { key: "2W", name: "Film Grain ON", short: "GRAIN", group: "fx" },
+  { key: "2X", name: "Film Grain OFF", short: "GRN*", group: "fx" },
+  { key: "31", name: "Medium Bullet (Up)", short: "MB+", group: "fx", sound: "med1", dir: "up" },
+  { key: "32", name: "Medium Bullet (Down)", short: "MB-", group: "fx", sound: "med1", dir: "down" },
+  { key: "33", name: "Medium Bullet (Laneshift)", short: "MBL", group: "fx", sound: "med1" },
+  { key: "35", name: "Small Bullet (Up)", short: "SB+", group: "fx", sound: "small", dir: "up" },
+  { key: "36", name: "Small Bullet (Down)", short: "SB-", group: "fx", sound: "small", dir: "down" },
+  { key: "37", name: "Small Bullet (Laneshift)", short: "SBL", group: "fx", sound: "small" },
+  { key: "39", name: "Large Bullet (Up)", short: "LB+", group: "fx", sound: "large1", dir: "up" },
+  { key: "3A", name: "Large Bullet (Down)", short: "LB-", group: "fx", sound: "large1", dir: "down" },
+  { key: "3B", name: "Large Bullet (Laneshift)", short: "LBL", group: "fx", sound: "large1" },
+  { key: "3C", name: "Boss Bullet 1", short: "BB1", group: "fx", sound: "boss-proj1" },
+  { key: "3D", name: "Boss Bullet 1 (Laneshift)", short: "BB1L", group: "fx", sound: "boss-proj1" },
+  { key: "3E", name: "Boss Bullet 2", short: "BB2", group: "fx", sound: "boss-proj2" },
+  { key: "3F", name: "Boss Bullet 2 (Laneshift)", short: "BB2L", group: "fx", sound: "boss-proj2" },
+  { key: "CM", name: "Flashbang Color (White)", short: "WHT", group: "fx" },
+  { key: "CN", name: "Flashbang Color (Black)", short: "BLK", group: "fx" },
+  { key: "CO", name: "Flashbang Color (Red)", short: "RED", group: "fx" },
+  { key: "CP", name: "Flashbang Color (Green)", short: "GRN", group: "fx" },
+  { key: "CQ", name: "Flashbang Color (Blue)", short: "BLU", group: "fx" },
+  { key: "CR", name: "Flashbang Color (Cyan)", short: "CYA", group: "fx" },
+  { key: "CS", name: "Flashbang Color (Magenta)", short: "MAG", group: "fx" },
+  { key: "CT", name: "Flashbang Color (Yellow)", short: "YEL", group: "fx" },
 ];
 
 export const NOTE_BY_KEY: Record<string, NoteDef> = Object.fromEntries(NOTES.map((n) => [n.key, n]));
@@ -210,6 +256,7 @@ export const GROUPS: { id: NoteGroup; label: string }[] = [
   { id: "tap", label: "Taps" },
   { id: "accent", label: "Accents" },
   { id: "hold", label: "Holds" },
+  { id: "gear", label: "Gear" },
   { id: "boss", label: "Boss" },
   { id: "speed", label: "Speed" },
   { id: "item", label: "Items" },

@@ -339,7 +339,7 @@ export function NoteIcon({ noteKey, className = "size-6" }: { noteKey: string; c
   if (noteKey === "0E") return <GeminiIcon className={className} />;
   if (noteKey === "21") return <GhostIcon className={className} />;
   const dir = NOTE_BY_KEY[noteKey]?.dir;
-  const bullet = noteKey === "30" || noteKey === "34" || noteKey === "38";
+  const bullet = /^3[0-9A-F]$/.test(noteKey);
   return (
     <svg viewBox="0 0 24 24" className={"shrink-0 " + className} aria-hidden>
       <circle cx="12" cy="12" r={dir || bullet ? "8.1" : "9.2"} fill="none" stroke="currentColor" strokeWidth="1.7" />
