@@ -75,7 +75,12 @@ export function Editor() {
   const selected = notes.find((note) => note.id === selectedId);
   const album = useAlbumCharts();
   const [notesOpen, setNotesOpen] = useState(false);
-  const [picker, setPicker] = useState(() => typeof localStorage === "undefined" || localStorage.getItem("mdce-note-picker") !== "0");
+  const [side, setSide] = useState<"panel" | "notes" | null>(() => {
+    if (typeof localStorage === "undefined") return "panel";
+    const saved = localStorage.getItem("mdce-side");
+    if (saved === "notes" || saved === "closed") return saved === "notes" ? "notes" : null;
+    return "panel";
+  });
   const [saved, setSaved] = useState("Saved");
 
   useLayoutEffect(() => {
@@ -308,11 +313,22 @@ export function Editor() {
         <Transport playheadRef={playheadRef} scrollerRef={scrollerRef} />
         <button
           type="button"
-          className={"h-8 rounded border px-2 text-sm " + (picker ? "border-pink bg-pink/20" : "border-dock-line bg-field")}
+          className={"h-8 rounded border px-2 text-sm " + (side === "panel" ? "border-pink bg-pink/20" : "border-dock-line bg-field")}
           onClick={() => {
-            const next = !picker;
-            setPicker(next);
-            localStorage.setItem("mdce-note-picker", next ? "1" : "0");
+            const next = side === "panel" ? null : "panel";
+            setSide(next);
+            localStorage.setItem("mdce-side", next ?? "closed");
+          }}
+        >
+          Panel
+        </button>
+        <button
+          type="button"
+          className={"h-8 rounded border px-2 text-sm " + (side === "notes" ? "border-pink bg-pink/20" : "border-dock-line bg-field")}
+          onClick={() => {
+            const next = side === "notes" ? null : "notes";
+            setSide(next);
+            localStorage.setItem("mdce-side", next ?? "closed");
           }}
         >
           Notes
@@ -365,23 +381,28 @@ export function Editor() {
         </div>
       ) : null}
       <div className="flex min-h-0 flex-1">
-        {picker ? (
-          <NotePicker
-            onClose={() => {
-              setPicker(false);
-              localStorage.setItem("mdce-note-picker", "0");
-            }}
-          />
-        ) : null}
         <div className="chart-bg flex min-h-0 min-w-0 flex-1 flex-col">
           {showStage ? <Stage /> : null}
           <div className="min-h-0 flex-1 overflow-hidden">
             <Roll playheadRef={playheadRef} scrollerRef={scrollerRef} />
           </div>
         </div>
-        <aside className="dock hidden w-80 shrink-0 overflow-y-auto border-l border-dock-line p-3 lg:block">
-          <Inspector />
-        </aside>
+        {side ? (
+          <aside className="dock hidden w-80 shrink-0 flex-col overflow-hidden border-l border-dock-line lg:flex">
+            {side === "notes" ? (
+              <NotePicker
+                onClose={() => {
+                  setSide(null);
+                  localStorage.setItem("mdce-side", "closed");
+                }}
+              />
+            ) : (
+              <div className="min-h-0 flex-1 overflow-y-auto p-3">
+                <Inspector />
+              </div>
+            )}
+          </aside>
+        ) : null}
       </div>
       <footer className="hidden h-7 items-center gap-4 overflow-x-auto border-t border-dock-line bg-menubar px-3 font-mono text-xs text-dock-ink lg:flex">
         <span>Notes {notes.length}</span>

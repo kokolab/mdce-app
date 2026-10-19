@@ -49,7 +49,7 @@ export function NotePicker({ onClose }: { onClose: () => void }) {
   }, []);
 
   return (
-    <aside className="hidden w-64 shrink-0 flex-col border-r border-dock-line bg-panel text-dock-ink lg:flex">
+    <div className="flex h-full min-h-0 flex-col bg-panel text-dock-ink">
       <div className="flex h-9 shrink-0 items-center justify-between border-b border-dock-line px-2">
         <span className="text-sm font-semibold">Notes</span>
         <button type="button" className="h-7 rounded border border-dock-line bg-field px-2 text-xs" onClick={onClose}>
@@ -90,6 +90,6 @@ export function NotePicker({ onClose }: { onClose: () => void }) {
           </section>
         ))}
       </div>
-    </aside>
+    </div>
   );
 }
