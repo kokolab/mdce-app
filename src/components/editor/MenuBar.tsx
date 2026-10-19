@@ -26,6 +26,7 @@ export function MenuBar({
   const lockLane = useChart((state) => state.lockLane);
   const followPlay = useChart((state) => state.followPlay);
   const followTight = useChart((state) => state.followTight);
+  const followAmount = useChart((state) => state.followAmount);
   const [dark, setDark] = useState(() => typeof localStorage === "undefined" || localStorage.getItem("stagepen-dark") !== "0");
 
   useEffect(() => {
@@ -160,13 +161,27 @@ export function MenuBar({
           setDark(next);
         }, dark)}
         {item("Stage preview", () => state().setShowStage(!showStage), showStage)}
-        {item("Follow play line", () => state().setFollowPlay(!followPlay), followPlay)}
-        {item("Keep play line tight", () => state().setFollowTight(!followTight), followTight)}
         {item("Zoom in", () => zoom(1))}
         {item("Zoom out", () => zoom(-1))}
         {item("Go to measure…", jump)}
       </>)}
       {menu("options", "Options", <>
+        {item("Follow play line", () => state().setFollowPlay(!followPlay), followPlay)}
+        {item("Keep play line tight", () => state().setFollowTight(!followTight), followTight)}
+        <label className="flex h-12 items-center gap-2 px-3 text-sm text-dock-ink" onPointerDown={(event) => event.stopPropagation()}>
+          <span className="shrink-0">Follow</span>
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.05}
+            value={followAmount}
+            aria-label="Follow amount"
+            onChange={(event) => state().setFollowAmount(Number(event.target.value))}
+            className="min-w-0 flex-1"
+          />
+          <span className="w-8 font-mono text-xs">{followAmount.toFixed(2)}</span>
+        </label>
         {item("Snap to grid", () => state().setSnapOn(!snapOn), snapOn)}
         {item("Disable vertical moves", () => state().setLockLane(!lockLane), lockLane)}
         {item("Write tool", () => state().setTool("write"), tool === "write")}
@@ -240,6 +255,7 @@ export function MobileMenu({
   const lockLane = useChart((state) => state.lockLane);
   const followPlay = useChart((state) => state.followPlay);
   const followTight = useChart((state) => state.followTight);
+  const followAmount = useChart((state) => state.followAmount);
   const state = useChart.getState;
 
   function go(action: () => void) {
@@ -315,11 +331,25 @@ export function MobileMenu({
               setDark(next);
             }, dark)}
             {row("Stage preview", () => state().setShowStage(!showStage), showStage)}
-            {row("Follow play line", () => state().setFollowPlay(!followPlay), followPlay)}
-            {row("Keep play line tight", () => state().setFollowTight(!followTight), followTight)}
             {row("Zoom in", () => state().setXWidth(state().xWidth + 0.5))}
             {row("Zoom out", () => state().setXWidth(state().xWidth - 0.5))}
             <p className="px-4 pt-3 text-xs tracking-wide text-mute uppercase">Options</p>
+            {row("Follow play line", () => state().setFollowPlay(!followPlay), followPlay)}
+            {row("Keep play line tight", () => state().setFollowTight(!followTight), followTight)}
+            <label className="flex h-12 items-center gap-3 border-b border-white/10 px-4 text-base">
+              <span className="shrink-0">Follow</span>
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.05}
+                value={followAmount}
+                aria-label="Follow amount"
+                onChange={(event) => state().setFollowAmount(Number(event.target.value))}
+                className="min-w-0 flex-1"
+              />
+              <span className="w-10 font-mono text-sm">{followAmount.toFixed(2)}</span>
+            </label>
             {row("Snap to grid", () => state().setSnapOn(!snapOn), snapOn)}
             {row("Disable vertical moves", () => state().setLockLane(!lockLane), lockLane)}
             {row("Write tool", () => state().setTool("write"), tool === "write")}

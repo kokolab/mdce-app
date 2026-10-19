@@ -1,7 +1,6 @@
 import { useState, type ReactNode } from "react";
-import { SCENES, WAV_HEADER, noteName } from "@/lib/md/catalog";
+import { SCENES } from "@/lib/md/catalog";
 import { useChart } from "@/lib/md/store";
-import { formatClock, locate, secondsAt, tempoPoints } from "@/lib/md/timing";
 
 const SPEEDS = [
   { key: "0O", label: "Speed 1" },
@@ -57,31 +56,19 @@ export function Inspector() {
   const sub = useChart((state) => state.sub);
   const xWidth = useChart((state) => state.xWidth);
   const xHeight = useChart((state) => state.xHeight);
-  const followPlay = useChart((state) => state.followPlay);
-  const followTight = useChart((state) => state.followTight);
-  const followAmount = useChart((state) => state.followAmount);
   const bgmSpeed = useChart((state) => state.bgmSpeed);
   const musicOffset = useChart((state) => state.musicOffset);
-  const showIcons = useChart((state) => state.showIcons);
-  const brush = useChart((state) => state.brush);
   const bgmVolume = useChart((state) => state.bgmVolume);
   const sfxVolume = useChart((state) => state.sfxVolume);
   const notes = useChart((state) => state.notes);
-  const selectedId = useChart((state) => state.selectedId);
-  const selection = useChart((state) => state.selection);
-  const sigs = useChart((state) => state.sigs);
-  const measureCount = useChart((state) => state.measureCount);
   const [bar, setBar] = useState("0");
   const [headerMore, setHeaderMore] = useState(false);
   const [gridMore, setGridMore] = useState(false);
-  const [wavMore, setWavMore] = useState(true);
   const knownScene = SCENES.some((scene) => scene.id === meta.genre);
   const speed = notes
     .filter((note) => SPEED_BOTH[note.key])
     .sort((a, b) => a.tick - b.tick)[0];
   const speedValue = speed ? SPEED_BOTH[speed.key] : "";
-  const selected = notes.find((note) => note.id === selectedId);
-  const spot = selected ? locate(selected.tick, sigs, measureCount) : null;
 
   return (
     <div className="text-dock-ink">
@@ -178,8 +165,8 @@ export function Inspector() {
       </Group>
 
       <Group title="Grid">
-        <div className="flex items-end gap-3">
-          <label className="flex flex-col gap-0.5 text-[11px]">
+        <div className="flex items-end justify-center gap-8">
+          <label className="flex flex-col items-center gap-0.5 text-center text-[11px]">
             Divide
             <input
               type="number"
@@ -188,10 +175,10 @@ export function Inspector() {
               value={divide}
               aria-label="Grid divide"
               onChange={(event) => useChart.getState().setDivide(Number(event.target.value) || 1)}
-              className="h-7 w-16 rounded border border-dock-line bg-field px-1 font-mono text-xs text-dock-ink"
+              className="h-7 w-16 rounded border border-dock-line bg-field px-1 text-center font-mono text-xs text-dock-ink"
             />
           </label>
-          <label className="flex flex-col gap-0.5 text-[11px]">
+          <label className="flex flex-col items-center gap-0.5 text-center text-[11px]">
             Sub
             <input
               type="number"
@@ -200,7 +187,7 @@ export function Inspector() {
               value={sub}
               aria-label="Grid sub"
               onChange={(event) => useChart.getState().setSub(Number(event.target.value) || 1)}
-              className="h-7 w-16 rounded border border-dock-line bg-field px-1 font-mono text-xs text-dock-ink"
+              className="h-7 w-16 rounded border border-dock-line bg-field px-1 text-center font-mono text-xs text-dock-ink"
             />
           </label>
         </div>
@@ -284,11 +271,8 @@ export function Inspector() {
           <input type="range" min={0} max={1} step={0.05} value={sfxVolume} aria-label="Note sound volume" onChange={(event) => useChart.getState().setMix(bgmVolume, Number(event.target.value))} className="min-w-0 flex-1" />
           <span className="w-8 font-mono">{sfxVolume.toFixed(2)}</span>
         </label>
-      </Group>
-
-      <Group title="#WAV">
         <label className="flex h-7 items-center gap-2 text-xs">
-          <span className="w-[4.5rem] shrink-0 text-right">BGM Speed</span>
+          <span className="w-[4.5rem] shrink-0 text-right">Speed</span>
           <input type="range" min={0.25} max={4} step={0.05} value={bgmSpeed} aria-label="BGM speed" onChange={(event) => useChart.getState().setBgmSpeed(Number(event.target.value))} className="min-w-0 flex-1" />
           <span className="w-8 font-mono">{bgmSpeed.toFixed(2)}</span>
         </label>
@@ -306,55 +290,6 @@ export function Inspector() {
           />
           <span className="w-8 font-mono">ms</span>
         </label>
-        <label className="flex h-6 items-center gap-2 text-xs">
-          <input type="checkbox" checked={followPlay} onChange={(event) => useChart.getState().setFollowPlay(event.target.checked)} />
-          Follow Play line
-        </label>
-        <label className="flex h-6 items-center gap-2 text-xs">
-          <input type="checkbox" checked={followTight} onChange={(event) => useChart.getState().setFollowTight(event.target.checked)} />
-          Real-time follow play line
-        </label>
-        <label className="flex h-7 items-center gap-2 text-xs">
-          <span className="w-[4.5rem] shrink-0 text-right">Follow</span>
-          <input type="range" min={0} max={1} step={0.05} value={followAmount} aria-label="Follow amount" onChange={(event) => useChart.getState().setFollowAmount(Number(event.target.value))} className="min-w-0 flex-1" />
-          <span className="w-8 font-mono">{followAmount.toFixed(2)}</span>
-        </label>
-        <div className="flex gap-1">
-          <button type="button" className="h-7 flex-1 rounded border border-dock-line bg-field text-xs" onClick={() => useChart.getState().copySelected()}>
-            Copy
-          </button>
-          <button type="button" className="h-7 flex-1 rounded border border-dock-line bg-field text-xs" onClick={() => useChart.getState().pasteClipboard()}>
-            Paste
-          </button>
-          <button type="button" className="h-7 flex-1 rounded border border-dock-line bg-field text-xs" onClick={() => useChart.getState().setShowIcons(!showIcons)}>
-            {showIcons ? "Icons" : "Text"}
-          </button>
-        </div>
-        <p className="font-mono text-[11px] text-mute">
-          {selected && spot
-            ? `${selection.length > 1 ? `${selection.length} notes · ` : ""}${noteName(selected.key)} · ${String(spot.measure).padStart(3, "0")} · ${formatClock(secondsAt(selected.tick, tempoPoints(notes, meta.bpm)))}`
-            : "Shift-click adds notes to the group."}
-        </p>
-        <button type="button" className="h-7 w-full rounded border border-dock-line bg-field text-xs" onClick={() => setWavMore(!wavMore)}>
-          Expand...
-        </button>
-        {wavMore ? (
-          <div className="max-h-64 overflow-y-auto rounded border border-dock-line bg-field">
-            {WAV_HEADER.map((item) => {
-              const on = brush === item.key;
-              return (
-                <button
-                  key={item.key}
-                  type="button"
-                  onClick={() => useChart.getState().setBrush(item.key)}
-                  className={"flex h-6 w-full items-center px-2 text-left font-mono text-[11px] " + (on ? "bg-pink text-ink" : "")}
-                >
-                  {item.key}: {item.name}
-                </button>
-              );
-            })}
-          </div>
-        ) : null}
       </Group>
     </div>
   );
