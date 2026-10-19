@@ -260,47 +260,23 @@ export function Transport({
   const ratio = sigs.reduce((current, sig) => (sig.measure <= bar ? sig.ratio : current), 1);
 
   return (
-    <div className={"flex shrink-0 items-center " + (compact ? "gap-1" : "gap-2")}>
-      <button type="button" onClick={() => void playStart()} className={toolButton + " border-dock-line bg-field"} aria-label="Play from the beginning">
-        <PlayStartIcon />
-        {compact ? null : "Play"}
-      </button>
-      {compact ? null : (
-        <button type="button" onClick={() => void playMeasure()} className={toolButton + " border-dock-line bg-field"} aria-label="Play from the measure on screen">
-          <PlayMeasureIcon />
-          Measure
+    <div className={"flex shrink-0 items-center " + (compact ? "gap-1" : "gap-1.5")}>
+      <div className="flex items-center gap-1">
+        <button type="button" onClick={() => void playStart()} className={toolButton + " border-dock-line bg-field"} aria-label="Play from the beginning">
+          <PlayStartIcon />
+          {compact ? null : "Play"}
         </button>
-      )}
-      <button type="button" onClick={stop} className={toolButton + " border-dock-line bg-field"} aria-label="Stop">
-        <StopIcon />
-        {compact ? null : "Stop"}
-      </button>
-      {compact ? null : (
-        <>
-          <span className="px-0.5 text-dock-line" aria-hidden>
-            |
-          </span>
-          <button
-            type="button"
-            onClick={() => useChart.getState().setTool("select")}
-            className={toolButton + (tool === "select" ? " border-pink bg-pink/20" : " border-dock-line bg-field")}
-            aria-label="Select"
-          >
-            <MousePointer2 className="size-4 shrink-0" />
-            Select
+        {compact ? null : (
+          <button type="button" onClick={() => void playMeasure()} className={toolButton + " border-dock-line bg-field"} aria-label="Play from the measure on screen">
+            <PlayMeasureIcon />
+            Measure
           </button>
-          <button
-            type="button"
-            onClick={() => useChart.getState().setTool("write")}
-            className={toolButton + (tool === "write" ? " border-pink bg-pink/20" : " border-dock-line bg-field")}
-            aria-label="Edit"
-          >
-            <Pencil className="size-4 shrink-0 text-amber-400" />
-            Edit
-          </button>
-          <span className="min-w-16 font-mono text-sm text-dock-ink">{clock}</span>
-        </>
-      )}
+        )}
+        <button type="button" onClick={stop} className={toolButton + " border-dock-line bg-field"} aria-label="Stop">
+          <StopIcon />
+          {compact ? null : "Stop"}
+        </button>
+      </div>
       <label className="flex h-8 items-center gap-1 rounded border border-dock-line bg-field px-1 text-sm text-dock-ink" title={`Chart is ${chartBpm} BPM. This changes playback speed, including the play line.`}>
         {compact ? null : "BPM"}
         <button type="button" className="h-6 w-6 rounded border border-dock-line" aria-label="Slower BPM" onClick={() => useChart.getState().setPlayBpm(playBpm - 1)}>
@@ -319,50 +295,81 @@ export function Transport({
           +
         </button>
       </label>
+      {compact ? null : <span className="min-w-16 text-center font-mono text-sm text-dock-ink tabular-nums">{clock}</span>}
+      {compact ? null : <span className="mx-0.5 h-5 w-px bg-dock-line" aria-hidden />}
+      {compact ? null : (
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => useChart.getState().setTool("select")}
+            className={toolButton + (tool === "select" ? " border-pink bg-pink/20" : " border-dock-line bg-field")}
+            aria-label="Select"
+          >
+            <MousePointer2 className="size-4 shrink-0" />
+            Select
+          </button>
+          <button
+            type="button"
+            onClick={() => useChart.getState().setTool("write")}
+            className={toolButton + (tool === "write" ? " border-pink bg-pink/20" : " border-dock-line bg-field")}
+            aria-label="Edit"
+          >
+            <Pencil className="size-4 shrink-0 text-amber-400" />
+            Edit
+          </button>
+          <button type="button" className={toolButton + " border-dock-line bg-field"} onClick={() => useChart.getState().undo()}>
+            Undo
+          </button>
+          <button type="button" className={toolButton + " border-dock-line bg-field"} onClick={() => useChart.getState().redo()}>
+            Redo
+          </button>
+        </div>
+      )}
+      {compact ? null : <span className="mx-0.5 h-5 w-px bg-dock-line" aria-hidden />}
       {compact ? null : (
         <>
-      <label className="flex h-8 items-center gap-2 rounded border border-dock-line bg-field px-2 text-sm text-dock-ink">
-        Grid
-        <select value={divide} onChange={(event) => setDivide(Number(event.target.value))} className="bg-transparent font-mono text-dock-ink">
-          {[1, 2, 4, 6, 8, 12, 16, 24, 32, 48, 64, 96, 192].map((value) => (
-            <option key={value} value={value}>
-              {value}
-            </option>
-          ))}
-          {[1, 2, 4, 6, 8, 12, 16, 24, 32, 48, 64, 96, 192].includes(divide) ? null : <option value={divide}>{divide}</option>}
-        </select>
-      </label>
-      <span
-        ref={(node) => {
-          hoverTime.node = node;
-          if (node) node.textContent = hoverTime.text;
-        }}
-        className="min-w-24 text-center font-mono text-sm text-dock-ink tabular-nums"
-      />
-      <label className="flex h-8 items-center gap-2 rounded border border-dock-line bg-field px-2 text-sm text-dock-ink">
-        Bar {String(bar).padStart(3, "0")}
-        <select
-          value={ratio}
-          onChange={(event) => setSig(bar, Number(event.target.value))}
-          className="bg-transparent font-mono text-dock-ink"
-        >
-          <option value={1}>4/4</option>
-          <option value={0.75}>3/4</option>
-          <option value={0.5}>2/4</option>
-          <option value={1.25}>5/4</option>
-          <option value={1.5}>6/4</option>
-          <option value={0.875}>7/8</option>
-        </select>
-      </label>
-      <div className="flex h-8 items-center rounded border border-dock-line bg-field">
-        <button type="button" className="h-8 px-2 text-sm text-dock-ink" onClick={() => setPx(px - 24)} aria-label="Zoom out">
-          −
-        </button>
-        <button type="button" className="h-8 border-l border-dock-line px-2 text-sm text-dock-ink" onClick={() => setPx(px + 24)} aria-label="Zoom in">
-          +
-        </button>
-      </div>
-      <MeasureJump />
+          <label className="flex h-8 items-center gap-2 rounded border border-dock-line bg-field px-2 text-sm text-dock-ink">
+            Grid
+            <select value={divide} onChange={(event) => setDivide(Number(event.target.value))} className="bg-transparent font-mono text-dock-ink">
+              {[1, 2, 4, 6, 8, 12, 16, 24, 32, 48, 64, 96, 192].map((value) => (
+                <option key={value} value={value}>
+                  {value}
+                </option>
+              ))}
+              {[1, 2, 4, 6, 8, 12, 16, 24, 32, 48, 64, 96, 192].includes(divide) ? null : <option value={divide}>{divide}</option>}
+            </select>
+          </label>
+          <span
+            ref={(node) => {
+              hoverTime.node = node;
+              if (node) node.textContent = hoverTime.text;
+            }}
+            className="min-w-24 text-center font-mono text-sm text-dock-ink tabular-nums"
+          />
+          <label className="flex h-8 items-center gap-2 rounded border border-dock-line bg-field px-2 text-sm text-dock-ink">
+            Bar {String(bar).padStart(3, "0")}
+            <select
+              value={ratio}
+              onChange={(event) => setSig(bar, Number(event.target.value))}
+              className="bg-transparent font-mono text-dock-ink"
+            >
+              <option value={1}>4/4</option>
+              <option value={0.75}>3/4</option>
+              <option value={0.5}>2/4</option>
+              <option value={1.25}>5/4</option>
+              <option value={1.5}>6/4</option>
+              <option value={0.875}>7/8</option>
+            </select>
+          </label>
+          <div className="flex h-8 items-center overflow-hidden rounded border border-dock-line bg-field">
+            <button type="button" className="h-8 px-2 text-sm text-dock-ink" onClick={() => setPx(px - 24)} aria-label="Zoom out">
+              −
+            </button>
+            <button type="button" className="h-8 border-l border-dock-line px-2 text-sm text-dock-ink" onClick={() => setPx(px + 24)} aria-label="Zoom in">
+              +
+            </button>
+          </div>
+          <MeasureJump />
         </>
       )}
     </div>

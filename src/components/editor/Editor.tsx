@@ -311,56 +311,54 @@ export function Editor() {
       {banner ? <div className="truncate border-b border-dock-line bg-field px-3 py-1 text-xs text-dock-ink lg:hidden">{banner}</div> : null}
       <div className="hidden h-11 items-center gap-2 overflow-x-auto border-b border-dock-line bg-menubar px-2 text-dock-ink lg:flex">
         <Transport playheadRef={playheadRef} scrollerRef={scrollerRef} />
-        <button
-          type="button"
-          className={"h-8 rounded border px-2 text-sm " + (side === "panel" ? "border-pink bg-pink/20" : "border-dock-line bg-field")}
-          onClick={() => {
-            const next = side === "panel" ? null : "panel";
-            setSide(next);
-            localStorage.setItem("mdce-side", next ?? "closed");
-          }}
-        >
-          Panel
-        </button>
-        <button
-          type="button"
-          className={"h-8 rounded border px-2 text-sm " + (side === "notes" ? "border-pink bg-pink/20" : "border-dock-line bg-field")}
-          onClick={() => {
-            const next = side === "notes" ? null : "notes";
-            setSide(next);
-            localStorage.setItem("mdce-side", next ?? "closed");
-          }}
-        >
-          Notes
-        </button>
-        <button type="button" className="h-8 rounded border border-dock-line bg-field px-2 text-sm" onClick={() => useChart.getState().undo()}>
-          Undo
-        </button>
-        <button type="button" className="h-8 rounded border border-dock-line bg-field px-2 text-sm" onClick={() => useChart.getState().redo()}>
-          Redo
-        </button>
-        {album.charts.length > 1 ? (
-          <label className="flex h-8 shrink-0 items-center gap-2 text-sm">
-            Chart
-            <select
-              className="h-8 rounded border border-dock-line bg-field px-2"
-              value={album.current}
-              onChange={(event) => {
-                const next = album.charts.find((chart) => chart.name === event.target.value);
-                if (!next) return;
-                useChart.getState().loadText(next.text, next.name);
-                setAlbumCharts(album.charts, next.name);
-                useChart.getState().setBanner(`Editing ${chartLabel(next.name)}. The song stays loaded.`);
+        <div className="ml-auto flex shrink-0 items-center gap-2">
+          {album.charts.length > 1 ? (
+            <label className="flex h-8 shrink-0 items-center gap-2 rounded border border-dock-line bg-field px-2 text-sm">
+              Chart
+              <select
+                className="bg-transparent"
+                value={album.current}
+                onChange={(event) => {
+                  const next = album.charts.find((chart) => chart.name === event.target.value);
+                  if (!next) return;
+                  useChart.getState().loadText(next.text, next.name);
+                  setAlbumCharts(album.charts, next.name);
+                  useChart.getState().setBanner(`Editing ${chartLabel(next.name)}. The song stays loaded.`);
+                }}
+              >
+                {album.charts.map((chart) => (
+                  <option key={chart.name} value={chart.name}>
+                    {chartLabel(chart.name)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+          <div className="flex h-8 overflow-hidden rounded border border-dock-line bg-field">
+            <button
+              type="button"
+              className={"h-8 px-3 text-sm " + (side === "panel" ? "bg-pink/20" : "")}
+              onClick={() => {
+                const next = side === "panel" ? null : "panel";
+                setSide(next);
+                localStorage.setItem("mdce-side", next ?? "closed");
               }}
             >
-              {album.charts.map((chart) => (
-                <option key={chart.name} value={chart.name}>
-                  {chartLabel(chart.name)}
-                </option>
-              ))}
-            </select>
-          </label>
-        ) : null}
+              Panel
+            </button>
+            <button
+              type="button"
+              className={"h-8 border-l border-dock-line px-3 text-sm " + (side === "notes" ? "bg-pink/20" : "")}
+              onClick={() => {
+                const next = side === "notes" ? null : "notes";
+                setSide(next);
+                localStorage.setItem("mdce-side", next ?? "closed");
+              }}
+            >
+              Notes
+            </button>
+          </div>
+        </div>
       </div>
       {selected?.lane === "bpm" ? (
         <div className="flex items-center gap-3 border-b border-white/10 px-3 py-2 text-sm">
