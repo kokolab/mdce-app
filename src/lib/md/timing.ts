@@ -184,5 +184,5 @@ export function formatClock(seconds: number): string {
   const mins = Math.floor(totalMs / 60000);
   const secs = Math.floor((totalMs % 60000) / 1000);
   const hundredths = Math.floor((totalMs % 1000) / 10);
-  return `${mins}:${String(secs).padStart(2, "0")}.${String(hundredths).padStart(2, "0")} · ${totalMs} ms`;
+  return `${mins}:${String(secs).padStart(2, "0")}.${String(hundredths).padStart(2, "0")}`;
 }

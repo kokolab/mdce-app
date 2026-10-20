@@ -287,7 +287,7 @@ export function Transport({
         </button>
       </label>
       {compact ? null : (
-        <span ref={clockRef} className="min-w-44 text-center font-mono text-sm text-dock-ink tabular-nums">
+        <span ref={clockRef} className="min-w-16 text-center font-mono text-sm text-dock-ink tabular-nums">
           {formatClock(0)}
         </span>
       )}
