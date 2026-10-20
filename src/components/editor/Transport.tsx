@@ -73,30 +73,6 @@ function clearPan(scroller: HTMLElement | null, playhead: HTMLElement | null) {
 
 const toolButton = "flex h-8 shrink-0 items-center gap-1.5 rounded border px-2 text-sm text-dock-ink";
 
-function MeasureJump() {
-  const [value, setValue] = useState("");
-  return (
-    <form
-      className="flex h-8 items-center gap-1 rounded border border-dock-line bg-field px-2 text-sm text-dock-ink"
-      onSubmit={(event) => {
-        event.preventDefault();
-        useChart.getState().gotoMeasure(Number(value) || 0);
-      }}
-    >
-      <label htmlFor="measure-jump">Go</label>
-      <input
-        id="measure-jump"
-        inputMode="numeric"
-        placeholder="000"
-        value={value}
-        onChange={(event) => setValue(event.target.value)}
-        className="w-12 bg-transparent text-center font-mono text-dock-ink"
-        aria-label="Go to measure"
-      />
-    </form>
-  );
-}
-
 export function Transport({
   playheadRef,
   scrollerRef,
@@ -108,8 +84,8 @@ export function Transport({
   compact?: boolean;
   live?: boolean;
 }) {
-  const [clock, setClock] = useState("0:00.0");
   const [bar, setBar] = useState(0);
+  const clockRef = useRef<HTMLSpanElement>(null);
   const divide = useChart((state) => state.divide);
   const setDivide = useChart((state) => state.setDivide);
   const setPx = useChart((state) => state.setPx);
@@ -133,6 +109,17 @@ export function Transport({
     let stopsHeader: unknown = null;
     let stopsExtras: unknown = null;
     let stopsSigs: unknown = null;
+    let clockTimer = 0;
+    const paintClock = () => {
+      const node = clockRef.current;
+      if (!node) return;
+      if (!player.playing) {
+        window.clearInterval(clockTimer);
+        clockTimer = 0;
+        return;
+      }
+      node.textContent = formatClock(secondsAt(player.tickFor(points, stops), points, stops));
+    };
     const loop = (now: number) => {
       if (!alive) {
         frame = 0;
@@ -173,17 +160,21 @@ export function Transport({
       }
       if (now - lastPaint > 180) {
         lastPaint = now;
-        setClock(formatClock(secondsAt(tick, points, stops)));
         setBar(locate(tick, state.sigs, state.measureCount).measure);
       }
     };
     const start = () => {
+      const state = useChart.getState();
+      points = tempoPoints(state.notes, state.meta.bpm);
+      stops = stopPoints(state.headerExtras ?? [], state.extras ?? [], state.sigs);
       if (!frame && player.playing) frame = requestAnimationFrame(loop);
+      if (!clockTimer && player.playing) clockTimer = window.setInterval(paintClock, 1);
     };
     document.addEventListener("stagepen-playback", start);
     return () => {
       alive = false;
       if (frame) cancelAnimationFrame(frame);
+      if (clockTimer) window.clearInterval(clockTimer);
       document.removeEventListener("stagepen-playback", start);
     };
   }, [playheadRef, scrollerRef, live]);
@@ -225,7 +216,7 @@ export function Transport({
 
   function stop() {
     player.stop();
-    setClock("0:00.0");
+    if (clockRef.current) clockRef.current.textContent = formatClock(0);
     setBar(0);
     playheadRef.current?.style.setProperty("--play", "0");
     clearPan(scrollerRef.current, playheadRef.current);
@@ -295,7 +286,11 @@ export function Transport({
           +
         </button>
       </label>
-      {compact ? null : <span className="min-w-16 text-center font-mono text-sm text-dock-ink tabular-nums">{clock}</span>}
+      {compact ? null : (
+        <span ref={clockRef} className="min-w-44 text-center font-mono text-sm text-dock-ink tabular-nums">
+          {formatClock(0)}
+        </span>
+      )}
       {compact ? null : <span className="mx-0.5 h-5 w-px bg-dock-line" aria-hidden />}
       {compact ? null : (
         <div className="flex items-center gap-1">
@@ -339,13 +334,6 @@ export function Transport({
               {[1, 2, 4, 6, 8, 12, 16, 24, 32, 48, 64, 96, 192].includes(divide) ? null : <option value={divide}>{divide}</option>}
             </select>
           </label>
-          <span
-            ref={(node) => {
-              hoverTime.node = node;
-              if (node) node.textContent = hoverTime.text;
-            }}
-            className="min-w-24 text-center font-mono text-sm text-dock-ink tabular-nums"
-          />
           <label className="flex h-8 items-center gap-2 rounded border border-dock-line bg-field px-2 text-sm text-dock-ink">
             Bar {String(bar).padStart(3, "0")}
             <select
@@ -369,7 +357,13 @@ export function Transport({
               +
             </button>
           </div>
-          <MeasureJump />
+          <span
+            ref={(node) => {
+              hoverTime.node = node;
+              if (node) node.textContent = hoverTime.text;
+            }}
+            className="min-w-24 text-center font-mono text-sm text-dock-ink tabular-nums"
+          />
         </>
       )}
     </div>

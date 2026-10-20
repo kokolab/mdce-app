@@ -180,9 +180,9 @@ export function tickAt(seconds: number, points: TempoPoint[], stops: StopPoint[]
 }
 
 export function formatClock(seconds: number): string {
-  const safe = Math.max(0, seconds);
-  const mins = Math.floor(safe / 60);
-  const secs = Math.floor(safe % 60);
-  const frac = Math.floor((safe % 1) * 10);
-  return `${mins}:${String(secs).padStart(2, "0")}.${frac}`;
+  const totalMs = Math.max(0, Math.floor(seconds * 1000));
+  const mins = Math.floor(totalMs / 60000);
+  const secs = Math.floor((totalMs % 60000) / 1000);
+  const hundredths = Math.floor((totalMs % 1000) / 10);
+  return `${mins}:${String(secs).padStart(2, "0")}.${String(hundredths).padStart(2, "0")} · ${totalMs} ms`;
 }
