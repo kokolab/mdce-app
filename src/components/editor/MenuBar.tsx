@@ -23,6 +23,10 @@ export function MenuBar({
   const showIcons = useChart((state) => state.showIcons);
   const showStage = useChart((state) => state.showStage);
   const snapOn = useChart((state) => state.snapOn);
+  const heartOn = useChart((state) => {
+    const ids = state.selection.length ? state.selection : state.selectedId ? [state.selectedId] : [];
+    return ids.length > 0 && ids.every((id) => state.notes.find((note) => note.id === id)?.blood);
+  });
   const lockLane = useChart((state) => state.lockLane);
   const followPlay = useChart((state) => state.followPlay);
   const followTight = useChart((state) => state.followTight);
@@ -191,6 +195,7 @@ export function MenuBar({
         {item("Swap air and ground", () => state().swapGroundAir())}
         {item("Swap upper and lower lanes", () => state().mirrorLanes())}
         {item("Quantize selection", () => state().quantizeSelection())}
+        {item("Hidden note", () => state().toggleBlood(), heartOn)}
       </>)}
       {menu("preview", "Preview", <>
         {item("Play or pause", () => {
@@ -252,6 +257,10 @@ export function MobileMenu({
   const showIcons = useChart((state) => state.showIcons);
   const showStage = useChart((state) => state.showStage);
   const snapOn = useChart((state) => state.snapOn);
+  const heartOn = useChart((state) => {
+    const ids = state.selection.length ? state.selection : state.selectedId ? [state.selectedId] : [];
+    return ids.length > 0 && ids.every((id) => state.notes.find((note) => note.id === id)?.blood);
+  });
   const lockLane = useChart((state) => state.lockLane);
   const followPlay = useChart((state) => state.followPlay);
   const followTight = useChart((state) => state.followTight);
@@ -358,6 +367,7 @@ export function MobileMenu({
             {row("Swap air and ground", () => state().swapGroundAir())}
             {row("Swap upper and lower lanes", () => state().mirrorLanes())}
             {row("Quantize selection", () => state().quantizeSelection())}
+            {row("Hidden note", () => state().toggleBlood(), heartOn)}
             <p className="px-4 pt-3 text-xs tracking-wide text-mute uppercase">Preview</p>
             {row("Play or pause", () => document.dispatchEvent(new CustomEvent("stagepen-toggle-play")))}
             {row("Stop", () => document.dispatchEvent(new CustomEvent("stagepen-stop")))}

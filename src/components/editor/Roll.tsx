@@ -475,7 +475,7 @@ const NoteChip = memo(function NoteChip({
                 (note.key === "0G" || note.key === "16" || note.key === "17" ? " stripe" : ""))) +
         (selected ? " ring-2 ring-paper" : "")
       }
-      style={{ left, width: span, height: boxH, top: laneTop + (music ? 2 : (laneH - boxH) / 2), transform: mine ? "translateX(-50%)" : undefined, minWidth: mine ? size : undefined }}
+      style={{ left, width: span, height: boxH, top: laneTop + (music ? 2 : (laneH - boxH) / 2), transform: mine ? "translateX(-50%)" : undefined, minWidth: mine ? size : undefined, overflow: note.blood ? "visible" : undefined }}
     >
       {gear && icons ? (
         <GearIcon half={gearHalf} boss={note.key === "18"} className="h-[82%] w-[82%]" />
@@ -500,7 +500,11 @@ const NoteChip = memo(function NoteChip({
       ) : (
         label
       )}
-      {icons && note.blood ? <span className="absolute top-1 right-1 size-1.5 rounded-full bg-ink" /> : null}
+      {note.blood ? (
+        <svg viewBox="0 0 24 24" className="pointer-events-none absolute top-0 left-1/2 z-10 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2" aria-hidden>
+          <path d="M12 20s-7-4.4-7-9a4 4 0 0 1 7-2 4 4 0 0 1 7 2c0 4.6-7 9-7 9z" fill="#ff2d55" stroke="#111" strokeWidth="1.4" />
+        </svg>
+      ) : null}
       {travel ? <ApproachArrow dir={travel} lane={note.lane} /> : null}
       {badge ? <BossBadge text={badge} /> : null}
     </button>
@@ -904,9 +908,10 @@ export function Roll({
                     if ((host.closest(".roll") as HTMLElement | null)?.dataset.pan === "1") return;
                     const end = tickAt(ev.clientX, host);
                     const mine = (ev.ctrlKey || ev.metaKey) && ev.shiftKey && canHold;
+                    const heart = (ev.ctrlKey || ev.metaKey) && !ev.shiftKey;
                     if (mine) place(lane.id, start, undefined, true);
-                    else if (canHold && Math.abs(ev.clientX - origin) > 6 && end !== start) place(lane.id, start, end);
-                    else place(lane.id, start);
+                    else if (canHold && Math.abs(ev.clientX - origin) > 6 && end !== start) place(lane.id, start, end, false, heart);
+                    else place(lane.id, start, undefined, false, heart);
                   };
                   host.addEventListener("pointermove", move);
                   host.addEventListener("pointerup", up);

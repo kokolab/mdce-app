@@ -103,10 +103,11 @@ type ChartState = {
   moveGroup: (anchorId: string, tick: number, lane?: LaneId) => void;
   patchMeta: (patch: Partial<Meta>) => void;
   setSig: (measure: number, ratio: number) => void;
-  place: (lane: LaneId, tick: number, endTick?: number, tapHold?: boolean) => void;
+  place: (lane: LaneId, tick: number, endTick?: number, tapHold?: boolean, blood?: boolean) => void;
   moveNote: (id: string, lane: LaneId, tick: number) => void;
   resizeNote: (id: string, endTick: number) => void;
   remove: (id: string) => void;
+  toggleBlood: () => void;
   patchSelected: (patch: Partial<ChartNote>) => void;
   undo: () => void;
   redo: () => void;
@@ -462,12 +463,13 @@ export const useChart = create<ChartState>((set, get) => ({
       sigs.sort((a, b) => a.measure - b.measure);
       return remember(state, { sigs });
     }),
-  place: (lane, tick, endTick, tapHold) =>
+  place: (lane, tick, endTick, tapHold, blood) =>
     set((state) => {
       const key = state.brush;
       const snapped = snapTick(tick, state.snapOn ? state.snap : 192, state.sigs, state.measureCount);
       const end = endTick == null ? undefined : snapTick(endTick, state.snapOn ? state.snap : 192, state.sigs, state.measureCount);
       const mine = Boolean(tapHold) && HOLD_KEYS.has(key) && lane !== "bpm" && lane !== "bgm";
+      const play = lane === "air" || lane === "air2" || lane === "gnd" || lane === "gnd2";
       const notes = state.notes.filter((note) => !(note.lane === lane && Math.abs(note.tick - snapped) <= 1));
       const created: ChartNote = {
         id: nextId(),
@@ -477,6 +479,7 @@ export const useChart = create<ChartState>((set, get) => ({
         bpm: lane === "bpm" ? state.meta.bpm : undefined,
         endTick: mine ? undefined : end != null && end > snapped ? end : undefined,
         tapHold: mine || undefined,
+        blood: Boolean(blood) && play ? true : undefined,
       };
       notes.push(created);
       if (key === "0E" && lane !== "bpm") {
@@ -527,6 +530,19 @@ export const useChart = create<ChartState>((set, get) => ({
       if (!state.selectedId) return {};
       const notes = state.notes.map((note) => (note.id === state.selectedId ? { ...note, ...patch, id: note.id } : note));
       return remember(state, { notes });
+    }),
+  toggleBlood: () =>
+    set((state) => {
+      const ids = new Set(state.selection.length ? state.selection : state.selectedId ? [state.selectedId] : []);
+      if (!ids.size) return { banner: "Select a note, then use Conversion → Hidden note to add a heart." };
+      const play = new Set(["air", "air2", "gnd", "gnd2"]);
+      const targets = state.notes.filter((note) => ids.has(note.id) && play.has(note.lane));
+      if (!targets.length) return { banner: "Hearts only attach to air and ground notes." };
+      const on = targets.every((note) => note.blood);
+      const notes = state.notes.map((note) =>
+        ids.has(note.id) && play.has(note.lane) ? { ...note, blood: on ? undefined : true } : note,
+      );
+      return remember(state, { notes, banner: on ? "Visible note. Heart removed." : "Hidden note. Heart added." });
     }),
   undo: () =>
     set((state) => {

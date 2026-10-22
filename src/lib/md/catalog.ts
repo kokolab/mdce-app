@@ -105,10 +105,11 @@ export function channelFor(note: {
   if (note.lane === "bpm") return (note.bpm ?? 0) > 255 ? "08" : "03";
   if (note.tapHold && lane.tap) return lane.tap;
   let base = lane.base;
+  const play = LN_BASES.has(base);
   const wantsLength = note.endTick != null && note.lane !== "bgm";
-  if (wantsLength && LN_BASES.has(base)) base += 40;
-  else if (note.blood && (note.lane === "air" || note.lane === "air2" || note.lane === "gnd" || note.lane === "gnd2"))
-    base += 20;
+  if (play && wantsLength && note.blood) base += 60;
+  else if (play && wantsLength) base += 40;
+  else if (play && note.blood) base += 20;
   return String(base).padStart(2, "0");
 }
 
