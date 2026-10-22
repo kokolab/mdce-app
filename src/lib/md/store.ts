@@ -103,7 +103,7 @@ type ChartState = {
   moveGroup: (anchorId: string, tick: number, lane?: LaneId) => void;
   patchMeta: (patch: Partial<Meta>) => void;
   setSig: (measure: number, ratio: number) => void;
-  place: (lane: LaneId, tick: number, endTick?: number) => void;
+  place: (lane: LaneId, tick: number, endTick?: number, tapHold?: boolean) => void;
   moveNote: (id: string, lane: LaneId, tick: number) => void;
   resizeNote: (id: string, endTick: number) => void;
   remove: (id: string) => void;
@@ -462,11 +462,12 @@ export const useChart = create<ChartState>((set, get) => ({
       sigs.sort((a, b) => a.measure - b.measure);
       return remember(state, { sigs });
     }),
-  place: (lane, tick, endTick) =>
+  place: (lane, tick, endTick, tapHold) =>
     set((state) => {
       const key = state.brush;
       const snapped = snapTick(tick, state.snapOn ? state.snap : 192, state.sigs, state.measureCount);
       const end = endTick == null ? undefined : snapTick(endTick, state.snapOn ? state.snap : 192, state.sigs, state.measureCount);
+      const mine = Boolean(tapHold) && HOLD_KEYS.has(key) && lane !== "bpm" && lane !== "bgm";
       const notes = state.notes.filter((note) => !(note.lane === lane && Math.abs(note.tick - snapped) <= 1));
       const created: ChartNote = {
         id: nextId(),
@@ -474,7 +475,8 @@ export const useChart = create<ChartState>((set, get) => ({
         key: lane === "bpm" ? "BPM" : key,
         tick: snapped,
         bpm: lane === "bpm" ? state.meta.bpm : undefined,
-        endTick: end != null && end > snapped ? end : undefined,
+        endTick: mine ? undefined : end != null && end > snapped ? end : undefined,
+        tapHold: mine || undefined,
       };
       notes.push(created);
       if (key === "0E" && lane !== "bpm") {

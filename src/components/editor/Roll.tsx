@@ -345,13 +345,16 @@ const NoteChip = memo(function NoteChip({
   const music = note.key === "10";
   const gear = note.key === "0H" || note.key === "18";
   const gearHalf = gear && (note.lane === "gnd" || note.lane === "gnd2");
-  const held = note.endTick != null && note.endTick > note.tick;
+  const held = !note.tapHold && note.endTick != null && note.endTick > note.tick;
+  const mine = Boolean(note.tapHold);
   const boxW = music ? Math.max(18, Math.round(size * 0.7)) : size;
   const boxH = music ? Math.max(size, laneH - 4) : size;
-  const span = held ? `calc(${(note.endTick ?? note.tick) - note.tick} * var(--px) / 192 * 1px + ${size}px)` : `${boxW}px`;
-  const left = music
+  const span = held ? `calc(${(note.endTick ?? note.tick) - note.tick} * var(--px) / 192 * 1px + ${size}px)` : mine ? "max-content" : `${boxW}px`;
+  const left = mine
     ? `calc(${note.tick} * var(--px) / 192 * 1px)`
-    : `calc(${note.tick} * var(--px) / 192 * 1px - ${boxW / 2}px)`;
+    : music
+      ? `calc(${note.tick} * var(--px) / 192 * 1px)`
+      : `calc(${note.tick} * var(--px) / 192 * 1px - ${boxW / 2}px)`;
   const round = icons && !held && !music;
   const travel = round ? noteTravel(note.key) : null;
   const badge = icons && !held ? bossMark(note.key) : null;
@@ -465,12 +468,14 @@ const NoteChip = memo(function NoteChip({
         (held
           ? "overflow-visible "
           : "flex items-center overflow-hidden " +
-            (music ? "justify-center rounded-sm " : round ? "justify-center rounded-full " : "justify-start rounded-md px-1 ") +
-            chipClass(note.lane) +
-            (note.key === "0G" || note.key === "16" || note.key === "17" ? " stripe" : "")) +
+            (mine
+              ? "justify-center rounded-sm bg-[#ff1a1a] px-1.5 text-black "
+              : (music ? "justify-center rounded-sm " : round ? "justify-center rounded-full " : "justify-start rounded-md px-1 ") +
+                chipClass(note.lane) +
+                (note.key === "0G" || note.key === "16" || note.key === "17" ? " stripe" : ""))) +
         (selected ? " ring-2 ring-paper" : "")
       }
-      style={{ left, width: span, height: boxH, top: laneTop + (music ? 2 : (laneH - boxH) / 2) }}
+      style={{ left, width: span, height: boxH, top: laneTop + (music ? 2 : (laneH - boxH) / 2), transform: mine ? "translateX(-50%)" : undefined, minWidth: mine ? size : undefined }}
     >
       {gear && icons ? (
         <GearIcon half={gearHalf} boss={note.key === "18"} className="h-[82%] w-[82%]" />
@@ -486,6 +491,8 @@ const NoteChip = memo(function NoteChip({
         ) : (
           <HoldNote lane={note.lane} size={size} />
         )
+      ) : mine ? (
+        noteName(note.key)
       ) : icons && note.key === "0E" ? (
         <GeminiIcon up={note.lane === "gnd" || note.lane === "gnd2"} className="h-[92%] w-[92%]" />
       ) : icons ? (
@@ -526,6 +533,27 @@ export function Roll({
   const drag = useRef<DragState | null>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
   const hoverRef = useRef<HTMLDivElement>(null);
+  const landmineRef = useRef(false);
+  useEffect(() => {
+    const sync = (event: KeyboardEvent) => {
+      landmineRef.current = event.ctrlKey && event.shiftKey;
+      const line = hoverRef.current;
+      if (line) line.style.background = landmineRef.current ? "#ff1a1a" : "";
+    };
+    const clear = () => {
+      landmineRef.current = false;
+      const line = hoverRef.current;
+      if (line) line.style.background = "";
+    };
+    window.addEventListener("keydown", sync);
+    window.addEventListener("keyup", sync);
+    window.addEventListener("blur", clear);
+    return () => {
+      window.removeEventListener("keydown", sync);
+      window.removeEventListener("keyup", sync);
+      window.removeEventListener("blur", clear);
+    };
+  }, []);
   const redrawRef = useRef<(() => void) | null>(null);
   const zooming = useRef(false);
   const hand = useRef(false);
@@ -721,6 +749,7 @@ export function Roll({
     const line = hoverRef.current;
     if (line) {
       line.style.display = "block";
+      line.style.background = landmineRef.current ? "#ff1a1a" : "";
       line.style.transform = `translate3d(calc(${tick} * var(--px) / 192 * 1px),0,0)`;
     }
     const seconds = secondsAt(tick, tempoPoints(state.notes, state.meta.bpm), stopPoints(state.headerExtras ?? [], state.extras ?? [], state.sigs));
@@ -865,7 +894,7 @@ export function Roll({
                   const move = (ev: PointerEvent) => {
                     if (ev.pointerId !== pointer) return;
                     const end = tickAt(ev.clientX, host);
-                    if (canHold) setGhost({ lane: lane.id, tick: Math.min(start, end), end: Math.max(start, end) });
+                    if (canHold && !(ev.ctrlKey && ev.shiftKey)) setGhost({ lane: lane.id, tick: Math.min(start, end), end: Math.max(start, end) });
                   };
                   const up = (ev: PointerEvent) => {
                     if (ev.pointerId !== pointer) return;
@@ -874,7 +903,9 @@ export function Roll({
                     setGhost(null);
                     if ((host.closest(".roll") as HTMLElement | null)?.dataset.pan === "1") return;
                     const end = tickAt(ev.clientX, host);
-                    if (canHold && Math.abs(ev.clientX - origin) > 6 && end !== start) place(lane.id, start, end);
+                    const mine = (ev.ctrlKey || ev.metaKey) && ev.shiftKey && canHold;
+                    if (mine) place(lane.id, start, undefined, true);
+                    else if (canHold && Math.abs(ev.clientX - origin) > 6 && end !== start) place(lane.id, start, end);
                     else place(lane.id, start);
                   };
                   host.addEventListener("pointermove", move);
