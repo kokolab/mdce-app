@@ -532,7 +532,9 @@ export function Roll({
   const focusTick = useChart((state) => state.focusTick);
   const songName = useChart((state) => state.songName);
   const place = useChart((state) => state.place);
+  const tool = useChart((state) => state.tool);
   const [ghost, setGhost] = useState<Ghost | null>(null);
+  const [box, setBox] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
   const [viewport, setViewport] = useState({ left: 0, width: 1280 });
   const drag = useRef<DragState | null>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -798,6 +800,25 @@ export function Roll({
     }
   }
 
+  function boundsOf(note: ChartNote) {
+    let laneTop = 32;
+    for (const id of DISPLAY_LANES) {
+      if (id === note.lane) break;
+      laneTop += laneHeightOf(id);
+    }
+    const laneH = laneHeightOf(note.lane);
+    const size = Math.min(noteSize, Math.max(14, laneH - 6));
+    const music = note.key === "10";
+    const held = !note.tapHold && note.endTick != null && note.endTick > note.tick;
+    const wide = music ? Math.max(18, Math.round(size * 0.7)) : size;
+    const tall = music ? Math.max(size, laneH - 4) : size;
+    const length = held ? tickToX((note.endTick ?? note.tick) - note.tick, pxNow) : 0;
+    const span = held ? length + size : note.tapHold ? Math.max(size, 48) : wide;
+    const x = tickToX(note.tick, pxNow) - (music ? 0 : note.tapHold ? span / 2 : wide / 2);
+    const y = laneTop + (music ? 2 : (laneH - tall) / 2);
+    return { x, y, w: span, h: tall };
+  }
+
   return (
     <div className="flex min-h-0">
       <div className="sticky left-0 z-20 w-16 shrink-0 border-r border-white/15 bg-chart">
@@ -877,7 +898,7 @@ export function Roll({
             return (
               <div
                 key={lane.id}
-                className={"relative border-b border-white/10 " + wash(lane.id)}
+                className={"relative border-b border-white/10 " + wash(lane.id) + (tool === "select" ? " cursor-crosshair" : "")}
                 data-lane={lane.id}
                 style={{ height: laneHeightOf(lane.id) }}
                 onPointerDown={(event) => {
@@ -886,7 +907,51 @@ export function Roll({
                   if ((event.currentTarget.closest(".roll") as HTMLElement | null)?.dataset.pan === "1") return;
                   const host = event.currentTarget;
                   if (useChart.getState().tool === "select") {
-                    useChart.getState().select(null);
+                    const sheet = sheetRef.current;
+                    if (!sheet) return;
+                    const rect = sheet.getBoundingClientRect();
+                    const startX = event.clientX - rect.left;
+                    const startY = event.clientY - rect.top;
+                    const extend = event.shiftKey;
+                    const base = extend ? useChart.getState().selection : [];
+                    const pointer = event.pointerId;
+                    const pick = (clientX: number, clientY: number) => {
+                      const now = sheet.getBoundingClientRect();
+                      const x1 = clientX - now.left;
+                      const y1 = clientY - now.top;
+                      const x = Math.min(startX, x1);
+                      const y = Math.min(startY, y1);
+                      const w = Math.abs(x1 - startX);
+                      const h = Math.abs(y1 - startY);
+                      if (w < 4 && h < 4) return { x, y, w, h, ids: extend ? base : [] };
+                      const ids = useChart
+                        .getState()
+                        .notes.filter((note) => {
+                          const spot = boundsOf(note);
+                          return x < spot.x + spot.w && x + w > spot.x && y < spot.y + spot.h && y + h > spot.y;
+                        })
+                        .map((note) => note.id);
+                      return { x, y, w, h, ids: [...new Set([...base, ...ids])] };
+                    };
+                    const move = (ev: PointerEvent) => {
+                      if (ev.pointerId !== pointer) return;
+                      const next = pick(ev.clientX, ev.clientY);
+                      setBox({ x: next.x, y: next.y, w: next.w, h: next.h });
+                      useChart.getState().selectIds(next.ids);
+                    };
+                    const up = (ev: PointerEvent) => {
+                      if (ev.pointerId !== pointer) return;
+                      window.removeEventListener("pointermove", move);
+                      window.removeEventListener("pointerup", up);
+                      const next = pick(ev.clientX, ev.clientY);
+                      setBox(null);
+                      useChart.getState().selectIds(next.ids);
+                      if (next.w >= 4 || next.h >= 4) {
+                        useChart.getState().setBanner(next.ids.length ? `Selected ${next.ids.length} notes.` : "No notes in the box.");
+                      }
+                    };
+                    window.addEventListener("pointermove", move);
+                    window.addEventListener("pointerup", up);
                     return;
                   }
                   const start = tickAt(event.clientX, host);
@@ -967,6 +1032,12 @@ export function Roll({
             style={{ transform: "translate3d(calc(var(--play, 0) * var(--px) / 192 * 1px),0,0)" }}
           />
           <div ref={hoverRef} className="pointer-events-none absolute top-0 bottom-0 left-0 z-[2] w-px bg-cyan-200" style={{ display: "none" }} />
+          {box && box.w > 0 && box.h > 0 ? (
+            <div
+              className="pointer-events-none absolute z-40 border border-cyan-200 bg-cyan-200/20"
+              style={{ left: box.x, top: box.y, width: box.w, height: box.h }}
+            />
+          ) : null}
         </div>
       </div>
       </div>

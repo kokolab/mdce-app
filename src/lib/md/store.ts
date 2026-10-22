@@ -100,6 +100,7 @@ type ChartState = {
   setXHeight: (height: number) => void;
   setPx: (px: number) => void;
   select: (id: string | null, extend?: boolean) => void;
+  selectIds: (ids: string[]) => void;
   moveGroup: (anchorId: string, tick: number, lane?: LaneId) => void;
   patchMeta: (patch: Partial<Meta>) => void;
   setSig: (measure: number, ratio: number) => void;
@@ -426,6 +427,11 @@ export const useChart = create<ChartState>((set, get) => ({
         ? state.selection.filter((id) => id !== selectedId)
         : [...state.selection, selectedId];
       return { selectedId, selection: selection.length ? selection : [selectedId] };
+    }),
+  selectIds: (ids) =>
+    set((state) => {
+      const selectedId = state.selectedId && ids.includes(state.selectedId) ? state.selectedId : (ids[0] ?? null);
+      return { selectedId, selection: ids };
     }),
   moveGroup: (anchorId, tick, lane) =>
     set((state) => {
