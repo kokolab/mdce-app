@@ -906,80 +906,81 @@ export function Roll({
                   if ((event.target as HTMLElement).closest("button")) return;
                   if ((event.currentTarget.closest(".roll") as HTMLElement | null)?.dataset.pan === "1") return;
                   const host = event.currentTarget;
-                  if (useChart.getState().tool === "select") {
-                    const sheet = sheetRef.current;
-                    if (!sheet) return;
-                    const rect = sheet.getBoundingClientRect();
-                    const startX = event.clientX - rect.left;
-                    const startY = event.clientY - rect.top;
-                    const extend = event.shiftKey;
-                    const base = extend ? useChart.getState().selection : [];
-                    const pointer = event.pointerId;
-                    const pick = (clientX: number, clientY: number) => {
-                      const now = sheet.getBoundingClientRect();
-                      const x1 = clientX - now.left;
-                      const y1 = clientY - now.top;
-                      const x = Math.min(startX, x1);
-                      const y = Math.min(startY, y1);
-                      const w = Math.abs(x1 - startX);
-                      const h = Math.abs(y1 - startY);
-                      if (w < 4 && h < 4) return { x, y, w, h, ids: extend ? base : [] };
-                      const ids = useChart
-                        .getState()
-                        .notes.filter((note) => {
-                          const spot = boundsOf(note);
-                          return x < spot.x + spot.w && x + w > spot.x && y < spot.y + spot.h && y + h > spot.y;
-                        })
-                        .map((note) => note.id);
-                      return { x, y, w, h, ids: [...new Set([...base, ...ids])] };
-                    };
-                    const move = (ev: PointerEvent) => {
-                      if (ev.pointerId !== pointer) return;
-                      const next = pick(ev.clientX, ev.clientY);
-                      setBox({ x: next.x, y: next.y, w: next.w, h: next.h });
-                      useChart.getState().selectIds(next.ids);
-                    };
-                    const up = (ev: PointerEvent) => {
-                      if (ev.pointerId !== pointer) return;
-                      window.removeEventListener("pointermove", move);
-                      window.removeEventListener("pointerup", up);
-                      const next = pick(ev.clientX, ev.clientY);
-                      setBox(null);
-                      useChart.getState().selectIds(next.ids);
-                      if (next.w >= 4 || next.h >= 4) {
-                        useChart.getState().setBanner(next.ids.length ? `Selected ${next.ids.length} notes.` : "No notes in the box.");
-                      }
-                    };
-                    window.addEventListener("pointermove", move);
-                    window.addEventListener("pointerup", up);
-                    return;
-                  }
+                  const sheet = sheetRef.current;
+                  const writing = useChart.getState().tool !== "select";
                   const start = tickAt(event.clientX, host);
                   const brush = useChart.getState().brush;
-                  const canHold = HOLD_KEYS.has(brush) && lane.id !== "bpm" && lane.id !== "bgm";
-                  host.setPointerCapture(event.pointerId);
+                  const canHold = writing && HOLD_KEYS.has(brush) && lane.id !== "bpm" && lane.id !== "bgm";
+                  const originX = event.clientX;
+                  const originY = event.clientY;
+                  const rect = sheet?.getBoundingClientRect();
+                  const startX = rect ? event.clientX - rect.left : 0;
+                  const startY = rect ? event.clientY - rect.top : 0;
+                  const extend = event.shiftKey;
+                  const base = extend ? useChart.getState().selection : [];
                   const pointer = event.pointerId;
-                  const origin = event.clientX;
+                  let boxed = false;
+                  const pick = (clientX: number, clientY: number) => {
+                    const now = sheet?.getBoundingClientRect();
+                    const x1 = now ? clientX - now.left : 0;
+                    const y1 = now ? clientY - now.top : 0;
+                    const x = Math.min(startX, x1);
+                    const y = Math.min(startY, y1);
+                    const w = Math.abs(x1 - startX);
+                    const h = Math.abs(y1 - startY);
+                    if (w < 4 && h < 4) return { x, y, w, h, ids: extend ? base : [] };
+                    const ids = useChart
+                      .getState()
+                      .notes.filter((note) => {
+                        const spot = boundsOf(note);
+                        return x < spot.x + spot.w && x + w > spot.x && y < spot.y + spot.h && y + h > spot.y;
+                      })
+                      .map((note) => note.id);
+                    return { x, y, w, h, ids: [...new Set([...base, ...ids])] };
+                  };
                   const move = (ev: PointerEvent) => {
                     if (ev.pointerId !== pointer) return;
-                    const end = tickAt(ev.clientX, host);
-                    if (canHold && !(ev.ctrlKey && ev.shiftKey)) setGhost({ lane: lane.id, tick: Math.min(start, end), end: Math.max(start, end) });
+                    const dragged = Math.hypot(ev.clientX - originX, ev.clientY - originY) > 6;
+                    if (canHold && !(ev.ctrlKey && ev.shiftKey)) {
+                      if (dragged) {
+                        const end = tickAt(ev.clientX, host);
+                        setGhost({ lane: lane.id, tick: Math.min(start, end), end: Math.max(start, end) });
+                      }
+                      return;
+                    }
+                    if (!sheet || !dragged) return;
+                    boxed = true;
+                    const next = pick(ev.clientX, ev.clientY);
+                    setBox({ x: next.x, y: next.y, w: next.w, h: next.h });
+                    useChart.getState().selectIds(next.ids);
                   };
                   const up = (ev: PointerEvent) => {
                     if (ev.pointerId !== pointer) return;
-                    host.removeEventListener("pointermove", move);
-                    host.removeEventListener("pointerup", up);
+                    window.removeEventListener("pointermove", move);
+                    window.removeEventListener("pointerup", up);
                     setGhost(null);
+                    if (boxed) {
+                      const next = pick(ev.clientX, ev.clientY);
+                      setBox(null);
+                      useChart.getState().selectIds(next.ids);
+                      useChart.getState().setBanner(next.ids.length ? `Selected ${next.ids.length} notes.` : "No notes in the box.");
+                      return;
+                    }
+                    setBox(null);
                     if ((host.closest(".roll") as HTMLElement | null)?.dataset.pan === "1") return;
+                    if (!writing) {
+                      if (!extend) useChart.getState().select(null);
+                      return;
+                    }
                     const end = tickAt(ev.clientX, host);
                     const mine = (ev.ctrlKey || ev.metaKey) && ev.shiftKey && canHold;
                     const heart = (ev.ctrlKey || ev.metaKey) && !ev.shiftKey;
                     if (mine) place(lane.id, start, undefined, true);
-                    else if (canHold && Math.abs(ev.clientX - origin) > 6 && end !== start) place(lane.id, start, end, false, heart);
+                    else if (canHold && Math.abs(ev.clientX - originX) > 6 && end !== start) place(lane.id, start, end, false, heart);
                     else place(lane.id, start, undefined, false, heart);
                   };
-                  host.addEventListener("pointermove", move);
-                  host.addEventListener("pointerup", up);
+                  window.addEventListener("pointermove", move);
+                  window.addEventListener("pointerup", up);
                 }}
               >
                 {ghost?.lane === lane.id ? (
