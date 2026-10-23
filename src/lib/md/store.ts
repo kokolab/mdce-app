@@ -52,7 +52,7 @@ type ChartState = {
   bgmVolume: number;
   sfxVolume: number;
   focusTick: number | null;
-  clipboard: ChartNote[];
+  clipboard: { origin: number; notes: ClipNote[] };
   tool: "write" | "select";
   songName: string;
   showStage: boolean;
@@ -134,6 +134,60 @@ function blank(): Snapshot & { wavExtra: { key: string; name: string }[]; wavNam
   };
 }
 
+type ClipNote = {
+  lane: LaneId;
+  key: string;
+  tapHold?: boolean;
+  blood?: boolean;
+  bpm?: number;
+  measureDelta: number;
+  local: number;
+  endMeasureDelta?: number;
+  endLocal?: number;
+};
+
+function clipNotes(notes: ChartNote[], sigs: Sig[]): { origin: number; notes: ClipNote[] } {
+  if (!notes.length) return { origin: 0, notes: [] };
+  const placed = notes.map((note) => ({
+    note,
+    at: locate(note.tick, sigs, 0),
+    end: note.endTick != null ? locate(note.endTick, sigs, 0) : null,
+  }));
+  const origin = Math.min(...placed.map((item) => item.at.measure));
+  return {
+    origin,
+    notes: placed.map(({ note, at, end }) => ({
+      lane: note.lane,
+      key: note.key,
+      tapHold: note.tapHold,
+      blood: note.blood,
+      bpm: note.bpm,
+      measureDelta: at.measure - origin,
+      local: at.local,
+      endMeasureDelta: end ? end.measure - origin : undefined,
+      endLocal: end ? end.local : undefined,
+    })),
+  };
+}
+
+function visibleMeasure(sigs: Sig[]): number {
+  const left = Math.max(0, livePx.viewTick);
+  const right = left + Math.max(1, livePx.viewSpan);
+  let tick = 0;
+  let best = 0;
+  let bestOverlap = -1;
+  for (let measure = 0; measure < 20000 && tick <= right; measure++) {
+    const len = measureTicks(measure, sigs);
+    const overlap = Math.min(right, tick + len) - Math.max(left, tick);
+    if (overlap > bestOverlap) {
+      bestOverlap = overlap;
+      best = measure;
+    }
+    tick += len;
+  }
+  return best;
+}
+
 function shot(state: ChartState): Snapshot {
   return {
     notes: state.notes,
@@ -170,7 +224,7 @@ export const useChart = create<ChartState>((set, get) => ({
   bgmVolume: 0.25,
   sfxVolume: 0.25,
   focusTick: null,
-  clipboard: [],
+  clipboard: { origin: 0, notes: [] },
   tool: "write",
   songName: "",
   showStage: false,
@@ -230,27 +284,45 @@ export const useChart = create<ChartState>((set, get) => ({
       set({ banner: "Select a note before copying." });
       return;
     }
-    set({ clipboard: notes.map((note) => ({ ...note })), banner: notes.length === 1 ? "Copied the selected note." : `Copied ${notes.length} notes.` });
+    const clipboard = clipNotes(notes, state.sigs);
+    set({
+      clipboard,
+      banner: clipboard.notes.length === 1 ? `Copied the note from measure ${clipboard.origin}.` : `Copied ${clipboard.notes.length} notes from measure ${clipboard.origin}.`,
+    });
   },
   pasteClipboard: () => {
     const state = get();
-    if (!state.clipboard.length) {
+    if (!state.clipboard.notes.length) {
       set({ banner: "Nothing to paste." });
       return;
     }
-    const step = 192 / (state.snapOn ? state.snap : 16);
-    const created = state.clipboard.map((clip) => ({
-      ...clip,
-      id: nextId(),
-      tick: clip.tick + step,
-      endTick: clip.endTick != null ? clip.endTick + step : undefined,
-    }));
+    const dest = visibleMeasure(state.sigs);
+    const created: ChartNote[] = state.clipboard.notes.map((clip) => {
+      const tick = measureStart(dest + clip.measureDelta, state.sigs) + clip.local;
+      const endTick =
+        clip.endMeasureDelta != null && clip.endLocal != null
+          ? measureStart(dest + clip.endMeasureDelta, state.sigs) + clip.endLocal
+          : undefined;
+      return {
+        id: nextId(),
+        lane: clip.lane,
+        key: clip.key,
+        tick,
+        endTick: endTick != null && endTick > tick ? endTick : undefined,
+        tapHold: clip.tapHold,
+        blood: clip.blood,
+        bpm: clip.bpm,
+      };
+    });
+    const last = created.reduce((max, note) => Math.max(max, note.endTick ?? note.tick), 0);
+    const lastMeasure = locate(last, state.sigs, 0).measure;
     set(
       remember(state, {
         notes: [...state.notes, ...created],
         selectedId: created[0]?.id ?? null,
         selection: created.map((note) => note.id),
-        banner: created.length === 1 ? "Pasted the note." : `Pasted ${created.length} notes.`,
+        measureCount: Math.max(state.measureCount, lastMeasure + 8),
+        banner: created.length === 1 ? `Pasted the note at measure ${dest}.` : `Pasted ${created.length} notes at measure ${dest}.`,
       }),
     );
   },
@@ -262,7 +334,7 @@ export const useChart = create<ChartState>((set, get) => ({
       set({ banner: "Select a note before cutting." });
       return;
     }
-    set({ clipboard: notes.map((note) => ({ ...note })) });
+    set({ clipboard: clipNotes(notes, state.sigs) });
     get().deleteSelection();
   },
   deleteSelection: () =>

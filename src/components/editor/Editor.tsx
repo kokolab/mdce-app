@@ -133,6 +133,7 @@ export function Editor() {
         return;
       }
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "c") {
+        event.preventDefault();
         state.copySelected();
         return;
       }

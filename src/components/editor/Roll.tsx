@@ -590,6 +590,8 @@ export function Roll({
       if (zooming.current) return;
       const left = scroller.scrollLeft;
       const width = scroller.clientWidth || 1;
+      livePx.viewTick = xToTick(left, livePx.current);
+      livePx.viewSpan = Math.max(1, xToTick(width, livePx.current));
       setViewport((prev) => (prev.width === width && Math.abs(prev.left - left) < 160 ? prev : { left, width }));
     };
     const schedule = () => {
@@ -843,7 +845,7 @@ export function Roll({
         ) : null}
       </div>
       <div className="relative min-h-0 min-w-0 flex-1">
-      <div ref={scrollerRef} className="roll h-full overflow-auto" onContextMenu={(event) => event.preventDefault()}>
+      <div ref={scrollerRef} className="roll h-full select-none overflow-auto" onContextMenu={(event) => event.preventDefault()}>
         <div
           ref={sheetRef}
           data-roll-sheet
