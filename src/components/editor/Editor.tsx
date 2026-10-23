@@ -1,5 +1,4 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { DISPLAY_LANES } from "@/lib/md/catalog";
 import { chartLabel, readAlbum } from "@/lib/md/album";
 import { currentChartName, setAlbumCharts, useAlbumCharts } from "@/lib/md/pack";
 import { musicFileName, rememberInfo, type Meta } from "@/lib/md/bms";
@@ -149,20 +148,11 @@ export function Editor() {
         state.setDivide(steps[next] ?? state.divide);
         return;
       }
-      const note = state.notes.find((item) => item.id === state.selectedId);
-      if (!note) return;
-      if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
-        event.preventDefault();
-        const step = 192 / state.snap;
-        state.moveGroup(note.id, note.tick + (event.key === "ArrowRight" ? step : -step));
-      }
-      if (event.key === "ArrowUp" || event.key === "ArrowDown") {
-        event.preventDefault();
-        if (state.lockLane) return;
-        const index = DISPLAY_LANES.findIndex((lane) => lane === note.lane);
-        const next = DISPLAY_LANES[index + (event.key === "ArrowDown" ? 1 : -1)];
-        if (next) state.moveNote(note.id, next, note.tick);
-      }
+      const grid = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
+      const lane = event.key === "ArrowDown" ? 1 : event.key === "ArrowUp" ? -1 : 0;
+      if (!grid && !lane) return;
+      event.preventDefault();
+      state.nudgeSelection(grid, lane);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);

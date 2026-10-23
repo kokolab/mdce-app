@@ -13,7 +13,7 @@ import {
   type Meta,
   type RawEvent,
 } from "./bms";
-import { snapTick, measureStart, measureTicks, livePx, pxForWidth, type Sig } from "./timing";
+import { snapTick, measureStart, measureTicks, locate, livePx, pxForWidth, type Sig } from "./timing";
 import { player } from "./player";
 
 type Snapshot = {
@@ -102,6 +102,7 @@ type ChartState = {
   select: (id: string | null, extend?: boolean) => void;
   selectIds: (ids: string[]) => void;
   moveGroup: (anchorId: string, tick: number, lane?: LaneId) => void;
+  nudgeSelection: (gridStep: number, laneStep: number) => void;
   patchMeta: (patch: Partial<Meta>) => void;
   setSig: (measure: number, ratio: number) => void;
   place: (lane: LaneId, tick: number, endTick?: number, tapHold?: boolean, blood?: boolean) => void;
@@ -453,6 +454,39 @@ export const useChart = create<ChartState>((set, get) => ({
         return { ...note, lane: nextLane, tick: next, endTick: length > 0 ? next + length : note.endTick };
       });
       return remember(state, { notes, selectedId: anchorId });
+    }),
+  nudgeSelection: (gridStep, laneStep) =>
+    set((state) => {
+      const ids = state.selection.length ? state.selection : state.selectedId ? [state.selectedId] : [];
+      if (!ids.length) return {};
+      const idset = new Set(ids);
+      const chosen = state.notes.filter((note) => idset.has(note.id));
+      if (!chosen.length) return {};
+      let laneShift = laneStep && !state.lockLane ? laneStep : 0;
+      if (laneShift) {
+        const indexes = chosen.map((note) => DISPLAY_LANES.indexOf(note.lane));
+        const min = Math.min(...indexes);
+        const max = Math.max(...indexes);
+        if (min + laneShift < 0) laneShift = -min;
+        if (max + laneShift > DISPLAY_LANES.length - 1) laneShift = DISPLAY_LANES.length - 1 - max;
+      }
+      const anchor = chosen.find((note) => note.id === state.selectedId) ?? chosen[0];
+      const spot = locate(anchor.tick, state.sigs, state.measureCount);
+      const cell = spot.len / Math.max(1, state.divide);
+      const tickShift = gridStep ? gridStep * cell : 0;
+      if (!tickShift && !laneShift) return {};
+      let changed = false;
+      const notes = state.notes.map((note) => {
+        if (!idset.has(note.id)) return note;
+        const tick = Math.max(0, note.tick + tickShift);
+        const length = note.endTick != null ? note.endTick - note.tick : 0;
+        const lane = DISPLAY_LANES[DISPLAY_LANES.indexOf(note.lane) + laneShift] ?? note.lane;
+        if (tick === note.tick && lane === note.lane) return note;
+        changed = true;
+        return { ...note, tick, lane, endTick: length > 0 ? tick + length : note.endTick };
+      });
+      if (!changed) return {};
+      return remember(state, { notes });
     }),
   patchMeta: (patch) =>
     set((state) => {
