@@ -646,8 +646,20 @@ export function Roll({
       });
     };
     scroller.addEventListener("wheel", onWheel, { passive: false });
+    const onCtrlWheel = (event: WheelEvent) => {
+      if ((!event.ctrlKey && !event.metaKey) || event.shiftKey) return;
+      event.preventDefault();
+      const delta = event.deltaX !== 0 ? event.deltaX : event.deltaY;
+      if (!delta) return;
+      const scale = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? scroller.clientWidth : 1;
+      scroller.scrollLeft += delta * scale;
+      livePx.viewTick = xToTick(scroller.scrollLeft, livePx.current);
+      livePx.viewSpan = Math.max(1, xToTick(scroller.clientWidth || 1, livePx.current));
+    };
+    window.addEventListener("wheel", onCtrlWheel, { passive: false });
     return () => {
       scroller.removeEventListener("wheel", onWheel);
+      window.removeEventListener("wheel", onCtrlWheel);
       window.clearTimeout(zoom.commit);
     };
   }, [scrollerRef]);
