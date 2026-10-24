@@ -215,7 +215,7 @@ export function Inspector() {
             type="range"
             min={0.5}
             max={12}
-            step={0.25}
+            step={0.1}
             value={xWidth}
             aria-label="Measure width"
             onChange={(event) => useChart.getState().setXWidth(Number(event.target.value))}

@@ -234,7 +234,7 @@ export const useChart = create<ChartState>((set, get) => ({
   snap: 16,
   divide: 16,
   sub: 4,
-  xWidth: 4.75,
+  xWidth: 4.8,
   xHeight: 2,
   px: pxForWidth(4.75),
   selectedId: null,
@@ -485,16 +485,17 @@ export const useChart = create<ChartState>((set, get) => ({
   },
   setSub: (sub) => set({ sub: Math.min(192, Math.max(1, Math.round(sub))) }),
   setXWidth: (width) => {
-    const xWidth = Math.min(16, Math.max(0.5, Math.round(width * 100) / 100));
+    const xWidth = Math.min(16, Math.max(0.5, Math.round(width * 10) / 10));
     const px = pxForWidth(xWidth);
     livePx.current = px;
     set({ xWidth, px });
   },
   setXHeight: (height) => set({ xHeight: Math.min(8, Math.max(0.5, Math.round(height * 100) / 100)) }),
   setPx: (px) => {
-    const next = Math.min(pxForWidth(16), Math.max(pxForWidth(0.5), Math.round(px)));
+    const xWidth = Math.min(16, Math.max(0.5, Math.round((px / 192) * 10) / 10));
+    const next = pxForWidth(xWidth);
     livePx.current = next;
-    set({ px: next, xWidth: Math.round((next / 192) * 100) / 100 });
+    set({ px: next, xWidth });
   },
   select: (selectedId, extend = false) =>
     set((state) => {
@@ -783,14 +784,14 @@ export function restoreChart() {
       divide: data.divide ?? 16,
       sub: data.sub ?? 4,
       snap: data.divide ?? 16,
-      xWidth: data.xWidth ?? 4.75,
+      xWidth: Math.round((data.xWidth ?? 4.8) * 10) / 10,
       xHeight: data.xHeight ?? 2,
-      px: pxForWidth(data.xWidth ?? 4.75),
+      px: pxForWidth(Math.round((data.xWidth ?? 4.8) * 10) / 10),
       past: [],
       future: [],
       banner: "Restored your last chart on this computer.",
     });
-    livePx.current = pxForWidth(data.xWidth ?? 4.75);
+    livePx.current = pxForWidth(Math.round((data.xWidth ?? 4.8) * 10) / 10);
     player.setMix(data.bgmVolume == null || data.bgmVolume === 0.85 ? 0.25 : data.bgmVolume, data.sfxVolume == null || data.sfxVolume === 0.8 ? 0.25 : data.sfxVolume);
     const chartBpm = Math.max(1, data.meta.bpm || 120);
     const playBpm = data.playBpm ?? Math.round(chartBpm * (data.bgmSpeed ?? 1));

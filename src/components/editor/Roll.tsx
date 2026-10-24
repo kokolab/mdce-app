@@ -631,7 +631,7 @@ export function Roll({
         const sensitivity = useChart.getState().zoomSensitivity;
         const power = Math.min(1.5, Math.abs(delta) / 240) * sensitivity;
         const factor = (delta > 0 ? 1 / 1.12 : 1.12) ** power;
-        const xWidth = Math.min(16, Math.max(0.5, Math.round((before / 192) * factor * 100) / 100));
+        const xWidth = Math.min(16, Math.max(0.5, Math.round(((before / 192) * factor) * 10) / 10));
         const after = Math.round(xWidth * 192);
         if (after !== before) {
           zooming.current = true;
@@ -725,7 +725,7 @@ export function Roll({
       lastMidY = midY;
       const pinch = dist / baseDist;
       if (Math.abs(pinch - 1) < 0.08) return;
-      const next = Math.round(Math.min(16, Math.max(0.5, ((basePx / 192) * pinch))) * 192);
+      const next = Math.round(Math.min(16, Math.max(0.5, Math.round(((basePx / 192) * pinch) * 10) / 10)) * 192);
       if (Math.abs(next - livePx.current) >= 8) zoomToward(mid, next);
     };
     const up = (event: PointerEvent) => {
