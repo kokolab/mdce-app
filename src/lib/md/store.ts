@@ -236,7 +236,7 @@ export const useChart = create<ChartState>((set, get) => ({
   sub: 4,
   xWidth: 4.8,
   xHeight: 2,
-  px: pxForWidth(4.75),
+  px: pxForWidth(4.8),
   selectedId: null,
   selection: [],
   banner: "Left-click places. Drag a hold. Right-click erases.",
