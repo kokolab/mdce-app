@@ -31,6 +31,7 @@ export function MenuBar({
   const followPlay = useChart((state) => state.followPlay);
   const followTight = useChart((state) => state.followTight);
   const followAmount = useChart((state) => state.followAmount);
+  const zoomSensitivity = useChart((state) => state.zoomSensitivity);
   const [dark, setDark] = useState(() => typeof localStorage === "undefined" || localStorage.getItem("stagepen-dark") !== "0");
 
   useEffect(() => {
@@ -186,6 +187,20 @@ export function MenuBar({
           />
           <span className="w-8 font-mono text-xs">{followAmount.toFixed(2)}</span>
         </label>
+        <label className="flex h-12 items-center gap-2 px-3 text-sm text-dock-ink" onPointerDown={(event) => event.stopPropagation()}>
+          <span className="shrink-0">Grid zoom</span>
+          <input
+            type="range"
+            min={0.05}
+            max={1}
+            step={0.05}
+            value={zoomSensitivity}
+            aria-label="Grid zoom sensitivity"
+            onChange={(event) => state().setZoomSensitivity(Number(event.target.value))}
+            className="min-w-0 flex-1"
+          />
+          <span className="w-8 font-mono text-xs">{zoomSensitivity.toFixed(2)}</span>
+        </label>
         {item("Snap to grid", () => state().setSnapOn(!snapOn), snapOn)}
         {item("Disable vertical moves", () => state().setLockLane(!lockLane), lockLane)}
         {item("Write tool", () => state().setTool("write"), tool === "write")}
@@ -265,6 +280,7 @@ export function MobileMenu({
   const followPlay = useChart((state) => state.followPlay);
   const followTight = useChart((state) => state.followTight);
   const followAmount = useChart((state) => state.followAmount);
+  const zoomSensitivity = useChart((state) => state.zoomSensitivity);
   const state = useChart.getState;
 
   function go(action: () => void) {
@@ -358,6 +374,20 @@ export function MobileMenu({
                 className="min-w-0 flex-1"
               />
               <span className="w-10 font-mono text-sm">{followAmount.toFixed(2)}</span>
+            </label>
+            <label className="flex h-12 items-center gap-3 border-b border-white/10 px-4 text-base">
+              <span className="shrink-0">Grid zoom</span>
+              <input
+                type="range"
+                min={0.05}
+                max={1}
+                step={0.05}
+                value={zoomSensitivity}
+                aria-label="Grid zoom sensitivity"
+                onChange={(event) => state().setZoomSensitivity(Number(event.target.value))}
+                className="min-w-0 flex-1"
+              />
+              <span className="w-10 font-mono text-sm">{zoomSensitivity.toFixed(2)}</span>
             </label>
             {row("Snap to grid", () => state().setSnapOn(!snapOn), snapOn)}
             {row("Disable vertical moves", () => state().setLockLane(!lockLane), lockLane)}

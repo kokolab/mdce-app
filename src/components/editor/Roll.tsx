@@ -614,7 +614,9 @@ export function Roll({
     const onWheel = (event: WheelEvent) => {
       if (!event.shiftKey) return;
       event.preventDefault();
-      zoom.delta += event.deltaY || event.deltaX;
+      const raw = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+      const scale = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? scroller.clientWidth : 1;
+      zoom.delta += raw * scale;
       zoom.x = event.clientX;
       if (zoom.frame) return;
       zoom.frame = requestAnimationFrame(() => {
@@ -626,8 +628,9 @@ export function Roll({
         const rect = scroller.getBoundingClientRect();
         const before = livePx.current;
         const tick = xToTick(x - rect.left + scroller.scrollLeft, before);
-        const steps = Math.min(4, Math.max(1, Math.round(Math.abs(delta) / 80)));
-        const factor = (delta > 0 ? 1 / 1.12 : 1.12) ** steps;
+        const sensitivity = useChart.getState().zoomSensitivity;
+        const power = Math.min(1.5, Math.abs(delta) / 240) * sensitivity;
+        const factor = (delta > 0 ? 1 / 1.12 : 1.12) ** power;
         const xWidth = Math.min(16, Math.max(0.5, Math.round((before / 192) * factor * 100) / 100));
         const after = Math.round(xWidth * 192);
         if (after !== before) {

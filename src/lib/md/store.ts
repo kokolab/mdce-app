@@ -46,6 +46,7 @@ type ChartState = {
   followPlay: boolean;
   followTight: boolean;
   followAmount: number;
+  zoomSensitivity: number;
   bgmSpeed: number;
   playBpm: number;
   musicOffset: number;
@@ -72,6 +73,7 @@ type ChartState = {
   setFollowPlay: (on: boolean) => void;
   setFollowTight: (on: boolean) => void;
   setFollowAmount: (amount: number) => void;
+  setZoomSensitivity: (amount: number) => void;
   setBgmSpeed: (speed: number) => void;
   setPlayBpm: (bpm: number) => void;
   setMusicOffset: (ms: number) => void;
@@ -218,6 +220,7 @@ export const useChart = create<ChartState>((set, get) => ({
   followPlay: true,
   followTight: false,
   followAmount: 1,
+  zoomSensitivity: 0.25,
   bgmSpeed: 1,
   playBpm: 120,
   musicOffset: 0,
@@ -250,6 +253,7 @@ export const useChart = create<ChartState>((set, get) => ({
   setFollowPlay: (followPlay) => set({ followPlay }),
   setFollowTight: (followTight) => set({ followTight }),
   setFollowAmount: (followAmount) => set({ followAmount: Math.min(1, Math.max(0, followAmount)) }),
+  setZoomSensitivity: (amount) => set({ zoomSensitivity: Math.min(1, Math.max(0.05, Math.round(amount * 20) / 20)) }),
   setBgmSpeed: (speed) => {
     const chartBpm = Math.max(1, get().meta.bpm);
     const bgmSpeed = Math.min(4, Math.max(0.25, Math.round(speed * 100) / 100));
@@ -726,6 +730,7 @@ export function persistChart() {
     followPlay: state.followPlay,
     followTight: state.followTight,
     followAmount: state.followAmount,
+    zoomSensitivity: state.zoomSensitivity,
     bgmSpeed: state.bgmSpeed,
     playBpm: state.playBpm,
     musicOffset: state.musicOffset,
@@ -769,6 +774,7 @@ export function restoreChart() {
       followPlay: data.followPlay ?? true,
       followTight: data.followTight ?? false,
       followAmount: data.followAmount ?? 1,
+      zoomSensitivity: data.zoomSensitivity ?? 0.25,
       bgmSpeed: data.bgmSpeed ?? 1,
       playBpm: data.playBpm ?? Math.round((data.meta.bpm || 120) * (data.bgmSpeed ?? 1)),
       musicOffset: data.musicOffset ?? 0,
