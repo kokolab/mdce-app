@@ -501,8 +501,13 @@ const NoteChip = memo(function NoteChip({
         label
       )}
       {note.blood ? (
-        <svg viewBox="0 0 24 24" className="pointer-events-none absolute top-0 left-1/2 z-10 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2" aria-hidden>
-          <path d="M12 20s-7-4.4-7-9a4 4 0 0 1 7-2 4 4 0 0 1 7 2c0 4.6-7 9-7 9z" fill="#ff2d55" stroke="#111" strokeWidth="1.4" />
+        <svg
+          viewBox="0 0 24 24"
+          className="pointer-events-none absolute top-0 left-1/2 z-10 -translate-x-1/2 -translate-y-1/2"
+          style={{ width: Math.round(size * 0.72), height: Math.round(size * 0.72) }}
+          aria-hidden
+        >
+          <path d="M12 20s-7-4.4-7-9a4 4 0 0 1 7-2 4 4 0 0 1 7 2c0 4.6-7 9-7 9z" fill="#ff2d55" stroke="#111" strokeWidth="1.2" />
         </svg>
       ) : null}
       {travel ? <ApproachArrow dir={travel} lane={note.lane} /> : null}
