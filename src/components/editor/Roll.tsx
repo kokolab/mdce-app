@@ -643,8 +643,16 @@ export function Roll({
         window.clearTimeout(zoom.commit);
         zoom.commit = window.setTimeout(() => {
           zooming.current = false;
-          useChart.getState().setXWidth(livePx.current / 32);
+          const before = livePx.current;
+          const state = useChart.getState();
+          if (Math.abs(state.px - before) > 0.5) {
+            const anchor = scroller.scrollLeft;
+            state.setXWidth(before / 192);
+            const after = livePx.current;
+            if (after !== before && before > 0) scroller.scrollLeft = anchor * (after / before);
+          }
           setViewport({ left: scroller.scrollLeft, width: scroller.clientWidth || 1 });
+          livePx.redraw?.();
         }, 180);
       });
     };
@@ -728,8 +736,16 @@ export function Roll({
       hand.current = false;
       if (!zooming.current) return;
       zooming.current = false;
-      useChart.getState().setXWidth(livePx.current / 32);
+      const before = livePx.current;
+      const state = useChart.getState();
+      if (Math.abs(state.px - before) > 0.5) {
+        const anchor = scroller.scrollLeft;
+        state.setXWidth(before / 192);
+        const after = livePx.current;
+        if (after !== before && before > 0) scroller.scrollLeft = anchor * (after / before);
+      }
       setViewport({ left: scroller.scrollLeft, width: scroller.clientWidth || 1 });
+      livePx.redraw?.();
     };
     window.addEventListener("pointerdown", down, true);
     window.addEventListener("pointermove", move);
