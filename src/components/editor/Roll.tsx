@@ -4,7 +4,7 @@ import type { ChartNote } from "@/lib/md/bms";
 import { player } from "@/lib/md/player";
 import { NoteIcon, HoldNote, MasherNote, GearIcon, GeminiIcon, ApproachArrow, BossBadge, bossMark } from "./NoteIcon";
 import { useChart } from "@/lib/md/store";
-import { hoverTime, livePx, locate, measureTicks, pxForWidth, secondsAt, snapTick, tempoPoints, tickToX, totalTicks, xToTick, type Sig } from "@/lib/md/timing";
+import { hoverTime, livePx, locate, measureTicks, playbackPoints, pxForWidth, secondsAt, snapTick, tempoPoints, tickToX, totalTicks, xToTick, type Sig } from "@/lib/md/timing";
 import { stopPoints } from "@/lib/md/bms";
 
 type Ghost = { lane: LaneId; tick: number; end?: number };
@@ -922,8 +922,8 @@ export function Roll({
                   onClick={(event) => {
                     const host = event.currentTarget.parentElement ?? event.currentTarget;
                     const tick = tickAt(event.clientX, host);
-                    const { notes: current, meta, extras, headerExtras, sigs: timeSigs } = useChart.getState();
-                    player.seek(secondsAt(tick, tempoPoints(current, meta.bpm), stopPoints(headerExtras ?? [], extras ?? [], timeSigs)));
+                    const { notes: current, meta, extras, headerExtras, sigs: timeSigs, playBpm } = useChart.getState();
+                    player.seek(secondsAt(tick, playbackPoints(current, meta.bpm, playBpm), stopPoints(headerExtras ?? [], extras ?? [], timeSigs)));
                   }}
                 >
                   {String(measure).padStart(3, "0")}

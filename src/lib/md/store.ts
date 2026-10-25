@@ -261,10 +261,8 @@ export const useChart = create<ChartState>((set, get) => ({
     set({ bgmSpeed: player.rate, playBpm: Math.round(chartBpm * player.rate) });
   },
   setPlayBpm: (bpm) => {
-    const chartBpm = Math.max(1, get().meta.bpm);
     const playBpm = Math.min(999, Math.max(1, Math.round(bpm)));
-    player.setRate(playBpm / chartBpm);
-    set({ playBpm: Math.round(chartBpm * player.rate), bgmSpeed: Math.round(player.rate * 100) / 100 });
+    set({ playBpm });
   },
   setMusicOffset: (ms) => {
     const musicOffset = Math.min(5000, Math.max(-5000, Math.round(ms)));
@@ -793,9 +791,7 @@ export function restoreChart() {
     });
     livePx.current = pxForWidth(Math.round((data.xWidth ?? 4.8) * 10) / 10);
     player.setMix(data.bgmVolume == null || data.bgmVolume === 0.85 ? 0.25 : data.bgmVolume, data.sfxVolume == null || data.sfxVolume === 0.8 ? 0.25 : data.sfxVolume);
-    const chartBpm = Math.max(1, data.meta.bpm || 120);
-    const playBpm = data.playBpm ?? Math.round(chartBpm * (data.bgmSpeed ?? 1));
-    player.setRate(playBpm / chartBpm);
+    player.setRate(data.bgmSpeed ?? 1);
     player.musicOffset = (data.musicOffset ?? 0) / 1000;
   } catch {
     /* ignore broken saves */

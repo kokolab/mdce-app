@@ -3,7 +3,7 @@ import { MousePointer2, Pencil } from "lucide-react";
 import { stopPoints } from "@/lib/md/bms";
 import { player } from "@/lib/md/player";
 import { useChart } from "@/lib/md/store";
-import { formatClock, hoverTime, livePx, locate, measureStart, measureTicks, secondsAt, tempoPoints, tickToX, xToTick } from "@/lib/md/timing";
+import { formatClock, hoverTime, livePx, locate, measureStart, measureTicks, playbackPoints, secondsAt, tempoPoints, tickToX, xToTick } from "@/lib/md/timing";
 
 function typingTarget(target: EventTarget | null): boolean {
   return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement;
@@ -106,6 +106,7 @@ export function Transport({
     let stops = stopPoints([], [], []);
     let pointsNotes: unknown = null;
     let pointsBpm = 0;
+    let pointsPlay = -1;
     let stopsHeader: unknown = null;
     let stopsExtras: unknown = null;
     let stopsSigs: unknown = null;
@@ -132,10 +133,13 @@ export function Transport({
       }
       frame = requestAnimationFrame(loop);
       const state = useChart.getState();
-      if (pointsNotes !== state.notes || pointsBpm !== state.meta.bpm) {
+      if (pointsNotes !== state.notes || pointsBpm !== state.meta.bpm || pointsPlay !== state.playBpm) {
+        const bpmChanged = pointsPlay !== -1 && pointsPlay !== state.playBpm;
         pointsNotes = state.notes;
         pointsBpm = state.meta.bpm;
-        points = tempoPoints(state.notes, state.meta.bpm);
+        pointsPlay = state.playBpm;
+        points = playbackPoints(state.notes, state.meta.bpm, state.playBpm);
+        if (bpmChanged) player.reschedule();
       }
       if (stopsHeader !== state.headerExtras || stopsExtras !== state.extras || stopsSigs !== state.sigs) {
         stopsHeader = state.headerExtras;
@@ -165,7 +169,7 @@ export function Transport({
     };
     const start = () => {
       const state = useChart.getState();
-      points = tempoPoints(state.notes, state.meta.bpm);
+      points = playbackPoints(state.notes, state.meta.bpm, state.playBpm);
       stops = stopPoints(state.headerExtras ?? [], state.extras ?? [], state.sigs);
       if (!frame && player.playing) frame = requestAnimationFrame(loop);
       if (!clockTimer && player.playing) clockTimer = window.setInterval(paintClock, 1);
@@ -209,7 +213,7 @@ export function Transport({
       tick += len;
     }
     const start = measureStart(measure, state.sigs);
-    const points = tempoPoints(state.notes, state.meta.bpm);
+    const points = playbackPoints(state.notes, state.meta.bpm, state.playBpm);
     const stops = stopPoints(state.headerExtras ?? [], state.extras ?? [], state.sigs);
     await playFrom(secondsAt(start, points, stops));
   }

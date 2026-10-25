@@ -15,6 +15,8 @@ export class Player {
   /** Seconds added to the chart's music mark. Positive starts the file later. */
   musicOffset = 0;
   private sources = new Set<AudioBufferSourceNode>();
+  private sfx = new Set<AudioBufferSourceNode>();
+  private musicSource: AudioBufferSourceNode | null = null;
   private musicGain: GainNode | null = null;
   private fired = new Set<string>();
   playing = false;
@@ -57,7 +59,20 @@ export class Player {
       this.originCtx = this.ctx.currentTime;
     }
     this.rate = next;
-    for (const source of this.sources) source.playbackRate.value = next;
+    if (this.musicSource) this.musicSource.playbackRate.value = next;
+  }
+
+  /** Drop pending note hits so they are scheduled again against the current tempo. */
+  reschedule() {
+    this.fired.clear();
+    for (const source of this.sfx) {
+      try {
+        source.stop();
+      } catch {
+        /* already stopped */
+      }
+    }
+    this.sfx.clear();
   }
 
   setMix(bgm: number, sfx: number) {
@@ -160,7 +175,11 @@ export class Player {
       if (note.lane === "bpm" || note.lane === "bgm" || note.key === "10") continue;
       if (!soundFor(note.key) || this.fired.has(note.id)) continue;
       const time = secondsAt(note.tick, points, stops);
-      if (time < now - 0.02 || time > horizon) continue;
+      if (time < now - 0.02) {
+        this.fired.add(note.id);
+        continue;
+      }
+      if (time > horizon) continue;
       if (note.key === "0E") {
         const column = note.lane === "air2" || note.lane === "gnd2" ? "2" : "1";
         const pair = `${column}:${note.tick}`;
@@ -200,8 +219,12 @@ export class Player {
     source.connect(gain).connect(this.ctx.destination);
     const when = this.ctx.currentTime + Math.max(0, musicStart - now);
     source.start(when, offset);
+    this.musicSource = source;
     this.sources.add(source);
-    source.onended = () => this.sources.delete(source);
+    source.onended = () => {
+      this.sources.delete(source);
+      if (this.musicSource === source) this.musicSource = null;
+    };
     this.musicArmed = true;
   }
 
@@ -214,8 +237,8 @@ export class Player {
     gain.gain.value = volume;
     source.connect(gain).connect(this.ctx.destination);
     source.start(this.ctx.currentTime + delay);
-    this.sources.add(source);
-    source.onended = () => this.sources.delete(source);
+    this.sfx.add(source);
+    source.onended = () => this.sfx.delete(source);
   }
 
   private stopSources() {
@@ -226,7 +249,16 @@ export class Player {
         /* already stopped */
       }
     }
+    for (const source of this.sfx) {
+      try {
+        source.stop();
+      } catch {
+        /* already stopped */
+      }
+    }
     this.sources.clear();
+    this.sfx.clear();
+    this.musicSource = null;
     this.musicGain = null;
     this.musicArmed = false;
   }
