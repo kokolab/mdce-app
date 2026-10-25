@@ -95,7 +95,14 @@ export class Player {
     const ctx = await this.ensure();
     if (this.songUrl) URL.revokeObjectURL(this.songUrl);
     this.songUrl = URL.createObjectURL(file);
-    if (!this.song) this.song = new Audio();
+    if (!this.song) {
+      this.song = new Audio();
+      this.song.addEventListener("ended", () => {
+        const song = this.song;
+        if (!this.playing || !this.music || !song) return;
+        if (song.currentTime + 0.35 < this.music.duration) void song.play().catch(() => undefined);
+      });
+    }
     holdPitch(this.song);
     this.song.preload = "auto";
     this.song.src = this.songUrl;
@@ -127,6 +134,10 @@ export class Player {
   }
 
   songSeconds(): number {
+    const song = this.song;
+    if (this.songClock && song && !song.paused && !song.seeking && song.readyState >= 2) {
+      return song.currentTime + this.musicOffset;
+    }
     if (!this.playing || !this.ctx) return this.originSong;
     return this.originSong + (this.ctx.currentTime - this.originCtx) * this.rate;
   }
@@ -184,11 +195,10 @@ export class Player {
   pump(notes: ChartNote[], points: TempoPoint[], stops: StopPoint[] = []) {
     if (!this.playing || !this.ctx) return this.originSong;
     const now = this.songSeconds();
-    const horizon = now + this.look;
+    const horizon = now + this.look * this.rate;
     // The audio file is already aligned so file time equals chart time.
     // The MUSIC note only tells uBMplay which sample to load; it is not an extra delay.
     this.syncMusic(this.musicOffset);
-    this.followSong();
     const geminiHeard = new Set<string>();
     for (const note of notes) {
       if (note.lane === "bpm" || note.lane === "bgm" || note.key === "10") continue;
@@ -209,7 +219,7 @@ export class Player {
         geminiHeard.add(pair);
       }
       this.fired.add(note.id);
-      this.blip(note.key, Math.max(0, time - now), this.sfxVolume);
+      this.blip(note.key, Math.max(0, (time - now) / this.rate), this.sfxVolume);
     }
     return now;
   }
@@ -219,6 +229,7 @@ export class Player {
   }
 
   private musicArmed = false;
+  private songClock = false;
 
   syncMusic(musicStart: number) {
     if (!this.playing || !this.song || !this.music || this.musicArmed) return;
@@ -240,19 +251,13 @@ export class Player {
       } catch {
         /* metadata not ready */
       }
-      void song.play().catch(() => undefined);
+      void song.play().then(() => {
+        if (this.playing && song === this.song) this.songClock = true;
+      }).catch(() => undefined);
       this.musicArmed = true;
     };
     if (song.readyState >= 1) arm();
     else song.addEventListener("loadedmetadata", arm, { once: true });
-  }
-
-  private followSong() {
-    const song = this.song;
-    if (!this.musicArmed || !this.music || !song || song.paused || song.seeking) return;
-    const want = this.songSeconds() - this.musicOffset;
-    if (want < 0 || want >= this.music.duration) return;
-    if (Math.abs(song.currentTime - want) > 0.08) song.currentTime = want;
   }
 
   private blip(key: string, delay: number, volume: number) {
@@ -270,6 +275,7 @@ export class Player {
 
   private stopSources() {
     if (this.song) this.song.pause();
+    this.songClock = false;
     for (const source of this.sfx) {
       try {
         source.stop();
