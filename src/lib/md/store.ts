@@ -261,8 +261,10 @@ export const useChart = create<ChartState>((set, get) => ({
     set({ bgmSpeed: player.rate, playBpm: Math.round(chartBpm * player.rate) });
   },
   setPlayBpm: (bpm) => {
+    const chartBpm = Math.max(1, get().meta.bpm);
     const playBpm = Math.min(999, Math.max(1, Math.round(bpm)));
-    set({ playBpm });
+    player.setRate(playBpm / chartBpm);
+    set({ playBpm: Math.round(chartBpm * player.rate), bgmSpeed: Math.round(player.rate * 100) / 100 });
   },
   setMusicOffset: (ms) => {
     const musicOffset = Math.min(5000, Math.max(-5000, Math.round(ms)));

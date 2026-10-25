@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { noteLabel, type LaneId } from "@/lib/md/catalog";
 import { player } from "@/lib/md/player";
 import { useChart } from "@/lib/md/store";
-import { playbackPoints, secondsAt } from "@/lib/md/timing";
+import { secondsAt, tempoPoints } from "@/lib/md/timing";
 import { NoteIcon } from "./NoteIcon";
 
 const LOOK = 1.35;
@@ -28,15 +28,14 @@ export function Stage() {
       if (time - last < 48) return;
       last = time;
       const state = useChart.getState();
-      const points = playbackPoints(state.notes, state.meta.bpm, state.playBpm);
+      const points = tempoPoints(state.notes, state.meta.bpm);
       setNow(secondsAt(player.tickFor(points), points));
     };
     frame = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(frame);
   }, []);
 
-  const playBpm = useChart((state) => state.playBpm);
-  const points = playbackPoints(notes, bpm, playBpm);
+  const points = tempoPoints(notes, bpm);
 
   return (
     <div className="sticky top-0 z-20 h-20 overflow-hidden border-b border-line bg-ink lg:h-36" aria-label="Chart preview">

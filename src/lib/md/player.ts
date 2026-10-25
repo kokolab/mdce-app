@@ -4,20 +4,26 @@ import { secondsAt, tickAt, type StopPoint, type TempoPoint } from "./timing";
 
 type Hit = { id: string; time: number; key: string };
 
+function holdPitch(audio: HTMLAudioElement) {
+  audio.preservesPitch = true;
+  const extra = audio as HTMLAudioElement & { webkitPreservesPitch?: boolean; mozPreservesPitch?: boolean };
+  extra.webkitPreservesPitch = true;
+  extra.mozPreservesPitch = true;
+}
+
 export class Player {
   private ctx: AudioContext | null = null;
   private buffers = new Map<string, AudioBuffer>();
   private music: AudioBuffer | null = null;
+  private song: HTMLAudioElement | null = null;
+  private songUrl = "";
   musicName = "";
   bgmVolume = 0.25;
   sfxVolume = 0.25;
   rate = 1;
   /** Seconds added to the chart's music mark. Positive starts the file later. */
   musicOffset = 0;
-  private sources = new Set<AudioBufferSourceNode>();
   private sfx = new Set<AudioBufferSourceNode>();
-  private musicSource: AudioBufferSourceNode | null = null;
-  private musicGain: GainNode | null = null;
   private fired = new Set<string>();
   playing = false;
   private originCtx = 0;
@@ -59,7 +65,11 @@ export class Player {
       this.originCtx = this.ctx.currentTime;
     }
     this.rate = next;
-    if (this.musicSource) this.musicSource.playbackRate.value = next;
+    if (this.song) {
+      holdPitch(this.song);
+      this.song.playbackRate = next;
+    }
+    if (this.playing) this.reschedule();
   }
 
   /** Drop pending note hits so they are scheduled again against the current tempo. */
@@ -78,11 +88,19 @@ export class Player {
   setMix(bgm: number, sfx: number) {
     this.bgmVolume = bgm;
     this.sfxVolume = sfx;
-    if (this.musicGain && this.ctx) this.musicGain.gain.setValueAtTime(bgm, this.ctx.currentTime);
+    if (this.song) this.song.volume = bgm;
   }
 
   async loadMusic(file: File) {
     const ctx = await this.ensure();
+    if (this.songUrl) URL.revokeObjectURL(this.songUrl);
+    this.songUrl = URL.createObjectURL(file);
+    if (!this.song) this.song = new Audio();
+    holdPitch(this.song);
+    this.song.preload = "auto";
+    this.song.src = this.songUrl;
+    this.song.playbackRate = this.rate;
+    this.song.volume = this.bgmVolume;
     const raw = await file.arrayBuffer();
     this.music = await ctx.decodeAudioData(raw.slice(0));
     this.musicName = file.name;
@@ -170,6 +188,7 @@ export class Player {
     // The audio file is already aligned so file time equals chart time.
     // The MUSIC note only tells uBMplay which sample to load; it is not an extra delay.
     this.syncMusic(this.musicOffset);
+    this.followSong();
     const geminiHeard = new Set<string>();
     for (const note of notes) {
       if (note.lane === "bpm" || note.lane === "bgm" || note.key === "10") continue;
@@ -202,7 +221,7 @@ export class Player {
   private musicArmed = false;
 
   syncMusic(musicStart: number) {
-    if (!this.playing || !this.ctx || !this.music || this.musicArmed) return;
+    if (!this.playing || !this.song || !this.music || this.musicArmed) return;
     const now = this.songSeconds();
     if (now + this.look < musicStart) return;
     const offset = Math.max(0, now - musicStart);
@@ -210,22 +229,30 @@ export class Player {
       this.musicArmed = true;
       return;
     }
-    const source = this.ctx.createBufferSource();
-    source.buffer = this.music;
-    source.playbackRate.value = this.rate;
-    const gain = this.ctx.createGain();
-    gain.gain.value = this.bgmVolume;
-    this.musicGain = gain;
-    source.connect(gain).connect(this.ctx.destination);
-    const when = this.ctx.currentTime + Math.max(0, musicStart - now);
-    source.start(when, offset);
-    this.musicSource = source;
-    this.sources.add(source);
-    source.onended = () => {
-      this.sources.delete(source);
-      if (this.musicSource === source) this.musicSource = null;
+    const song = this.song;
+    holdPitch(song);
+    song.playbackRate = this.rate;
+    song.volume = this.bgmVolume;
+    const arm = () => {
+      if (!this.playing || this.musicArmed || song !== this.song) return;
+      try {
+        song.currentTime = offset;
+      } catch {
+        /* metadata not ready */
+      }
+      void song.play().catch(() => undefined);
+      this.musicArmed = true;
     };
-    this.musicArmed = true;
+    if (song.readyState >= 1) arm();
+    else song.addEventListener("loadedmetadata", arm, { once: true });
+  }
+
+  private followSong() {
+    const song = this.song;
+    if (!this.musicArmed || !this.music || !song || song.paused || song.seeking) return;
+    const want = this.songSeconds() - this.musicOffset;
+    if (want < 0 || want >= this.music.duration) return;
+    if (Math.abs(song.currentTime - want) > 0.08) song.currentTime = want;
   }
 
   private blip(key: string, delay: number, volume: number) {
@@ -242,13 +269,7 @@ export class Player {
   }
 
   private stopSources() {
-    for (const source of this.sources) {
-      try {
-        source.stop();
-      } catch {
-        /* already stopped */
-      }
-    }
+    if (this.song) this.song.pause();
     for (const source of this.sfx) {
       try {
         source.stop();
@@ -256,10 +277,7 @@ export class Player {
         /* already stopped */
       }
     }
-    this.sources.clear();
     this.sfx.clear();
-    this.musicSource = null;
-    this.musicGain = null;
     this.musicArmed = false;
   }
 }

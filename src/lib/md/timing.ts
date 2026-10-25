@@ -87,18 +87,6 @@ export function tempoPoints(
   return points;
 }
 
-/** Chart tempo scaled by the playback BPM. The music file itself stays at normal speed. */
-export function playbackPoints(
-  notes: { lane: LaneId; tick: number; bpm?: number }[],
-  baseBpm: number,
-  playBpm: number,
-): TempoPoint[] {
-  const points = tempoPoints(notes, baseBpm);
-  const scale = Math.max(1, playBpm) / Math.max(1, baseBpm || playBpm);
-  if (Math.abs(scale - 1) < 0.0001) return points;
-  return points.map((point) => ({ tick: point.tick, bpm: Math.max(1, point.bpm * scale) }));
-}
-
 export type StopPoint = { tick: number; units: number };
 
 export function secondsAt(tick: number, points: TempoPoint[], stops: StopPoint[] = []): number {
