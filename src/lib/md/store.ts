@@ -256,7 +256,7 @@ export const useChart = create<ChartState>((set, get) => ({
   setZoomSensitivity: (amount) => set({ zoomSensitivity: Math.min(1, Math.max(0.05, Math.round(amount * 20) / 20)) }),
   setBgmSpeed: (speed) => {
     const chartBpm = Math.max(1, get().meta.bpm);
-    const bgmSpeed = Math.min(4, Math.max(0.25, Math.round(speed * 100) / 100));
+    const bgmSpeed = Math.min(2, Math.max(0.25, Math.round(speed * 100) / 100));
     player.setRate(bgmSpeed);
     set({ bgmSpeed: player.rate, playBpm: Math.round(chartBpm * player.rate) });
   },
@@ -776,7 +776,7 @@ export function restoreChart() {
       followTight: data.followTight ?? false,
       followAmount: data.followAmount ?? 1,
       zoomSensitivity: data.zoomSensitivity ?? 0.25,
-      bgmSpeed: data.bgmSpeed ?? 1,
+      bgmSpeed: Math.min(2, Math.max(0.25, data.bgmSpeed ?? 1)),
       playBpm: data.playBpm ?? Math.round((data.meta.bpm || 120) * (data.bgmSpeed ?? 1)),
       musicOffset: data.musicOffset ?? 0,
       bgmVolume: data.bgmVolume == null || data.bgmVolume === 0.85 ? 0.25 : data.bgmVolume,
@@ -793,7 +793,7 @@ export function restoreChart() {
     });
     livePx.current = pxForWidth(Math.round((data.xWidth ?? 4.8) * 10) / 10);
     player.setMix(data.bgmVolume == null || data.bgmVolume === 0.85 ? 0.25 : data.bgmVolume, data.sfxVolume == null || data.sfxVolume === 0.8 ? 0.25 : data.sfxVolume);
-    player.setRate(data.bgmSpeed ?? 1);
+    player.setRate(Math.min(2, Math.max(0.25, data.bgmSpeed ?? 1)));
     player.musicOffset = (data.musicOffset ?? 0) / 1000;
   } catch {
     /* ignore broken saves */

@@ -59,7 +59,7 @@ export class Player {
   }
 
   setRate(rate: number) {
-    const next = Math.min(4, Math.max(0.25, rate));
+    const next = Math.min(2, Math.max(0.25, rate));
     if (this.playing && this.ctx) {
       this.originSong = this.songSeconds();
       this.originCtx = this.ctx.currentTime;

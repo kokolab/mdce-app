@@ -121,8 +121,8 @@ export function Editor() {
       }
       if ((event.ctrlKey || event.metaKey) && (event.key === "ArrowUp" || event.key === "ArrowDown")) {
         event.preventDefault();
-        const step = event.shiftKey ? 5 : 1;
-        state.setPlayBpm(state.playBpm + (event.key === "ArrowUp" ? step : -step));
+        const step = 0.25;
+        state.setBgmSpeed(state.bgmSpeed + (event.key === "ArrowUp" ? step : -step));
         return;
       }
       if (event.key === "Delete" || event.key === "Backspace") {

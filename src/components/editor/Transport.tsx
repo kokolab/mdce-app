@@ -93,7 +93,7 @@ export function Transport({
   const sigs = useChart((state) => state.sigs);
   const setSig = useChart((state) => state.setSig);
   const measureCount = useChart((state) => state.measureCount);
-  const playBpm = useChart((state) => state.playBpm);
+  const bgmSpeed = useChart((state) => state.bgmSpeed);
   const chartBpm = useChart((state) => state.meta.bpm);
   const tool = useChart((state) => state.tool);
 
@@ -270,24 +270,17 @@ export function Transport({
           {compact ? null : "Stop"}
         </button>
       </div>
-      <label className="flex h-8 items-center gap-1 rounded border border-dock-line bg-field px-1 text-sm text-dock-ink" title={`Chart is ${chartBpm} BPM. This changes playback speed, including the play line.`}>
-        {compact ? null : "BPM"}
-        <button type="button" className="h-6 w-6 rounded border border-dock-line" aria-label="Slower BPM" onClick={() => useChart.getState().setPlayBpm(playBpm - 1)}>
+      <div className="flex h-8 items-center gap-1 rounded border border-dock-line bg-field px-1 text-sm text-dock-ink" title={`Playback speed. 1.00x matches this chart at ${chartBpm} BPM.`}>
+        <button type="button" className="h-6 w-6 rounded border border-dock-line" aria-label="Slower" onClick={() => useChart.getState().setBgmSpeed(bgmSpeed - 0.25)}>
           −
         </button>
-        <input
-          type="number"
-          min={1}
-          max={999}
-          value={playBpm}
-          aria-label="Playback BPM"
-          onChange={(event) => useChart.getState().setPlayBpm(Number(event.target.value) || 1)}
-          className="h-6 w-14 appearance-none bg-transparent text-center font-mono text-dock-ink [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-        />
-        <button type="button" className="h-6 w-6 rounded border border-dock-line" aria-label="Faster BPM" onClick={() => useChart.getState().setPlayBpm(playBpm + 1)}>
+        <span className="w-14 text-center font-mono text-dock-ink tabular-nums" aria-label="Playback speed">
+          {bgmSpeed.toFixed(2)}x
+        </span>
+        <button type="button" className="h-6 w-6 rounded border border-dock-line" aria-label="Faster" onClick={() => useChart.getState().setBgmSpeed(bgmSpeed + 0.25)}>
           +
         </button>
-      </label>
+      </div>
       {compact ? null : (
         <span ref={clockRef} className="min-w-16 text-center font-mono text-sm text-dock-ink tabular-nums">
           {formatClock(0)}
