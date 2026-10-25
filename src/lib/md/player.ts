@@ -24,6 +24,8 @@ export class Player {
   /** Seconds added to the chart's music mark. Positive starts the file later. */
   musicOffset = 0;
   private sfx = new Set<AudioBufferSourceNode>();
+  private musicNode: AudioBufferSourceNode | null = null;
+  private musicGain: GainNode | null = null;
   private fired = new Set<string>();
   playing = false;
   private originCtx = 0;
@@ -60,12 +62,18 @@ export class Player {
 
   setRate(rate: number) {
     const next = Math.min(2, Math.max(0.25, rate));
+    if (Math.abs(next - this.rate) < 0.0001) return;
+    const wasNormal = Math.abs(this.rate - 1) < 0.001;
     if (this.playing && this.ctx) {
       this.originSong = this.songSeconds();
       this.originCtx = this.ctx.currentTime;
     }
     this.rate = next;
-    if (this.song) {
+    const nowNormal = Math.abs(next - 1) < 0.001;
+    if (this.playing && this.musicArmed && wasNormal !== nowNormal) {
+      this.stopMusic();
+      this.syncMusic(this.musicOffset);
+    } else if (this.song && !nowNormal) {
       holdPitch(this.song);
       this.song.playbackRate = next;
     }
@@ -89,20 +97,14 @@ export class Player {
     this.bgmVolume = bgm;
     this.sfxVolume = sfx;
     if (this.song) this.song.volume = bgm;
+    if (this.musicGain && this.ctx) this.musicGain.gain.setValueAtTime(bgm, this.ctx.currentTime);
   }
 
   async loadMusic(file: File) {
     const ctx = await this.ensure();
     if (this.songUrl) URL.revokeObjectURL(this.songUrl);
     this.songUrl = URL.createObjectURL(file);
-    if (!this.song) {
-      this.song = new Audio();
-      this.song.addEventListener("ended", () => {
-        const song = this.song;
-        if (!this.playing || !this.music || !song) return;
-        if (song.currentTime + 0.35 < this.music.duration) void song.play().catch(() => undefined);
-      });
-    }
+    if (!this.song) this.song = new Audio();
     holdPitch(this.song);
     this.song.preload = "auto";
     this.song.src = this.songUrl;
@@ -134,10 +136,6 @@ export class Player {
   }
 
   songSeconds(): number {
-    const song = this.song;
-    if (this.songClock && song && !song.paused && !song.seeking && song.readyState >= 2) {
-      return song.currentTime + this.musicOffset;
-    }
     if (!this.playing || !this.ctx) return this.originSong;
     return this.originSong + (this.ctx.currentTime - this.originCtx) * this.rate;
   }
@@ -229,35 +227,78 @@ export class Player {
   }
 
   private musicArmed = false;
-  private songClock = false;
 
   syncMusic(musicStart: number) {
-    if (!this.playing || !this.song || !this.music || this.musicArmed) return;
+    if (!this.playing || !this.ctx || !this.music || this.musicArmed) return;
     const now = this.songSeconds();
-    if (now + this.look < musicStart) return;
+    if (now + this.look * this.rate < musicStart) return;
     const offset = Math.max(0, now - musicStart);
     if (offset >= this.music.duration) {
       this.musicArmed = true;
       return;
     }
+    if (Math.abs(this.rate - 1) < 0.001) this.armBuffer(offset, Math.max(0, musicStart - now));
+    else this.armElement(offset);
+    this.musicArmed = true;
+  }
+
+  private armBuffer(offset: number, delay: number) {
+    if (!this.ctx || !this.music) return;
+    if (this.song) this.song.pause();
+    const source = this.ctx.createBufferSource();
+    source.buffer = this.music;
+    source.playbackRate.value = 1;
+    const gain = this.ctx.createGain();
+    gain.gain.value = this.bgmVolume;
+    this.musicGain = gain;
+    source.connect(gain).connect(this.ctx.destination);
+    source.start(this.ctx.currentTime + delay, offset);
+    this.musicNode = source;
+    source.onended = () => {
+      if (this.musicNode === source) this.musicNode = null;
+    };
+  }
+
+  private armElement(offset: number) {
+    if (!this.song) this.song = new Audio();
     const song = this.song;
+    if (this.musicNode) {
+      try {
+        this.musicNode.stop();
+      } catch {
+        /* already stopped */
+      }
+      this.musicNode = null;
+      this.musicGain = null;
+    }
     holdPitch(song);
     song.playbackRate = this.rate;
     song.volume = this.bgmVolume;
-    const arm = () => {
-      if (!this.playing || this.musicArmed || song !== this.song) return;
+    const start = () => {
+      if (!this.playing || song !== this.song) return;
       try {
         song.currentTime = offset;
       } catch {
         /* metadata not ready */
       }
-      void song.play().then(() => {
-        if (this.playing && song === this.song) this.songClock = true;
-      }).catch(() => undefined);
-      this.musicArmed = true;
+      void song.play().catch(() => undefined);
     };
-    if (song.readyState >= 1) arm();
-    else song.addEventListener("loadedmetadata", arm, { once: true });
+    if (song.readyState >= 1) start();
+    else song.addEventListener("loadedmetadata", start, { once: true });
+  }
+
+  private stopMusic() {
+    if (this.musicNode) {
+      try {
+        this.musicNode.stop();
+      } catch {
+        /* already stopped */
+      }
+    }
+    this.musicNode = null;
+    this.musicGain = null;
+    if (this.song) this.song.pause();
+    this.musicArmed = false;
   }
 
   private blip(key: string, delay: number, volume: number) {
@@ -274,8 +315,7 @@ export class Player {
   }
 
   private stopSources() {
-    if (this.song) this.song.pause();
-    this.songClock = false;
+    this.stopMusic();
     for (const source of this.sfx) {
       try {
         source.stop();
@@ -284,7 +324,6 @@ export class Player {
       }
     }
     this.sfx.clear();
-    this.musicArmed = false;
   }
 }
 
