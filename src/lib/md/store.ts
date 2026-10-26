@@ -468,12 +468,22 @@ export const useChart = create<ChartState>((set, get) => ({
     }),
   swapGroundAir: () =>
     set((state) => {
+      const ids = new Set(state.selection.length ? state.selection : state.selectedId ? [state.selectedId] : []);
+      if (!ids.size) return { banner: "Select notes before swapping air and ground." };
       const swap: Partial<Record<LaneId, LaneId>> = { air: "gnd", gnd: "air", air2: "gnd2", gnd2: "air2" };
+      let count = 0;
       const notes = state.notes.map((note) => {
+        if (!ids.has(note.id)) return note;
         const lane = swap[note.lane];
-        return lane ? { ...note, lane } : note;
+        if (!lane) return note;
+        count += 1;
+        return { ...note, lane };
       });
-      return remember(state, { notes, banner: "Swapped air and ground." });
+      if (!count) return { banner: "The selection has no air or ground notes." };
+      return remember(state, {
+        notes,
+        banner: count === 1 ? "Swapped that note between air and ground." : `Swapped ${count} notes between air and ground.`,
+      });
     }),
   setSnap: (snap) => {
     const divide = Math.min(192, Math.max(1, Math.round(snap)));

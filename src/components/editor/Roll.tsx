@@ -196,78 +196,6 @@ function GridCanvas({
   return <canvas ref={canvasRef} className="pointer-events-none absolute left-0 z-[1]" style={{ top, height }} />;
 }
 
-const WAVE_H = 28;
-
-function Waveform({ scrollerRef, songName, top }: { scrollerRef: RefObject<HTMLDivElement | null>; songName: string; top: number }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const notes = useChart((state) => state.notes);
-  const bpm = useChart((state) => state.meta.bpm);
-  const sigs = useChart((state) => state.sigs);
-  const extras = useChart((state) => state.extras);
-  const headerExtras = useChart((state) => state.headerExtras);
-  const peaksRef = useRef<number[]>([]);
-
-  useEffect(() => {
-    peaksRef.current = songName ? player.peaks(640) : [];
-  }, [songName]);
-
-  useEffect(() => {
-    const scroller = scrollerRef.current;
-    const canvas = canvasRef.current;
-    if (!scroller || !canvas || !songName) return;
-    let frame = 0;
-    const draw = () => {
-      frame = 0;
-      const peaks = peaksRef.current;
-      const duration = player.duration();
-      const dpr = window.devicePixelRatio || 1;
-      const width = Math.max(1, scroller.clientWidth);
-      const nextW = Math.max(1, Math.floor(width * dpr));
-      const nextH = Math.max(1, Math.floor(WAVE_H * dpr));
-      if (canvas.width !== nextW || canvas.height !== nextH) {
-        canvas.style.width = `${width}px`;
-        canvas.style.height = `${WAVE_H}px`;
-        canvas.width = nextW;
-        canvas.height = nextH;
-      }
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-      const camera = livePx.follow ? livePx.camera : scroller.scrollLeft;
-      canvas.style.transform = `translate3d(${camera}px,0,0)`;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, width, WAVE_H);
-      if (!peaks.length || duration <= 0) return;
-      const state = useChart.getState();
-      const points = tempoPoints(state.notes, state.meta.bpm);
-      const stops = stopPoints(state.headerExtras ?? [], state.extras ?? [], state.sigs);
-      ctx.fillStyle = "rgba(255,255,255,0.4)";
-      for (let x = 0; x < width; x += 2) {
-        const tick = xToTick(camera + x, livePx.current);
-        const sec = Math.max(0, secondsAt(tick, points, stops));
-        const index = Math.min(peaks.length - 1, Math.floor((sec / duration) * peaks.length));
-        const h = Math.max(1, (peaks[index] ?? 0) * (WAVE_H - 2));
-        ctx.fillRect(x, (WAVE_H - h) / 2, 2, h);
-      }
-    };
-    const schedule = () => {
-      if (!frame) frame = requestAnimationFrame(draw);
-    };
-    schedule();
-    livePx.wave = draw;
-    scroller.addEventListener("scroll", schedule, { passive: true });
-    window.addEventListener("resize", schedule);
-    return () => {
-      if (livePx.wave === draw) livePx.wave = null;
-      if (frame) cancelAnimationFrame(frame);
-      scroller.removeEventListener("scroll", schedule);
-      window.removeEventListener("resize", schedule);
-    };
-  }, [scrollerRef, songName, notes, bpm, sigs, extras, headerExtras]);
-
-  if (!songName) return null;
-  return <canvas ref={canvasRef} className="pointer-events-none absolute left-0 z-[1]" style={{ top, height: WAVE_H }} />;
-}
-
 type DragOrigin = { id: string; tick: number; endTick?: number; music: boolean; boxW: number; lane: LaneId; top: string };
 type DragState = {
   id: string;
@@ -346,15 +274,13 @@ const NoteChip = memo(function NoteChip({
   const gear = note.key === "0H" || note.key === "18";
   const gearHalf = gear && (note.lane === "gnd" || note.lane === "gnd2");
   const held = !note.tapHold && note.endTick != null && note.endTick > note.tick;
-  const mine = Boolean(note.tapHold);
+  const tap = Boolean(note.tapHold);
   const boxW = music ? Math.max(18, Math.round(size * 0.7)) : size;
   const boxH = music ? Math.max(size, laneH - 4) : size;
-  const span = held ? `calc(${(note.endTick ?? note.tick) - note.tick} * var(--px) / 192 * 1px + ${size}px)` : mine ? "max-content" : `${boxW}px`;
-  const left = mine
-    ? `calc(${note.tick} * var(--px) / 192 * 1px)`
-    : music
-      ? `calc(${note.tick} * var(--px) / 192 * 1px)`
-      : `calc(${note.tick} * var(--px) / 192 * 1px - ${boxW / 2}px)`;
+  const span = held ? `calc(${(note.endTick ?? note.tick) - note.tick} * var(--px) / 192 * 1px + ${size}px)` : tap ? `${size + 14}px` : `${boxW}px`;
+  const left = held || tap || !music
+    ? `calc(${note.tick} * var(--px) / 192 * 1px - ${boxW / 2}px)`
+    : `calc(${note.tick} * var(--px) / 192 * 1px)`;
   const round = icons && !held && !music;
   const travel = round ? noteTravel(note.key) : null;
   const badge = icons && !held ? bossMark(note.key) : null;
@@ -362,7 +288,7 @@ const NoteChip = memo(function NoteChip({
     <button
       type="button"
       data-note={note.id}
-      title={note.lane === "bpm" ? `${label} BPM` : noteName(note.key)}
+      title={note.lane === "bpm" ? `${label} BPM` : tap ? `${noteName(note.key)} · one-tap` : noteName(note.key)}
       onPointerDown={(event) => {
         if (event.button === 2) {
           event.preventDefault();
@@ -465,17 +391,15 @@ const NoteChip = memo(function NoteChip({
       }}
       className={
         "absolute z-10 touch-none pointer-events-auto font-mono text-xs font-medium " +
-        (held
+        (held || tap
           ? "overflow-visible "
           : "flex items-center overflow-hidden " +
-            (mine
-              ? "justify-center rounded-sm bg-[#ff1a1a] px-1.5 text-black "
-              : (music ? "justify-center rounded-sm " : round ? "justify-center rounded-full " : "justify-start rounded-md px-1 ") +
-                chipClass(note.lane) +
-                (note.key === "0G" || note.key === "16" || note.key === "17" ? " stripe" : ""))) +
+            ((music ? "justify-center rounded-sm " : round ? "justify-center rounded-full " : "justify-start rounded-md px-1 ") +
+              chipClass(note.lane) +
+              (note.key === "0G" || note.key === "16" || note.key === "17" ? " stripe" : ""))) +
         (selected ? " ring-2 ring-paper" : "")
       }
-      style={{ left, width: span, height: boxH, top: laneTop + (music ? 2 : (laneH - boxH) / 2), transform: mine ? "translateX(-50%)" : undefined, minWidth: mine ? size : undefined, overflow: note.blood ? "visible" : undefined }}
+      style={{ left, width: span, height: boxH, top: laneTop + (music ? 2 : (laneH - boxH) / 2), overflow: note.blood ? "visible" : undefined }}
     >
       {gear && icons ? (
         <GearIcon half={gearHalf} boss={note.key === "18"} className="h-[82%] w-[82%]" />
@@ -485,14 +409,12 @@ const NoteChip = memo(function NoteChip({
             <span key={index}>{letter}</span>
           ))}
         </span>
-      ) : held ? (
+      ) : held || tap ? (
         masher ? (
-          <MasherNote lane={note.lane} size={size} noteKey={note.key} />
+          <MasherNote lane={note.lane} size={size} noteKey={note.key} tap={tap} />
         ) : (
-          <HoldNote lane={note.lane} size={size} />
+          <HoldNote lane={note.lane} size={size} tap={tap} />
         )
-      ) : mine ? (
-        noteName(note.key)
       ) : icons && note.key === "0E" ? (
         <GeminiIcon up={note.lane === "gnd" || note.lane === "gnd2"} className="h-[92%] w-[92%]" />
       ) : icons ? (
@@ -535,7 +457,6 @@ export function Roll({
   const selection = useChart((state) => state.selection);
   const showIcons = useChart((state) => state.showIcons);
   const focusTick = useChart((state) => state.focusTick);
-  const songName = useChart((state) => state.songName);
   const place = useChart((state) => state.place);
   const tool = useChart((state) => state.tool);
   const [ghost, setGhost] = useState<Ghost | null>(null);
@@ -851,8 +772,8 @@ export function Roll({
     const wide = music ? Math.max(18, Math.round(size * 0.7)) : size;
     const tall = music ? Math.max(size, laneH - 4) : size;
     const length = held ? tickToX((note.endTick ?? note.tick) - note.tick, pxNow) : 0;
-    const span = held ? length + size : note.tapHold ? Math.max(size, 48) : wide;
-    const x = tickToX(note.tick, pxNow) - (music ? 0 : note.tapHold ? span / 2 : wide / 2);
+    const span = held ? length + size : note.tapHold ? size + 14 : wide;
+    const x = tickToX(note.tick, pxNow) - (music ? 0 : wide / 2);
     const y = laneTop + (music ? 2 : (laneH - tall) / 2);
     return { x, y, w: span, h: tall };
   }
@@ -874,11 +795,6 @@ export function Roll({
             </div>
           );
         })}
-        {songName ? (
-          <div className="flex items-center bg-chart px-1.5 text-[10px] font-semibold text-mute" style={{ height: WAVE_H }}>
-            WAV
-          </div>
-        ) : null}
       </div>
       <div className="relative min-h-0 min-w-0 flex-1">
       <div ref={scrollerRef} className="roll h-full select-none overflow-auto" onContextMenu={(event) => event.preventDefault()}>
@@ -907,7 +823,6 @@ export function Roll({
             height={stackHeight}
             redrawRef={redrawRef}
           />
-          <Waveform scrollerRef={scrollerRef} songName={songName} top={32 + stackHeight} />
           <div className="relative z-20 flex h-8">
             {measureLabels.map(({ measure, tick: measureTick, len }) => {
               return (

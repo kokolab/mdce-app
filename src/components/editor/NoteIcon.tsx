@@ -397,14 +397,26 @@ function Rail({ color, size, lines }: { color: string; size: number; lines: numb
   );
 }
 
-/** Flat circle, black star, four plain lines. */
-export function HoldNote({ lane, size }: { lane: LaneId; size: number }) {
+/** Flat circle, black star, four plain lines. A one-tap hold keeps the head and a short stub. */
+export function HoldNote({ lane, size, tap = false }: { lane: LaneId; size: number; tap?: boolean }) {
   const color = noteFill(lane);
   const mark = (
     <svg viewBox="0 0 24 24" className="h-[64%] w-[64%]" aria-hidden>
       <polygon points={STAR} fill="#000" />
     </svg>
   );
+  if (tap) {
+    return (
+      <span className="pointer-events-none absolute inset-0">
+        <span className="absolute top-1/2 -translate-y-1/2 overflow-hidden" style={{ left: size / 2, width: 14, height: Math.max(10, size * 0.5) }}>
+          <Rail color={color} size={0} lines={4} />
+        </span>
+        <EndCap color={color} size={size} side="left">
+          {mark}
+        </EndCap>
+      </span>
+    );
+  }
   return (
     <span className="pointer-events-none absolute inset-0">
       <Rail color={color} size={size} lines={4} />
@@ -439,8 +451,8 @@ function Zigzag({ color, size, id }: { color: string; size: number; id: string }
   );
 }
 
-/** Masher: boxing glove on each end, zigzag between them. */
-export function MasherNote({ lane, size, noteKey = "0G" }: { lane: LaneId; size: number; noteKey?: string }) {
+/** Masher: boxing glove on each end, zigzag between them. A one-tap masher keeps one glove and a short zigzag. */
+export function MasherNote({ lane, size, noteKey = "0G", tap = false }: { lane: LaneId; size: number; noteKey?: string; tap?: boolean }) {
   const color = noteFill(lane);
   const mark = (
     <svg viewBox="0 0 24 24" className="h-[82%] w-[82%]" aria-hidden>
@@ -448,6 +460,19 @@ export function MasherNote({ lane, size, noteKey = "0G" }: { lane: LaneId; size:
     </svg>
   );
   const badge = bossMark(noteKey);
+  if (tap) {
+    return (
+      <span className="pointer-events-none absolute inset-0">
+        <span className="absolute top-1/2 -translate-y-1/2 overflow-hidden" style={{ left: size / 2, width: 16, height: 14 }}>
+          <Zigzag color={color} size={0} id={`zag-tap-${lane}`} />
+        </span>
+        <EndCap color={color} size={size} side="left">
+          {mark}
+          {badge ? <BossBadge text={badge} /> : null}
+        </EndCap>
+      </span>
+    );
+  }
   return (
     <span className="pointer-events-none absolute inset-0">
       <Zigzag color={color} size={size} id={`zag-${lane}`} />

@@ -208,7 +208,6 @@ export function MenuBar({
       </>)}
       {menu("convert", "Conversion", <>
         {item("Swap air and ground", () => state().swapGroundAir())}
-        {item("Swap upper and lower lanes", () => state().mirrorLanes())}
         {item("Quantize selection", () => state().quantizeSelection())}
         {item("Hidden note", () => state().toggleBlood(), heartOn)}
       </>)}
@@ -395,7 +394,6 @@ export function MobileMenu({
             {row("Select tool", () => state().setTool("select"), tool === "select")}
             <p className="px-4 pt-3 text-xs tracking-wide text-mute uppercase">Conversion</p>
             {row("Swap air and ground", () => state().swapGroundAir())}
-            {row("Swap upper and lower lanes", () => state().mirrorLanes())}
             {row("Quantize selection", () => state().quantizeSelection())}
             {row("Hidden note", () => state().toggleBlood(), heartOn)}
             <p className="px-4 pt-3 text-xs tracking-wide text-mute uppercase">Preview</p>
