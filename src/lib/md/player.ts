@@ -1,5 +1,6 @@
 import { soundFor } from "./catalog";
 import type { ChartNote } from "./bms";
+import { rememberSong } from "./songStore";
 import { secondsAt, tickAt, type StopPoint, type TempoPoint } from "./timing";
 
 type Hit = { id: string; time: number; key: string };
@@ -113,6 +114,7 @@ export class Player {
     const raw = await file.arrayBuffer();
     this.music = await ctx.decodeAudioData(raw.slice(0));
     this.musicName = file.name;
+    await rememberSong(file).catch(() => undefined);
   }
 
   duration() {

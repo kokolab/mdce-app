@@ -3,6 +3,7 @@ import { chartLabel, readAlbum } from "@/lib/md/album";
 import { currentChartName, setAlbumCharts, useAlbumCharts } from "@/lib/md/pack";
 import { musicFileName, rememberInfo, type Meta } from "@/lib/md/bms";
 import { player } from "@/lib/md/player";
+import { savedSong } from "@/lib/md/songStore";
 import { persistChart, restoreChart, useChart } from "@/lib/md/store";
 import { Palette } from "./Palette";
 import { NotePicker } from "./NotePicker";
@@ -88,6 +89,17 @@ export function Editor() {
 
   useEffect(() => {
     restoreChart();
+    void (async () => {
+      try {
+        const song = await savedSong();
+        if (!song) return;
+        await player.ensure();
+        await player.loadMusic(song);
+        useChart.getState().setSongName(song.name);
+      } catch {
+        /* the saved song could not be read */
+      }
+    })();
     let timer = 0;
     const unsub = useChart.subscribe(() => {
       window.clearTimeout(timer);
