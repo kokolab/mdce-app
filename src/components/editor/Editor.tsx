@@ -138,10 +138,8 @@ export function Editor() {
         return;
       }
       if (event.key === "Delete" || event.key === "Backspace") {
-        if (state.selectedId) {
-          event.preventDefault();
-          state.remove(state.selectedId);
-        }
+        event.preventDefault();
+        state.deleteSelection();
         return;
       }
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "c") {

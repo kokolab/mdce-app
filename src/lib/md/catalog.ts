@@ -253,6 +253,30 @@ export function noteTravel(key: string): "up" | "down" | null {
   return NOTE_BY_KEY[key]?.dir ?? null;
 }
 
+const FLIP_DIR: Record<string, string> = {
+  "02": "03",
+  "03": "02",
+  "05": "06",
+  "06": "05",
+  "08": "09",
+  "09": "08",
+  "31": "32",
+  "32": "31",
+  "35": "36",
+  "36": "35",
+  "39": "3A",
+  "3A": "39",
+  "0C": "0I",
+  "0I": "0C",
+  "0D": "0J",
+  "0J": "0D",
+};
+
+/** Opposite travel direction. Notes without a direction stay the same. */
+export function flipTravel(key: string): string {
+  return FLIP_DIR[key] ?? key;
+}
+
 export const GROUPS: { id: NoteGroup; label: string }[] = [
   { id: "tap", label: "Taps" },
   { id: "accent", label: "Accents" },

@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { DISPLAY_LANES, HOLD_KEYS, PARTNER, type LaneId } from "./catalog";
+import { DISPLAY_LANES, HOLD_KEYS, PARTNER, flipTravel, type LaneId } from "./catalog";
 import {
   EMPTY_META,
   chartIssues,
@@ -477,7 +477,7 @@ export const useChart = create<ChartState>((set, get) => ({
         const lane = swap[note.lane];
         if (!lane) return note;
         count += 1;
-        return { ...note, lane };
+        return { ...note, lane, key: flipTravel(note.key) };
       });
       if (!count) return { banner: "The selection has no air or ground notes." };
       return remember(state, {
