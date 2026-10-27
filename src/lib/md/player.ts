@@ -73,7 +73,7 @@ export class Player {
     const nowNormal = Math.abs(next - 1) < 0.001;
     if (this.playing && this.musicArmed && wasNormal !== nowNormal) {
       this.stopMusic();
-      this.syncMusic(this.musicOffset);
+      this.syncMusic(this.musicAt);
     } else if (this.song && !nowNormal) {
       holdPitch(this.song);
       this.song.playbackRate = next;
@@ -196,9 +196,9 @@ export class Player {
     if (!this.playing || !this.ctx) return this.originSong;
     const now = this.songSeconds();
     const horizon = now + this.look * this.rate;
-    // The audio file is already aligned so file time equals chart time.
-    // The MUSIC note only tells uBMplay which sample to load; it is not an extra delay.
-    this.syncMusic(this.musicOffset);
+    // The music note is where the file begins. The offset slider only nudges that mark.
+    this.musicAt = this.songStart(notes, points, stops);
+    this.syncMusic(this.musicAt);
     const geminiHeard = new Set<string>();
     for (const note of notes) {
       if (note.lane === "bpm" || note.lane === "bgm" || note.key === "10") continue;
@@ -229,6 +229,23 @@ export class Player {
   }
 
   private musicArmed = false;
+  private musicAt = 0;
+
+  private songStart(notes: ChartNote[], points: TempoPoint[], stops: StopPoint[]): number {
+    let tick: number | null = null;
+    for (const note of notes) {
+      if (note.lane !== "bgm") continue;
+      if (tick == null || note.tick < tick) tick = note.tick;
+    }
+    if (tick == null) {
+      for (const note of notes) {
+        if (note.key !== "10") continue;
+        if (tick == null || note.tick < tick) tick = note.tick;
+      }
+    }
+    const at = tick == null ? 0 : secondsAt(tick, points, stops);
+    return at + this.musicOffset;
+  }
 
   syncMusic(musicStart: number) {
     if (!this.playing || !this.ctx || !this.music || this.musicArmed) return;
