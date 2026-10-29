@@ -138,6 +138,32 @@ function padMeasure(measure: number): string {
   return String(measure).padStart(3, "0");
 }
 
+function wavToken(key: string): string {
+  const clean = key.toUpperCase().replace(/[^0-9A-Z]/g, "");
+  if (clean.length >= 2) return clean.slice(0, 2);
+  return clean.padStart(2, "0");
+}
+
+/** Put a note in this measure without erasing one that already occupies the cell. */
+function placeToken(tokens: string[], local: number, key: string) {
+  const id = wavToken(key);
+  const last = tokens.length - 1;
+  let at = Math.max(0, Math.min(last, local));
+  if (tokens[at] !== "00") {
+    for (let step = 1; step < tokens.length; step++) {
+      if (at + step <= last && tokens[at + step] === "00") {
+        at += step;
+        break;
+      }
+      if (at - step >= 0 && tokens[at - step] === "00") {
+        at -= step;
+        break;
+      }
+    }
+  }
+  tokens[at] = id;
+}
+
 export function parseBms(text: string): BmsChart {
   const meta: Meta = { ...EMPTY_META, chartDifficulty: "" };
   const sigs: Sig[] = [];
@@ -256,7 +282,7 @@ function pairHits(hits: RawHit[]): ChartNote[] {
       notes.push({ id: nextId(), lane: "bpm", key: "BPM", tick: hit.tick, bpm: hit.bpm });
       continue;
     }
-    if (!HOLD_KEYS.has(hit.key) || hit.tapHold) {
+    if (!hit.long || hit.tapHold) {
       notes.push({
         id: nextId(),
         lane: hit.lane,
@@ -373,6 +399,7 @@ export function serializeBms(
     }
   }
 
+  const written = new Set<string>();
   const sigMap = new Map(sigs.map((sig) => [sig.measure, sig.ratio]));
   for (let measure = 0; measure <= lastMeasure; measure++) {
     const ratio = sigMap.get(measure);
@@ -386,13 +413,20 @@ export function serializeBms(
       if (!list?.length) continue;
       const len = measureTicks(measure, sigs);
       const tokens = Array.from({ length: len }, () => "00");
-      for (const hit of list) tokens[Math.max(0, Math.min(len - 1, hit.local))] = hit.key;
+      const used = [...list].sort((a, b) => a.local - b.local || a.key.localeCompare(b.key));
+      for (const hit of used) placeToken(tokens, hit.local, hit.key);
       const body = compress(tokens).join("");
-      if (body) lines.push(`#${padMeasure(measure)}${channel}:${body}`);
+      if (body) {
+        lines.push(`#${padMeasure(measure)}${channel}:${body}`);
+        written.add(`${measure}:${channel.toUpperCase()}`);
+      }
     }
   }
 
-  for (const extra of extras) lines.push(`#${padMeasure(extra.measure)}${extra.channel}:${extra.data}`);
+  for (const extra of extras) {
+    if (written.has(`${extra.measure}:${extra.channel.toUpperCase()}`)) continue;
+    lines.push(`#${padMeasure(extra.measure)}${extra.channel}:${extra.data}`);
+  }
   lines.push("");
   return lines.join("\r\n");
 }

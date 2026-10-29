@@ -91,8 +91,8 @@ export function placementForChannel(channel: string): Placement | null {
   return { lane, blood, long, tapHold: false, bpmLookup: base === 8 };
 }
 
-/** Channels the game actually reads for long notes on the four play lanes. */
-const LN_BASES = new Set([11, 12, 13, 14]);
+/** Channels written as long notes. Play lanes are what the game reads; boss lanes round-trip the same way. */
+const LN_BASES = new Set([11, 12, 13, 14, 15, 18]);
 
 export function channelFor(note: {
   lane: LaneId;
