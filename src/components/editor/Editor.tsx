@@ -5,7 +5,7 @@ import { declaredScene, musicFileName, rememberInfo, type Meta } from "@/lib/md/
 import { normalizeScene, sceneFromNotes } from "@/lib/md/catalog";
 import { player } from "@/lib/md/player";
 import { savedSong } from "@/lib/md/songStore";
-import { linkChartFolder, writeChartFile } from "@/lib/md/chartFolder";
+import { linkChartFolder, serverCharts, setSyncedSongName, syncedSongName, writeChartFile } from "@/lib/md/chartFolder";
 import { persistChart, restoreChart, useChart } from "@/lib/md/store";
 import { Palette } from "./Palette";
 import { NotePicker } from "./NotePicker";
@@ -268,7 +268,7 @@ export function Editor() {
           difficulty1: data.difficulty1 != null ? String(data.difficulty1) : undefined,
           difficulty2: data.difficulty2 != null ? String(data.difficulty2) : undefined,
           difficulty3: data.difficulty3 != null ? String(data.difficulty3) : undefined,
-          difficulty4: data.difficulty4 != null ? String(data.difficulty4) : undefined,
+          difficulty4: data.difficulty4 != null ? String(data.unlockLevel) : undefined,
           unlockLevel: data.unlockLevel != null ? String(data.unlockLevel) : undefined,
         });
         state.setBanner("Loaded info.json into the song card.");
@@ -291,15 +291,20 @@ export function Editor() {
     const wrote = await writeChartFile(name, text);
     const state = useChart.getState();
     if (wrote === "wrote") {
-      state.setBanner(`Overwrote ${name}. Leave the song and start it again to preview.`);
+      const sync = syncedSongName();
+      state.setBanner(sync ? `Overwrote ${sync}/${name}. Wait for Syncthing, then restart the song.` : `Overwrote ${name}. Leave the song and start it again to preview.`);
       return;
     }
     if (wrote === "denied") {
-      state.setBanner("The browser blocked the chart folder. Link it again, then save.");
+      state.setBanner("Could not write the chart. Link the folder or synced song again.");
       return;
     }
     download(name, text, type);
-    state.setBanner(wrote === "unsupported" ? `Downloaded ${name}. Chrome or Edge can overwrite the game folder directly.` : `Downloaded ${name}. Link the chart folder to overwrite it in place.`);
+    state.setBanner(
+      wrote === "unsupported"
+        ? `Downloaded ${name}. Link a chart folder (Chrome) or a synced song folder (Firefox).`
+        : `Downloaded ${name}. Link the chart folder or a synced song to overwrite in place.`,
+    );
   }
 
   function saveBms() {
@@ -314,10 +319,35 @@ export function Editor() {
     const state = useChart.getState();
     try {
       const name = await linkChartFolder();
-      state.setBanner(name ? `Linked ${name}. Save overwrites the chart the game reads.` : "This browser cannot write a folder. Use Chrome or Edge on the game PC.");
+      if (name) {
+        state.setBanner(`Linked ${name}. Save overwrites the chart the game reads.`);
+        return;
+      }
+      await linkSyncedSong();
     } catch {
       state.setBanner("Chart folder was not linked.");
     }
+  }
+
+  async function linkSyncedSong() {
+    const state = useChart.getState();
+    const { enabled, folders } = await serverCharts();
+    if (!enabled) {
+      state.setBanner("Synced chart folder is not mounted on the server. Mount /mnt/Custom_Albums into the container.");
+      return;
+    }
+    const current = syncedSongName();
+    const hint = folders.length ? `Folders: ${folders.slice(0, 12).join(", ")}${folders.length > 12 ? "…" : ""}` : "No song folders yet. Extract a .mdm into Custom_Albums first.";
+    const picked = window.prompt(`${hint}\n\nSong folder name to write into:`, current || folders[0] || "");
+    if (picked == null) return;
+    const name = picked.trim();
+    if (!name) {
+      setSyncedSongName("");
+      state.setBanner("Cleared the synced song folder.");
+      return;
+    }
+    setSyncedSongName(name);
+    state.setBanner(`Synced song set to ${name}. Save writes there through the server (works in Firefox).`);
   }
 
   return (
@@ -451,52 +481,32 @@ export function Editor() {
         <span>Notes {notes.length}</span>
         <span>Brush {brush}</span>
         <span>{tool === "write" ? "Write" : "Select"}</span>
-        <span>{showIcons ? "Icons" : "Labels"}</span>
+        <span>{showIcons ? "Icons" : "Shapes"}</span>
         <span className="ml-auto">{saved}</span>
       </footer>
       {notesOpen ? (
-        <div className="fixed inset-0 z-40 flex items-end bg-ink/80 lg:hidden" onClick={() => setNotesOpen(false)}>
-          <div className="max-h-[70dvh] w-full overflow-y-auto rounded-t-lg border border-dock-line bg-panel p-2" onClick={(event) => event.stopPropagation()}>
-            <Palette />
-            <button type="button" className="mt-2 h-11 w-full rounded bg-paper text-sm font-semibold text-ink" onClick={() => setNotesOpen(false)}>
-              Done
-            </button>
-          </div>
+        <div className="fixed inset-0 z-50 flex flex-col bg-ink text-paper lg:hidden">
+          <NotePicker onClose={() => setNotesOpen(false)} />
         </div>
       ) : null}
       {songOpen ? (
-        <div className="fixed inset-0 z-40 flex items-end bg-ink/80 lg:hidden" onClick={() => setSongOpen(false)}>
-          <div className="dock max-h-[80dvh] w-full overflow-y-auto rounded-t-lg border border-dock-line p-4" onClick={(event) => event.stopPropagation()}>
+        <div className="fixed inset-0 z-40 flex flex-col bg-ink/80 lg:hidden" onClick={() => setSongOpen(false)}>
+          <div className="mt-auto max-h-[80vh] overflow-y-auto rounded-t-2xl bg-dock p-3" onClick={(event) => event.stopPropagation()}>
             <Inspector />
-            <button type="button" className="mt-4 h-11 w-full rounded bg-dock-ink text-sm font-semibold text-field" onClick={() => setSongOpen(false)}>
-              Done
-            </button>
           </div>
         </div>
       ) : null}
-      <input
-        ref={bmsInput}
-        type="file"
-        accept=".bms,.bme,.bml,.mdm,.md,.zip,.json,.ogg,.mp3,.wav,.flac,.m4a,audio/*,text/plain,application/json"
-        multiple
-        className="hidden"
-        onChange={(event) => {
-          const files = [...(event.target.files ?? [])];
-          if (files.length) void takeFiles(files);
-          event.target.value = "";
-        }}
-      />
-      <input
-        ref={audioInput}
-        type="file"
-        accept="audio/*,.ogg,.mp3,.wav"
-        className="hidden"
-        onChange={(event) => {
-          const file = event.target.files?.[0];
-          if (file) void takeFile(file);
-          event.target.value = "";
-        }}
-      />
+      <input ref={bmsInput} type="file" accept=".bms,.bme,.bml,.mdm,.md,.zip,.json,audio/*" className="hidden" multiple onChange={(event) => {
+        const files = [...(event.target.files ?? [])];
+        event.target.value = "";
+        if (files.length) void takeFiles(files);
+      }} />
+      <input ref={audioInput} type="file" accept="audio/*,.ogg,.mp3,.wav,.flac,.m4a" className="hidden" onChange={(event) => {
+        const file = event.target.files?.[0];
+        event.target.value = "";
+        if (file) void takeFile(file);
+      }} />
+      <Palette />
     </div>
   );
 }
