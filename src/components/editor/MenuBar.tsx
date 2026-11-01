@@ -7,11 +7,13 @@ type MenuId = "file" | "edit" | "view" | "options" | "convert" | "preview" | "to
 export function MenuBar({
   onOpen,
   onSong,
+  onLinkFolder,
   onSaveBms,
   onSaveInfo,
 }: {
   onOpen: () => void;
   onSong: () => void;
+  onLinkFolder: () => void;
   onSaveBms: () => void;
   onSaveInfo: () => void;
 }) {
@@ -139,14 +141,9 @@ export function MenuBar({
         {item("New", () => state().reset())}
         {item("Open chart…", onOpen)}
         {item("Open song…", onSong)}
-        {item("Save BMS", () => {
-          onSaveBms();
-          state().setBanner("Downloaded the BMS file.");
-        })}
-        {item("Save info.json", () => {
-          onSaveInfo();
-          state().setBanner("Downloaded info.json.");
-        })}
+        {item("Link chart folder…", onLinkFolder)}
+        {item("Save BMS", onSaveBms)}
+        {item("Save info.json", onSaveInfo)}
       </>)}
       {menu("edit", "Edit", <>
         {item("Undo", () => state().undo())}
@@ -256,11 +253,13 @@ export function MenuBar({
 export function MobileMenu({
   onOpen,
   onSong,
+  onLinkFolder,
   onSaveBms,
   onSaveInfo,
 }: {
   onOpen: () => void;
   onSong: () => void;
+  onLinkFolder: () => void;
   onSaveBms: () => void;
   onSaveInfo: () => void;
 }) {
@@ -330,14 +329,9 @@ export function MobileMenu({
             {row("New", () => state().reset())}
             {row("Open chart…", onOpen)}
             {row("Open song…", onSong)}
-            {row("Save BMS", () => {
-              onSaveBms();
-              state().setBanner("Downloaded the BMS file.");
-            })}
-            {row("Save info.json", () => {
-              onSaveInfo();
-              state().setBanner("Downloaded info.json.");
-            })}
+            {row("Link chart folder…", onLinkFolder)}
+            {row("Save BMS", onSaveBms)}
+            {row("Save info.json", onSaveInfo)}
             <p className="px-4 pt-3 text-xs tracking-wide text-mute uppercase">Edit</p>
             {row("Undo", () => state().undo())}
             {row("Redo", () => state().redo())}

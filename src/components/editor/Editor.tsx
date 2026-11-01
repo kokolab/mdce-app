@@ -5,6 +5,7 @@ import { declaredScene, musicFileName, rememberInfo, type Meta } from "@/lib/md/
 import { normalizeScene, sceneFromNotes } from "@/lib/md/catalog";
 import { player } from "@/lib/md/player";
 import { savedSong } from "@/lib/md/songStore";
+import { linkChartFolder, writeChartFile } from "@/lib/md/chartFolder";
 import { persistChart, restoreChart, useChart } from "@/lib/md/store";
 import { Palette } from "./Palette";
 import { NotePicker } from "./NotePicker";
@@ -141,6 +142,11 @@ export function Editor() {
       if (event.key === "Delete" || event.key === "Backspace") {
         event.preventDefault();
         state.deleteSelection();
+        return;
+      }
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        void saveBms();
         return;
       }
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "c") {
@@ -281,6 +287,39 @@ export function Editor() {
     state.setBanner("Drop a .bms chart, info.json, or an audio file.");
   }
 
+  async function saveText(name: string, text: string, type: string) {
+    const wrote = await writeChartFile(name, text);
+    const state = useChart.getState();
+    if (wrote === "wrote") {
+      state.setBanner(`Overwrote ${name}. Leave the song and start it again to preview.`);
+      return;
+    }
+    if (wrote === "denied") {
+      state.setBanner("The browser blocked the chart folder. Link it again, then save.");
+      return;
+    }
+    download(name, text, type);
+    state.setBanner(wrote === "unsupported" ? `Downloaded ${name}. Chrome or Edge can overwrite the game folder directly.` : `Downloaded ${name}. Link the chart folder to overwrite it in place.`);
+  }
+
+  function saveBms() {
+    return saveText(currentChartName(), useChart.getState().exportBms(), "text/plain");
+  }
+
+  function saveInfo() {
+    return saveText("info.json", useChart.getState().exportInfo(), "application/json");
+  }
+
+  async function linkFolder() {
+    const state = useChart.getState();
+    try {
+      const name = await linkChartFolder();
+      state.setBanner(name ? `Linked ${name}. Save overwrites the chart the game reads.` : "This browser cannot write a folder. Use Chrome or Edge on the game PC.");
+    } catch {
+      state.setBanner("Chart folder was not linked.");
+    }
+  }
+
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-chart text-paper">
       <div className="hidden h-8 items-center gap-4 bg-ink px-3 text-xs text-mute lg:flex">
@@ -293,15 +332,17 @@ export function Editor() {
       <MenuBar
         onOpen={() => bmsInput.current?.click()}
         onSong={() => audioInput.current?.click()}
-        onSaveBms={() => download(currentChartName(), useChart.getState().exportBms(), "text/plain")}
-        onSaveInfo={() => download("info.json", useChart.getState().exportInfo(), "application/json")}
+        onLinkFolder={() => void linkFolder()}
+        onSaveBms={() => void saveBms()}
+        onSaveInfo={() => void saveInfo()}
       />
       <div className="flex h-12 items-center gap-1.5 border-b border-dock-line bg-menubar px-2 text-dock-ink lg:hidden">
         <MobileMenu
           onOpen={() => bmsInput.current?.click()}
           onSong={() => audioInput.current?.click()}
-          onSaveBms={() => download(currentChartName(), useChart.getState().exportBms(), "text/plain")}
-          onSaveInfo={() => download("info.json", useChart.getState().exportInfo(), "application/json")}
+          onLinkFolder={() => void linkFolder()}
+          onSaveBms={() => void saveBms()}
+          onSaveInfo={() => void saveInfo()}
         />
         <Transport compact live={false} playheadRef={playheadRef} scrollerRef={scrollerRef} />
         <button type="button" className="h-10 shrink-0 rounded border border-dock-line bg-field px-3 text-sm" onClick={() => setNotesOpen(true)}>
