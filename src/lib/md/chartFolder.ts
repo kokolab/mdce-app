@@ -1,3 +1,5 @@
+import type { AlbumChart } from "./album";
+
 const DB_NAME = "mdce-folder";
 const STORE = "dir";
 const KEY = "chart";
@@ -49,6 +51,21 @@ async function stored(): Promise<FileSystemDirectoryHandle | null> {
   return linked;
 }
 
+function isBms(name: string): boolean {
+  const lower = name.toLowerCase();
+  return lower.endsWith(".bms") || lower.endsWith(".bme") || lower.endsWith(".bml");
+}
+
+function bmsOrder(name: string): number {
+  const lower = name.toLowerCase();
+  if (lower === "map2.bms") return 0;
+  if (lower === "map1.bms") return 1;
+  if (lower === "map3.bms") return 2;
+  if (lower === "map4.bms") return 3;
+  if (/^map\d+\.bms$/.test(lower)) return 4;
+  return 5;
+}
+
 export function syncedSongName(): string {
   try {
     return localStorage.getItem(SYNC_KEY) ?? "";
@@ -82,12 +99,57 @@ export async function serverCharts(): Promise<{ enabled: boolean; folders: strin
   }
 }
 
+async function listBrowserCharts(): Promise<AlbumChart[]> {
+  const dir = await stored().catch(() => null);
+  if (!dir) return [];
+  const ask = (dir as FileSystemDirectoryHandle & { requestPermission?: (options: { mode: "readwrite" }) => Promise<PermissionState> }).requestPermission;
+  if (ask) {
+    const perm = await ask.call(dir, { mode: "readwrite" });
+    if (perm !== "granted") return [];
+  }
+  const charts: AlbumChart[] = [];
+  for await (const [name, handle] of dir.entries()) {
+    if (handle.kind !== "file" || !isBms(name)) continue;
+    const file = await handle.getFile();
+    charts.push({ name, text: await file.text() });
+  }
+  return charts.sort((a, b) => bmsOrder(a.name) - bmsOrder(b.name) || a.name.localeCompare(b.name));
+}
+
+async function listServerCharts(folder: string): Promise<AlbumChart[]> {
+  try {
+    const response = await fetch(`/api/charts?folder=${encodeURIComponent(folder)}`);
+    if (!response.ok) return [];
+    const data = (await response.json()) as { charts?: AlbumChart[] };
+    const charts = Array.isArray(data.charts) ? data.charts : [];
+    return charts
+      .filter((chart) => chart && typeof chart.name === "string" && typeof chart.text === "string")
+      .sort((a, b) => bmsOrder(a.name) - bmsOrder(b.name) || a.name.localeCompare(b.name));
+  } catch {
+    return [];
+  }
+}
+
+export async function listLinkedCharts(): Promise<AlbumChart[]> {
+  const browser = await listBrowserCharts();
+  if (browser.length) return browser;
+  const folder = syncedSongName();
+  if (!folder) return [];
+  return listServerCharts(folder);
+}
+
+export function pickDefaultChart(charts: AlbumChart[]): AlbumChart | null {
+  if (!charts.length) return null;
+  return charts.find((chart) => chart.name.toLowerCase() === "map2.bms") ?? charts[0] ?? null;
+}
+
 export async function linkChartFolder(): Promise<string | null> {
   const open = picker();
   if (!open) return null;
   const dir = await open({ mode: "readwrite", id: "mdce-chart" });
   linked = dir;
   await remember(dir).catch(() => undefined);
+  setSyncedSongName("");
   return dir.name;
 }
 
