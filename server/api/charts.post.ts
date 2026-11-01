@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 function chartRoot(): string | null {
@@ -20,20 +20,21 @@ function allowedFile(name: string): boolean {
   return /^map[1-4]\.bms$/i.test(name) || /\.bms$/i.test(name);
 }
 
-/** Fire-and-forget: ask Syncthing to rescan the chart folder after a write. */
-function triggerSyncthingScan(): void {
+async function triggerSyncthingScan(): Promise<void> {
   const base = process.env.SYNCTHING_URL?.trim().replace(/\/$/, "");
   const key = process.env.SYNCTHING_API_KEY?.trim();
   const folder = process.env.SYNCTHING_FOLDER_ID?.trim();
   if (!base || !key || !folder) return;
 
   const url = `${base}/rest/db/scan?folder=${encodeURIComponent(folder)}`;
-  void fetch(url, {
-    method: "POST",
-    headers: { "X-API-Key": key },
-  }).catch(() => {
-    /* ignore — save still succeeded */
-  });
+  try {
+    await fetch(url, {
+      method: "POST",
+      headers: { "X-API-Key": key },
+    });
+  } catch {
+    /* ignore — disk write is what matters */
+  }
 }
 
 export default async function chartsPost(event: { req: Request }) {
@@ -68,10 +69,15 @@ export default async function chartsPost(event: { req: Request }) {
   try {
     await mkdir(dir, { recursive: true });
     await writeFile(target, content, "utf8");
-    triggerSyncthingScan();
-    return { ok: true, path: `${folder}/${name}` };
+    // Confirm the bytes on disk match what we wrote (guards NFS/race issues).
+    const onDisk = await readFile(target, "utf8");
+    if (onDisk !== content) {
+      return Response.json({ ok: false, verified: false, error: "Write did not stick on disk" }, { status: 500 });
+    }
+    await triggerSyncthingScan();
+    return { ok: true, verified: true, path: `${folder}/${name}` };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Write failed";
-    return Response.json({ ok: false, error: message }, { status: 500 });
+    return Response.json({ ok: false, verified: false, error: message }, { status: 500 });
   }
 }

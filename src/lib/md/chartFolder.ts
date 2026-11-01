@@ -7,8 +7,15 @@ const SYNC_KEY = "mdce-synced-song";
 
 type Picker = (options: { mode: "readwrite"; id: string }) => Promise<FileSystemDirectoryHandle>;
 
+export type WriteResult = "wrote" | "stale" | "missing" | "denied" | "unsupported";
+
 let linked: FileSystemDirectoryHandle | null = null;
 let serverEnabled: boolean | null = null;
+
+/** Serialize writes so rapid Ctrl+S only applies the latest content. */
+let writeChain: Promise<void> = Promise.resolve();
+let pendingWrite: { name: string; text: string } | null = null;
+let pendingResolvers: Array<(result: WriteResult) => void> = [];
 
 function picker(): Picker | null {
   const fn = (window as Window & { showDirectoryPicker?: Picker }).showDirectoryPicker;
@@ -153,7 +160,7 @@ export async function linkChartFolder(): Promise<string | null> {
   return dir.name;
 }
 
-async function writeBrowser(name: string, text: string): Promise<"wrote" | "missing" | "denied" | "unsupported"> {
+async function writeBrowser(name: string, text: string): Promise<WriteResult> {
   if (!picker()) return "unsupported";
   const dir = await stored().catch(() => null);
   if (!dir) return "missing";
@@ -166,10 +173,13 @@ async function writeBrowser(name: string, text: string): Promise<"wrote" | "miss
   const stream = await file.createWritable();
   await stream.write(text);
   await stream.close();
-  return "wrote";
+  // Read back to confirm the handle actually holds the new content.
+  const check = await (await dir.getFileHandle(name)).getFile();
+  const onDisk = await check.text();
+  return onDisk === text ? "wrote" : "stale";
 }
 
-async function writeServer(name: string, text: string): Promise<"wrote" | "missing" | "denied" | "unsupported"> {
+async function writeServer(name: string, text: string): Promise<WriteResult> {
   if (serverEnabled === false) return "unsupported";
   const folder = syncedSongName();
   if (!folder) return "missing";
@@ -184,16 +194,44 @@ async function writeServer(name: string, text: string): Promise<"wrote" | "missi
       return "unsupported";
     }
     if (!response.ok) return "denied";
-    const data = (await response.json()) as { ok?: boolean };
-    return data.ok ? "wrote" : "denied";
+    const data = (await response.json()) as { ok?: boolean; verified?: boolean };
+    if (!data.ok) return "denied";
+    if (data.verified === false) return "stale";
+    return "wrote";
   } catch {
     return "denied";
   }
 }
 
-export async function writeChartFile(name: string, text: string): Promise<"wrote" | "missing" | "denied" | "unsupported"> {
+async function writeOnce(name: string, text: string): Promise<WriteResult> {
   const browser = await writeBrowser(name, text);
-  if (browser === "wrote" || browser === "denied") return browser;
+  if (browser === "wrote" || browser === "stale" || browser === "denied") return browser;
   if (browser === "missing" && picker()) return "missing";
   return writeServer(name, text);
+}
+
+/**
+ * Coalesce rapid saves: only the latest (name, text) runs.
+ * Earlier callers get the same final result for that batch.
+ */
+export function writeChartFile(name: string, text: string): Promise<WriteResult> {
+  pendingWrite = { name, text };
+  return new Promise((resolve) => {
+    pendingResolvers.push(resolve);
+    writeChain = writeChain.then(async () => {
+      if (!pendingWrite) return;
+      const job = pendingWrite;
+      pendingWrite = null;
+      const resolvers = pendingResolvers;
+      pendingResolvers = [];
+      let result: WriteResult = "denied";
+      try {
+        result = await writeOnce(job.name, job.text);
+        // If something else queued while we wrote, run that next (chain continues).
+      } catch {
+        result = "denied";
+      }
+      for (const done of resolvers) done(result);
+    });
+  });
 }
