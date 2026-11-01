@@ -36,6 +36,12 @@ function StopIcon() {
   );
 }
 
+function chartEndTick(notes: { tick: number; endTick?: number }[], sigs: Parameters<typeof locate>[1]): number {
+  let last = 0;
+  for (const note of notes) last = Math.max(last, note.endTick ?? note.tick);
+  return measureStart(locate(last, sigs, 0).measure + 4, sigs);
+}
+
 function sheetOf(scroller: HTMLElement | null, playhead: HTMLElement | null) {
   return playhead?.parentElement ?? scroller?.querySelector<HTMLElement>("[data-roll-sheet]") ?? null;
 }
@@ -147,6 +153,10 @@ export function Transport({
       }
       player.pump(state.notes, points, stops);
       const tick = Math.max(0, player.tickFor(points, stops));
+      if (tick >= chartEndTick(state.notes, state.sigs)) {
+        stop();
+        return;
+      }
       const node = playheadRef.current;
       if (node) node.style.setProperty("--play", String(tick));
       const scroller = scrollerRef.current;
