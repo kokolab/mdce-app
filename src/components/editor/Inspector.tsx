@@ -3,22 +3,10 @@ import { SCENES } from "@/lib/md/catalog";
 import { useChart } from "@/lib/md/store";
 
 const SPEEDS = [
-  { key: "0O", label: "Speed 1" },
-  { key: "0P", label: "Speed 2" },
-  { key: "0Q", label: "Speed 3" },
+  { id: "1", label: "Speed 1" },
+  { id: "2", label: "Speed 2" },
+  { id: "3", label: "Speed 3" },
 ];
-
-const SPEED_BOTH: Record<string, string> = {
-  "0O": "0O",
-  "0R": "0O",
-  "0U": "0O",
-  "0P": "0P",
-  "0S": "0P",
-  "0V": "0P",
-  "0Q": "0Q",
-  "0T": "0Q",
-  "0W": "0Q",
-};
 
 const DIFFICULTIES = [
   { id: "easy", label: "Easy" },
@@ -60,15 +48,10 @@ export function Inspector() {
   const musicOffset = useChart((state) => state.musicOffset);
   const bgmVolume = useChart((state) => state.bgmVolume);
   const sfxVolume = useChart((state) => state.sfxVolume);
-  const notes = useChart((state) => state.notes);
   const [bar, setBar] = useState("0");
   const [headerMore, setHeaderMore] = useState(false);
   const [gridMore, setGridMore] = useState(false);
   const knownScene = SCENES.some((scene) => scene.id === meta.genre);
-  const speed = notes
-    .filter((note) => SPEED_BOTH[note.key])
-    .sort((a, b) => a.tick - b.tick)[0];
-  const speedValue = speed ? SPEED_BOTH[speed.key] : "";
 
   return (
     <div className="text-dock-ink">
@@ -86,7 +69,7 @@ export function Inspector() {
           <select
             value={knownScene ? meta.genre : "custom"}
             onChange={(event) => {
-              if (event.target.value !== "custom") patchMeta({ genre: event.target.value });
+              if (event.target.value !== "custom") useChart.getState().setScene(event.target.value);
             }}
             className={field}
           >
@@ -111,15 +94,13 @@ export function Inspector() {
         </Row>
         <Row label="NoteSpeed">
           <select
-            value={speedValue}
-            onChange={(event) => {
-              if (event.target.value) useChart.getState().setSpeed(event.target.value);
-            }}
+            value={meta.noteSpeed || ""}
+            onChange={(event) => useChart.getState().setSpeed(event.target.value)}
             className={field}
           >
             <option value="">Not set</option>
             {SPEEDS.map((item) => (
-              <option key={item.key} value={item.key}>
+              <option key={item.id} value={item.id}>
                 {item.label}
               </option>
             ))}

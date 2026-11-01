@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { DISPLAY_LANES, HOLD_KEYS, PARTNER, flipTravel, type LaneId } from "./catalog";
+import { DISPLAY_LANES, HOLD_KEYS, PARTNER, flipTravel, normalizeScene, type LaneId } from "./catalog";
 import {
   EMPTY_META,
   chartIssues,
@@ -87,6 +87,7 @@ type ChartState = {
   mirrorLanes: () => void;
   quantizeSelection: () => void;
   setSpeed: (key: string) => void;
+  setScene: (scene: string) => void;
   setTool: (tool: "write" | "select") => void;
   setSongName: (name: string) => void;
   setShowStage: (show: boolean) => void;
@@ -384,26 +385,14 @@ export const useChart = create<ChartState>((set, get) => ({
     }),
   setSpeed: (key) =>
     set((state) => {
-      const both: Record<string, string> = {
-        "0O": "0O",
-        "0R": "0O",
-        "0U": "0O",
-        "0P": "0P",
-        "0S": "0P",
-        "0V": "0P",
-        "0Q": "0Q",
-        "0T": "0Q",
-        "0W": "0Q",
-      };
-      const next = both[key] ?? key;
-      const existing = state.notes
-        .filter((note) => both[note.key])
-        .sort((a, b) => a.tick - b.tick)[0];
-      const notes = existing
-        ? state.notes.map((note) => (note.id === existing.id ? { ...note, key: next } : note))
-        : [...state.notes, { id: nextId(), lane: "boss" as const, key: next, tick: 0 }];
-      return remember(state, { notes, brush: next, banner: "Note speed written on the first speed note." });
+      const level = key === "0O" || key === "1" ? "1" : key === "0P" || key === "2" ? "2" : key === "0Q" || key === "3" ? "3" : "";
+      return remember(state, {
+        meta: { ...state.meta, noteSpeed: level },
+        banner: level ? `Default note speed is now ${level}.` : "Default note speed cleared.",
+      });
     }),
+  setScene: (scene) =>
+    set((state) => remember(state, { meta: { ...state.meta, genre: normalizeScene(scene) }, banner: "Scene updated." })),
   setTool: (tool) => set({ tool }),
   setSongName: (songName) => set({ songName }),
   setShowStage: (showStage) => set({ showStage }),
@@ -769,9 +758,19 @@ export function restoreChart() {
     const data = JSON.parse(raw) as Partial<ChartState>;
     if (!data.notes || !data.meta) return;
     if (data.meta.title === "Warm-up" && data.meta.tags === "warmup") return;
+    const startSpeed: Record<string, string> = { "0O": "1", "0P": "2", "0Q": "3" };
+    let lifted = "";
+    const notes = data.notes.filter((note) => {
+      const level = note.tick <= 0 ? startSpeed[note.key] : "";
+      if (!level) return true;
+      if (!lifted) lifted = level;
+      return false;
+    });
+    const meta = { ...EMPTY_META, ...data.meta };
+    if (!meta.noteSpeed && lifted) meta.noteSpeed = lifted;
     useChart.setState({
-      meta: { ...EMPTY_META, ...data.meta },
-      notes: data.notes,
+      meta,
+      notes,
       sigs: data.sigs ?? [],
       extras: data.extras ?? [],
       wavExtra: data.wavExtra ?? [],

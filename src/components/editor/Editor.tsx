@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { chartLabel, readAlbum } from "@/lib/md/album";
 import { currentChartName, setAlbumCharts, useAlbumCharts } from "@/lib/md/pack";
-import { musicFileName, rememberInfo, type Meta } from "@/lib/md/bms";
+import { declaredScene, musicFileName, rememberInfo, type Meta } from "@/lib/md/bms";
+import { normalizeScene, sceneFromNotes } from "@/lib/md/catalog";
 import { player } from "@/lib/md/player";
 import { savedSong } from "@/lib/md/songStore";
 import { persistChart, restoreChart, useChart } from "@/lib/md/store";
@@ -200,7 +201,9 @@ export function Editor() {
         state.loadText(pack.bmsText, pack.bmsName);
         setAlbumCharts(pack.charts, pack.bmsName);
         loadedChart = true;
+        const fromChart = declaredScene(pack.bmsText) ?? sceneFromNotes(useChart.getState().notes);
         if (pack.infoText) await takeFile(new File([pack.infoText], "info.json", { type: "application/json" }));
+        if (fromChart) useChart.getState().patchMeta({ genre: fromChart });
         if (pack.music) audio.push(pack.music);
         continue;
       }
@@ -253,7 +256,7 @@ export function Editor() {
         state.patchMeta({
           title: typeof data.name === "string" ? data.name : undefined,
           artist: typeof data.author === "string" ? data.author : undefined,
-          genre: typeof data.scene === "string" ? data.scene : undefined,
+          genre: typeof data.scene === "string" ? normalizeScene(data.scene) : undefined,
           designer: typeof data.levelDesigner === "string" ? data.levelDesigner : undefined,
           tags,
           difficulty1: data.difficulty1 != null ? String(data.difficulty1) : undefined,

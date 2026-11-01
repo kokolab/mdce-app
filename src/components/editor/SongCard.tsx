@@ -53,7 +53,7 @@ export function SongCard({ className = "" }: { className?: string }) {
         <select
           value={known ? meta.genre : "custom"}
           onChange={(event) => {
-            if (event.target.value !== "custom") patchMeta({ genre: event.target.value });
+            if (event.target.value !== "custom") useChart.getState().setScene(event.target.value);
           }}
           className="h-11 rounded-md border border-line bg-ink px-3 text-paper"
         >

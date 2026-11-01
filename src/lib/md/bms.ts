@@ -3,9 +3,12 @@ import {
   LANE_BY_ID,
   NOTE_BY_KEY,
   WAV_HEADER,
+  SCENES,
   channelFor,
+  normalizeScene,
   noteName,
   placementForChannel,
+  sceneFromNotes,
   type LaneId,
 } from "./catalog";
 import { locate, measureStart, measureTicks, type Sig, type StopPoint } from "./timing";
@@ -31,6 +34,7 @@ export type Meta = {
   rank: string;
   player: string;
   chartDifficulty: "easy" | "hard" | "master" | "hidden" | "";
+  noteSpeed: string;
   difficulty1: string;
   difficulty2: string;
   difficulty3: string;
@@ -63,6 +67,7 @@ export const EMPTY_META: Meta = {
   rank: "1",
   player: "3",
   chartDifficulty: "hard",
+  noteSpeed: "3",
   difficulty1: "0",
   difficulty2: "1",
   difficulty3: "0",
@@ -164,8 +169,15 @@ function placeToken(tokens: string[], local: number, key: string) {
   tokens[at] = id;
 }
 
+export function declaredScene(text: string): string | null {
+  const match = text.replace(/^\uFEFF/, "").match(/^#GENRE[ \t]+(.+)$/im);
+  if (!match) return null;
+  const genre = normalizeScene(match[1].trim());
+  return SCENES.some((scene) => scene.id === genre) ? genre : null;
+}
+
 export function parseBms(text: string): BmsChart {
-  const meta: Meta = { ...EMPTY_META, chartDifficulty: "" };
+  const meta: Meta = { ...EMPTY_META, chartDifficulty: "", noteSpeed: "" };
   const sigs: Sig[] = [];
   const extras: RawEvent[] = [];
   const headerExtras: string[] = [];
@@ -175,6 +187,7 @@ export function parseBms(text: string): BmsChart {
   let maxMeasure = 0;
 
   const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/);
+  let genreSet = false;
   for (const rawLine of lines) {
     const line = rawLine.trim();
     if (!line || line.startsWith("*") || line.startsWith("//") || !line.startsWith("#")) continue;
@@ -210,8 +223,12 @@ export function parseBms(text: string): BmsChart {
     const value = header[2].trim();
     if (cmd === "TITLE") meta.title = value;
     else if (cmd === "ARTIST") meta.artist = value;
-    else if (cmd === "GENRE") meta.genre = value || meta.genre;
-    else if (cmd === "LEVELDESIGN") meta.designer = value;
+    else if (cmd === "GENRE") {
+      if (value) {
+        meta.genre = value;
+        genreSet = true;
+      }
+    } else if (cmd === "LEVELDESIGN") meta.designer = value;
     else if (cmd === "BPM") {
       const bpm = Number(value);
       if (Number.isFinite(bpm) && bpm > 0) meta.bpm = bpm;
@@ -219,7 +236,8 @@ export function parseBms(text: string): BmsChart {
     else if (cmd === "RANK") meta.rank = value || meta.rank;
     else if (cmd === "PLAYER") meta.player = value || meta.player;
     else if (cmd === "DIFFICULTY") meta.chartDifficulty = difficultyFromValue(value);
-    else if (cmd !== "LNTYPE" && cmd !== "DIFFICULTY") headerExtras.push(line);
+    else if (cmd === "NOTESPEED") meta.noteSpeed = speedLevel(value);
+    else if (cmd !== "LNTYPE" && cmd !== "DIFFICULTY" && cmd !== "NOTESPEED") headerExtras.push(line);
   }
 
   const hits: RawHit[] = [];
@@ -260,10 +278,18 @@ export function parseBms(text: string): BmsChart {
   const wavExtra = [...wav.entries()]
     .filter(([key]) => !knownWav.has(key))
     .map(([key, name]) => ({ key, name }));
+  const notes = pairHits(hits).filter((note) => {
+    if (note.tick > 0 || !isStartingSpeed(note.key)) return true;
+    if (!meta.noteSpeed) meta.noteSpeed = speedLevel(note.key);
+    return false;
+  });
+  const written = genreSet ? normalizeScene(meta.genre) : "";
+  const known = SCENES.some((scene) => scene.id === written);
+  meta.genre = known ? written : (sceneFromNotes(notes) ?? (written || "scene_01"));
 
   return {
     meta,
-    notes: pairHits(hits),
+    notes,
     sigs,
     extras,
     wavExtra,
@@ -272,6 +298,26 @@ export function parseBms(text: string): BmsChart {
     bpmTable,
     measureCount: Math.max(16, maxMeasure + 9),
   };
+}
+
+function isStartingSpeed(key: string): boolean {
+  const id = key.trim().toUpperCase();
+  return id === "0O" || id === "0P" || id === "0Q";
+}
+
+function defaultSpeedKey(level: string): string {
+  if (level === "1") return "0O";
+  if (level === "2") return "0P";
+  if (level === "3") return "0Q";
+  return "";
+}
+
+function speedLevel(value: string): string {
+  const text = value.trim().toUpperCase();
+  if (text === "1" || text === "0O" || text === "0R" || text === "0U") return "1";
+  if (text === "2" || text === "0P" || text === "0S" || text === "0V") return "2";
+  if (text === "3" || text === "0Q" || text === "0T" || text === "0W") return "3";
+  return "";
 }
 
 function pairHits(hits: RawHit[]): ChartNote[] {
@@ -359,7 +405,7 @@ export function serializeBms(
     `#RANK ${meta.rank || "1"}`,
     `#DIFFICULTY ${DIFFICULTY_CODE[meta.chartDifficulty || "hard"]}`,
     "#LNTYPE 1",
-    ...headerExtras.filter((line) => !/^#DIFFICULTY\b/i.test(line.trim())),
+    ...headerExtras.filter((line) => !/^#(DIFFICULTY|NOTESPEED)\b/i.test(line.trim())),
   ];
 
   const wavs = new Map<string, string>();
@@ -370,9 +416,13 @@ export function serializeBms(
   for (const item of wavExtra) wavs.set(item.key.toUpperCase(), item.name);
   for (const [key, name] of wavs) lines.push(`#WAV${key} ${name}`);
 
+  const speedKey = defaultSpeedKey(meta.noteSpeed);
+  const writtenNotes = notes.filter((note) => !(note.tick <= 0 && isStartingSpeed(note.key)));
+  if (speedKey) writtenNotes.unshift({ id: "default-speed", lane: "boss", key: speedKey, tick: 0 });
+
   const bpmIndex = new Map<number, string>();
   let bpmSeq = 1;
-  for (const note of notes) {
+  for (const note of writtenNotes) {
     if (note.lane !== "bpm" || !note.bpm || note.bpm <= 255 || bpmIndex.has(note.bpm)) continue;
     const id = bpmSeq.toString(36).toUpperCase().padStart(2, "0");
     bpmSeq += 1;
@@ -383,7 +433,7 @@ export function serializeBms(
   lines.push("", "*---------------------- MAIN DATA FIELD", "");
 
   const buckets = new Map<string, { measure: number; channel: string; local: number; key: string }[]>();
-  for (const note of notes) {
+  for (const note of writtenNotes) {
     if (note.lane === "bpm" && note.bpm) {
       const key =
         note.bpm > 255

@@ -423,6 +423,73 @@ export const SCENES: { id: string; label: string }[] = [
   { id: "scene_12", label: "Scene 12" },
 ];
 
+/** Scene switch notes placed in the chart. The earliest one is the stage the chart starts on. */
+export const SCENE_BY_NOTE: Record<string, string> = {
+  "1O": "scene_01",
+  "1P": "scene_02",
+  "1Q": "scene_03",
+  "1R": "scene_04",
+  "1S": "scene_05",
+  "1T": "scene_06",
+  "1U": "scene_07",
+  "1V": "scene_08",
+  "1W": "scene_09",
+  "1X": "scene_10",
+};
+
+const SCENE_NOTE = Object.fromEntries(Object.entries(SCENE_BY_NOTE).map(([key, id]) => [id, key]));
+
+const SCENE_NAMES: Record<string, string> = {
+  "space station": "scene_01",
+  space: "scene_01",
+  retrocity: "scene_02",
+  "retro city": "scene_02",
+  castle: "scene_03",
+  "rainy night": "scene_04",
+  rain: "scene_04",
+  candyland: "scene_05",
+  candy: "scene_05",
+  oriental: "scene_06",
+  "groove coaster": "scene_07",
+  "let's groove": "scene_07",
+  touhou: "scene_08",
+  djmax: "scene_09",
+  miku: "scene_10",
+  "hatsune miku": "scene_10",
+};
+
+/** Accept scene_5, scene_05, and stage names. Unknown text is left as-is. */
+export function normalizeScene(value: string | undefined | null): string {
+  const raw = (value ?? "").trim();
+  if (!raw) return "scene_01";
+  const lower = raw.toLowerCase().replace(/\s+/g, " ");
+  if (SCENE_NAMES[lower]) return SCENE_NAMES[lower];
+  const numbered = /^scene_0*(\d+)$/i.exec(lower.replace(/\s/g, ""));
+  if (numbered) {
+    const n = Number(numbered[1]);
+    if (n >= 1 && n <= 12) return `scene_${String(n).padStart(2, "0")}`;
+  }
+  const bare = /^(\d+)$/.exec(lower);
+  if (bare) {
+    const n = Number(bare[1]);
+    if (n >= 1 && n <= 12) return `scene_${String(n).padStart(2, "0")}`;
+  }
+  return raw;
+}
+
+export function sceneFromNotes(notes: { key: string; tick: number }[]): string | null {
+  let best: { key: string; tick: number } | null = null;
+  for (const note of notes) {
+    if (!SCENE_BY_NOTE[note.key]) continue;
+    if (!best || note.tick < best.tick) best = note;
+  }
+  return best ? SCENE_BY_NOTE[best.key] : null;
+}
+
+export function noteForScene(scene: string): string | null {
+  return SCENE_NOTE[normalizeScene(scene)] ?? null;
+}
+
 export const HOLD_KEYS = new Set(NOTES.filter((n) => n.hold).map((n) => n.key));
 
 export const WAV_BY_KEY: Record<string, string> = Object.fromEntries(WAV_HEADER.map((item) => [item.key, item.name]));
