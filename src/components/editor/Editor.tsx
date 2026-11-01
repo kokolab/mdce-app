@@ -288,7 +288,7 @@ export function Editor() {
     state.setBanner("Drop a .bms chart, info.json, or an audio file.");
   }
 
-  function showDiskStatus(message: string, ms = 5000) {
+  function showDiskStatus(message: string, ms = 8000) {
     diskStatusRef.current = message;
     setSaved(message);
     window.clearTimeout(diskClearRef.current);
@@ -299,28 +299,32 @@ export function Editor() {
   }
 
   async function saveText(name: string, content: string, type: string) {
-    setSaved("Saving to disk…");
-    diskStatusRef.current = "Saving to disk…";
+    setSaved("Writing…");
+    diskStatusRef.current = "Writing…";
     const wrote = await writeChartFile(name, content);
     const state = useChart.getState();
     if (wrote === "wrote") {
       const sync = syncedSongName();
-      const path = sync ? `${sync}/${name}` : name;
-      showDiskStatus(`Saved ${path}`);
+      // Server write lands on NAS only — game still needs Syncthing + song restart.
+      if (sync) {
+        showDiskStatus(`On NAS · ${sync}/${name}`, 10000);
+      } else {
+        showDiskStatus(`Local file · re-enter song`, 8000);
+      }
       return;
     }
     if (wrote === "stale") {
-      showDiskStatus(`Not on disk — retry ${name}`, 6000);
-      state.setBanner("Save did not stick on disk (race or NFS). Try Save again.");
+      showDiskStatus(`Not on disk — retry ${name}`, 8000);
+      state.setBanner("Write did not stick on disk (race or NFS). Try Save again.");
       return;
     }
     if (wrote === "denied") {
-      showDiskStatus("Save denied", 4000);
+      showDiskStatus("Write denied", 5000);
       state.setBanner("Could not write the chart. Link the folder or synced song again.");
       return;
     }
     download(name, content, type);
-    showDiskStatus(`Downloaded ${name}`, 4000);
+    showDiskStatus(`Downloaded ${name}`, 5000);
     state.setBanner(
       wrote === "unsupported"
         ? `Downloaded ${name}. Link a chart folder (Chrome) or a synced song folder (Firefox).`
