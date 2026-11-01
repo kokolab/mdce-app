@@ -14,6 +14,10 @@ services:
       - ${CHART_ROOT:-/mnt/Custom_Albums}:/data/Custom_Albums
     environment:
       - CHART_ROOT=/data/Custom_Albums
+      # Optional: force Syncthing to rescan after each chart save
+      - SYNCTHING_URL=${SYNCTHING_URL:-}
+      - SYNCTHING_API_KEY=${SYNCTHING_API_KEY:-}
+      - SYNCTHING_FOLDER_ID=${SYNCTHING_FOLDER_ID:-}
     labels:
       proxy.aliases: mdce
       proxy.mdce: |

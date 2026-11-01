@@ -20,6 +20,22 @@ function allowedFile(name: string): boolean {
   return /^map[1-4]\.bms$/i.test(name) || /\.bms$/i.test(name);
 }
 
+/** Fire-and-forget: ask Syncthing to rescan the chart folder after a write. */
+function triggerSyncthingScan(): void {
+  const base = process.env.SYNCTHING_URL?.trim().replace(/\/$/, "");
+  const key = process.env.SYNCTHING_API_KEY?.trim();
+  const folder = process.env.SYNCTHING_FOLDER_ID?.trim();
+  if (!base || !key || !folder) return;
+
+  const url = `${base}/rest/db/scan?folder=${encodeURIComponent(folder)}`;
+  void fetch(url, {
+    method: "POST",
+    headers: { "X-API-Key": key },
+  }).catch(() => {
+    /* ignore — save still succeeded */
+  });
+}
+
 export default async function chartsPost(event: { req: Request }) {
   const root = chartRoot();
   if (!root) {
@@ -52,6 +68,7 @@ export default async function chartsPost(event: { req: Request }) {
   try {
     await mkdir(dir, { recursive: true });
     await writeFile(target, content, "utf8");
+    triggerSyncthingScan();
     return { ok: true, path: `${folder}/${name}` };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Write failed";
