@@ -5,7 +5,7 @@ import { declaredScene, musicFileName, rememberInfo, type Meta } from "@/lib/md/
 import { normalizeScene, sceneFromNotes } from "@/lib/md/catalog";
 import { player } from "@/lib/md/player";
 import { savedSong } from "@/lib/md/songStore";
-import { linkChartFolder, serverCharts, setSyncedSongName, syncedSongName, writeChartFile } from "@/lib/md/chartFolder";
+import { linkChartFolder, listLinkedCharts, pickDefaultChart, serverCharts, setSyncedSongName, syncedSongName, writeChartFile } from "@/lib/md/chartFolder";
 import { persistChart, restoreChart, useChart } from "@/lib/md/store";
 import { NotePicker } from "./NotePicker";
 import { Roll } from "./Roll";
@@ -197,7 +197,7 @@ export function Editor() {
     const audio: File[] = [];
     for (const file of files) {
       const lower = file.name.toLowerCase();
-      if (/\.(mdm|md|zip)$/i.test(lower)) {
+      if (/\\.(mdm|md|zip)$/i.test(lower)) {
         const pack = await readAlbum(file);
         if (!pack) {
           state.setBanner("That file is not a chart pack. Use a .mdm (or .md zip) with the chart and music inside.");
@@ -222,7 +222,7 @@ export function Editor() {
         await takeFile(file);
         continue;
       }
-      if (file.type.startsWith("audio/") || /\.(ogg|mp3|wav|flac|m4a)$/i.test(file.name)) audio.push(file);
+      if (file.type.startsWith("audio/") || /\\.(ogg|mp3|wav|flac|m4a)$/i.test(file.name)) audio.push(file);
     }
     const chart = useChart.getState();
     const wanted = musicFileName(chart.wavNames ?? {}, chart.notes);
@@ -276,7 +276,7 @@ export function Editor() {
       }
       return;
     }
-    if (file.type.startsWith("audio/") || /\.(ogg|mp3|wav|flac|m4a)$/i.test(file.name)) {
+    if (file.type.startsWith("audio/") || /\\.(ogg|mp3|wav|flac|m4a)$/i.test(file.name)) {
       await player.ensure();
       await player.loadMusic(file);
       state.setSongName(file.name);
@@ -314,12 +314,32 @@ export function Editor() {
     return saveText("info.json", useChart.getState().exportInfo(), "application/json");
   }
 
+  async function loadLinkedCharts(bannerPrefix?: string) {
+    const state = useChart.getState();
+    const charts = await listLinkedCharts();
+    if (!charts.length) {
+      setAlbumCharts([], "");
+      state.setBanner(bannerPrefix ? `${bannerPrefix} No .bms files found in that folder.` : "No .bms files found in the linked folder.");
+      return;
+    }
+    const pick = pickDefaultChart(charts);
+    if (!pick) return;
+    state.loadText(pick.text, pick.name);
+    setAlbumCharts(charts, pick.name);
+    const list = charts.map((chart) => chart.name).join(", ");
+    state.setBanner(
+      bannerPrefix
+        ? `${bannerPrefix} Opened ${pick.name}${charts.length > 1 ? ` (${list})` : ""}.`
+        : `Opened ${pick.name}${charts.length > 1 ? ` (${list})` : ""}.`,
+    );
+  }
+
   async function linkFolder() {
     const state = useChart.getState();
     try {
       const name = await linkChartFolder();
       if (name) {
-        state.setBanner(`Linked ${name}. Save overwrites the chart the game reads.`);
+        await loadLinkedCharts(`Linked ${name}.`);
         return;
       }
       await linkSyncedSong();
@@ -342,11 +362,25 @@ export function Editor() {
     const name = picked.trim();
     if (!name) {
       setSyncedSongName("");
+      setAlbumCharts([], "");
       state.setBanner("Cleared the synced song folder.");
       return;
     }
     setSyncedSongName(name);
-    state.setBanner(`Synced song set to ${name}. Save writes there through the server (works in Firefox).`);
+    await loadLinkedCharts(`Synced song set to ${name}.`);
+  }
+
+  async function switchChart(name: string) {
+    const state = useChart.getState();
+    const next = album.charts.find((chart) => chart.name === name);
+    if (!next || next.name === album.current) return;
+    await saveBms();
+    const charts = album.charts.map((chart) =>
+      chart.name === album.current ? { ...chart, text: state.exportBms() } : chart,
+    );
+    state.loadText(next.text, next.name);
+    setAlbumCharts(charts, next.name);
+    state.setBanner(`Editing ${chartLabel(next.name)}. Saved previous chart first.`);
   }
 
   return (
@@ -393,11 +427,7 @@ export function Editor() {
                 className="bg-transparent"
                 value={album.current}
                 onChange={(event) => {
-                  const next = album.charts.find((chart) => chart.name === event.target.value);
-                  if (!next) return;
-                  useChart.getState().loadText(next.text, next.name);
-                  setAlbumCharts(album.charts, next.name);
-                  useChart.getState().setBanner(`Editing ${chartLabel(next.name)}. The song stays loaded.`);
+                  void switchChart(event.target.value);
                 }}
               >
                 {album.charts.map((chart) => (
