@@ -10,6 +10,10 @@ services:
       - "8090:8080"
     expose:
       - "8080"
+    volumes:
+      - ${CHART_ROOT:-/mnt/Custom_Albums}:/data/Custom_Albums
+    environment:
+      - CHART_ROOT=/data/Custom_Albums
     labels:
       proxy.aliases: mdce
       proxy.mdce: |

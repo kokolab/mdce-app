@@ -1,10 +1,12 @@
 const DB_NAME = "mdce-folder";
 const STORE = "dir";
 const KEY = "chart";
+const SYNC_KEY = "mdce-synced-song";
 
 type Picker = (options: { mode: "readwrite"; id: string }) => Promise<FileSystemDirectoryHandle>;
 
 let linked: FileSystemDirectoryHandle | null = null;
+let serverEnabled: boolean | null = null;
 
 function picker(): Picker | null {
   const fn = (window as Window & { showDirectoryPicker?: Picker }).showDirectoryPicker;
@@ -47,6 +49,39 @@ async function stored(): Promise<FileSystemDirectoryHandle | null> {
   return linked;
 }
 
+export function syncedSongName(): string {
+  try {
+    return localStorage.getItem(SYNC_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+export function setSyncedSongName(name: string): void {
+  try {
+    if (name) localStorage.setItem(SYNC_KEY, name);
+    else localStorage.removeItem(SYNC_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+export async function serverCharts(): Promise<{ enabled: boolean; folders: string[] }> {
+  try {
+    const response = await fetch("/api/charts");
+    if (!response.ok) {
+      serverEnabled = false;
+      return { enabled: false, folders: [] };
+    }
+    const data = (await response.json()) as { enabled?: boolean; folders?: string[] };
+    serverEnabled = Boolean(data.enabled);
+    return { enabled: Boolean(data.enabled), folders: Array.isArray(data.folders) ? data.folders : [] };
+  } catch {
+    serverEnabled = false;
+    return { enabled: false, folders: [] };
+  }
+}
+
 export async function linkChartFolder(): Promise<string | null> {
   const open = picker();
   if (!open) return null;
@@ -56,7 +91,7 @@ export async function linkChartFolder(): Promise<string | null> {
   return dir.name;
 }
 
-export async function writeChartFile(name: string, text: string): Promise<"wrote" | "missing" | "denied" | "unsupported"> {
+async function writeBrowser(name: string, text: string): Promise<"wrote" | "missing" | "denied" | "unsupported"> {
   if (!picker()) return "unsupported";
   const dir = await stored().catch(() => null);
   if (!dir) return "missing";
@@ -70,4 +105,33 @@ export async function writeChartFile(name: string, text: string): Promise<"wrote
   await stream.write(text);
   await stream.close();
   return "wrote";
+}
+
+async function writeServer(name: string, text: string): Promise<"wrote" | "missing" | "denied" | "unsupported"> {
+  if (serverEnabled === false) return "unsupported";
+  const folder = syncedSongName();
+  if (!folder) return "missing";
+  try {
+    const response = await fetch("/api/charts", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ folder, name, content: text }),
+    });
+    if (response.status === 503) {
+      serverEnabled = false;
+      return "unsupported";
+    }
+    if (!response.ok) return "denied";
+    const data = (await response.json()) as { ok?: boolean };
+    return data.ok ? "wrote" : "denied";
+  } catch {
+    return "denied";
+  }
+}
+
+export async function writeChartFile(name: string, text: string): Promise<"wrote" | "missing" | "denied" | "unsupported"> {
+  const browser = await writeBrowser(name, text);
+  if (browser === "wrote" || browser === "denied") return browser;
+  if (browser === "missing" && picker()) return "missing";
+  return writeServer(name, text);
 }
