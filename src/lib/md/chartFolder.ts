@@ -13,7 +13,7 @@ let linked: FileSystemDirectoryHandle | null = null;
 let serverEnabled: boolean | null = null;
 
 /** Serialize writes so rapid Ctrl+S only applies the latest content. */
-let writeChain: Promise<void> = Promise.resolve();
+let writeBusy = false;
 let pendingWrite: { name: string; text: string } | null = null;
 let pendingResolvers: Array<(result: WriteResult) => void> = [];
 
@@ -173,7 +173,6 @@ async function writeBrowser(name: string, text: string): Promise<WriteResult> {
   const stream = await file.createWritable();
   await stream.write(text);
   await stream.close();
-  // Read back to confirm the handle actually holds the new content.
   const check = await (await dir.getFileHandle(name)).getFile();
   const onDisk = await check.text();
   return onDisk === text ? "wrote" : "stale";
@@ -210,16 +209,11 @@ async function writeOnce(name: string, text: string): Promise<WriteResult> {
   return writeServer(name, text);
 }
 
-/**
- * Coalesce rapid saves: only the latest (name, text) runs.
- * Earlier callers get the same final result for that batch.
- */
-export function writeChartFile(name: string, text: string): Promise<WriteResult> {
-  pendingWrite = { name, text };
-  return new Promise((resolve) => {
-    pendingResolvers.push(resolve);
-    writeChain = writeChain.then(async () => {
-      if (!pendingWrite) return;
+async function flushWrites(): Promise<void> {
+  if (writeBusy) return;
+  writeBusy = true;
+  try {
+    while (pendingWrite) {
       const job = pendingWrite;
       pendingWrite = null;
       const resolvers = pendingResolvers;
@@ -227,11 +221,22 @@ export function writeChartFile(name: string, text: string): Promise<WriteResult>
       let result: WriteResult = "denied";
       try {
         result = await writeOnce(job.name, job.text);
-        // If something else queued while we wrote, run that next (chain continues).
       } catch {
         result = "denied";
       }
       for (const done of resolvers) done(result);
-    });
+    }
+  } finally {
+    writeBusy = false;
+    if (pendingWrite) void flushWrites();
+  }
+}
+
+/** Coalesce rapid saves: only the latest (name, text) is written. */
+export function writeChartFile(name: string, text: string): Promise<WriteResult> {
+  pendingWrite = { name, text };
+  return new Promise((resolve) => {
+    pendingResolvers.push(resolve);
+    void flushWrites();
   });
 }
