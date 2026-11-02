@@ -117,6 +117,21 @@ export class Player {
     await rememberSong(file).catch(() => undefined);
   }
 
+  /** Unload chart music so a previous song cannot keep playing after a folder switch. */
+  clearMusic() {
+    this.stop();
+    if (this.songUrl) URL.revokeObjectURL(this.songUrl);
+    this.songUrl = "";
+    if (this.song) {
+      this.song.removeAttribute("src");
+      this.song.load();
+    }
+    this.music = null;
+    this.musicName = "";
+    this.musicArmed = false;
+    this.musicAt = 0;
+  }
+
   duration() {
     return this.music?.duration ?? 0;
   }
