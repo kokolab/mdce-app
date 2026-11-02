@@ -461,6 +461,28 @@ export function Editor() {
               </select>
             </label>
           ) : null}
+          <button
+            type="button"
+            className={"h-8 shrink-0 rounded border px-3 text-sm " + (side === "notes" ? "border-pink bg-pink/20 text-dock-ink" : "border-dock-line bg-field text-dock-ink")}
+            onClick={() => {
+              const next = side === "notes" ? null : "notes";
+              setSide(next);
+              localStorage.setItem("mdce-side", next ?? "closed");
+            }}
+          >
+            Notes
+          </button>
+          <button
+            type="button"
+            className={"h-8 shrink-0 rounded border px-3 text-sm " + (side === "panel" ? "border-pink bg-pink/20 text-dock-ink" : "border-dock-line bg-field text-dock-ink")}
+            onClick={() => {
+              const next = side === "panel" ? null : "panel";
+              setSide(next);
+              localStorage.setItem("mdce-side", next ?? "closed");
+            }}
+          >
+            Panel
+          </button>
           <span className="text-xs text-mute">{saved}</span>
         </div>
       </div>
