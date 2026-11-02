@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useChart } from "@/lib/md/store";
 import { clearLoadedMusic } from "@/lib/md/musicLink";
+import { player } from "@/lib/md/player";
 
 type MenuId = "file" | "edit" | "view" | "options" | "convert" | "about";
 
@@ -94,6 +95,13 @@ export function MenuBar({
     state().setBanner(dir > 0 ? "Zoomed in." : "Zoomed out.");
   }
 
+  function startNew() {
+    player.clearMusic();
+    state().setSongName("");
+    void clearLoadedMusic();
+    state().reset();
+  }
+
   return (
     <div
       ref={barRef}
@@ -126,10 +134,7 @@ export function MenuBar({
       }}
     >
       {menu("file", "File", <>
-        {item("New", () => {
-          void clearLoadedMusic();
-          state().reset();
-        })}
+        {item("New", startNew)}
         {item("Open chart…", onOpen)}
         {item("Open song…", onSong)}
         {item("Save BMS", onSaveBms)}
@@ -216,6 +221,13 @@ export function MobileMenu({
     );
   }
 
+  function startNew() {
+    player.clearMusic();
+    state().setSongName("");
+    void clearLoadedMusic();
+    state().reset();
+  }
+
   return (
     <>
       <button type="button" className="h-10 shrink-0 rounded border border-dock-line bg-field px-3 text-sm" onClick={() => setOpen(true)}>
@@ -231,10 +243,7 @@ export function MobileMenu({
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto pb-8">
             <p className="px-4 pt-3 text-xs tracking-wide text-mute uppercase">File</p>
-            {row("New", () => {
-              void clearLoadedMusic();
-              state().reset();
-            })}
+            {row("New", startNew)}
             {row("Open chart…", onOpen)}
             {row("Open song…", onSong)}
             {row("Save BMS", onSaveBms)}
