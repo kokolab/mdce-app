@@ -141,9 +141,9 @@ export function MenuBar({
         {item("New", () => state().reset())}
         {item("Open chart…", onOpen)}
         {item("Open song…", onSong)}
-        {item("Link chart folder…", onLinkFolder)}
         {item("Save BMS", onSaveBms)}
         {item("Save info.json", onSaveInfo)}
+        {item("Link chart folder…", onLinkFolder)}
       </>)}
       {menu("edit", "Edit", <>
         {item("Undo", () => state().undo())}
@@ -329,9 +329,9 @@ export function MobileMenu({
             {row("New", () => state().reset())}
             {row("Open chart…", onOpen)}
             {row("Open song…", onSong)}
-            {row("Link chart folder…", onLinkFolder)}
             {row("Save BMS", onSaveBms)}
             {row("Save info.json", onSaveInfo)}
+            {row("Link chart folder…", onLinkFolder)}
             <p className="px-4 pt-3 text-xs tracking-wide text-mute uppercase">Edit</p>
             {row("Undo", () => state().undo())}
             {row("Redo", () => state().redo())}
