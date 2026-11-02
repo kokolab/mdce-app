@@ -351,14 +351,8 @@ export function Editor() {
 
   async function linkFolder() {
     const state = useChart.getState();
-    const name = await (async () => {
-      try {
-        return await linkChartFolder();
-      } catch {
-        return "";
-      }
-    })();
     try {
+      const name = await linkChartFolder();
       if (name) {
         await loadLinkedCharts(`Linked ${name}.`);
         return;
@@ -575,7 +569,6 @@ export function Editor() {
       ) : null}
       <footer className="flex h-7 shrink-0 items-center gap-3 border-t border-dock-line bg-ink px-3 text-xs text-mute">
         <span className="shrink-0 tabular-nums">{saved}</span>
-        {banner ? <span className="min-w-0 truncate text-dock-ink">{banner}</span> : null}
         <span className="ml-auto shrink-0 tabular-nums">
           {notes.length} note{notes.length === 1 ? "" : "s"}
           {songName ? ` · ${songName}` : ""}
