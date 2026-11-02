@@ -135,11 +135,11 @@ export function MenuBar({
     >
       {menu("file", "File", <>
         {item("New", startNew)}
-        {item("Open chart…", onOpen)}
-        {item("Open song…", onSong)}
+        {item("Open chart", onOpen)}
+        {item("Open song", onSong)}
         {item("Save BMS", onSaveBms)}
         {item("Save info.json", onSaveInfo)}
-        {item("Link chart folder…", onLinkFolder)}
+        {item("Link chart folder", onLinkFolder)}
       </>)}
       {menu("edit", "Edit", <>
         {item("Undo", () => state().undo())}
@@ -244,11 +244,11 @@ export function MobileMenu({
           <div className="min-h-0 flex-1 overflow-y-auto pb-8">
             <p className="px-4 pt-3 text-xs tracking-wide text-mute uppercase">File</p>
             {row("New", startNew)}
-            {row("Open chart…", onOpen)}
-            {row("Open song…", onSong)}
+            {row("Open chart", onOpen)}
+            {row("Open song", onSong)}
             {row("Save BMS", onSaveBms)}
             {row("Save info.json", onSaveInfo)}
-            {row("Link chart folder…", onLinkFolder)}
+            {row("Link chart folder", onLinkFolder)}
             <p className="px-4 pt-3 text-xs tracking-wide text-mute uppercase">Edit</p>
             {row("Undo", () => state().undo())}
             {row("Redo", () => state().redo())}
