@@ -78,8 +78,9 @@ export function Editor() {
   let gearNotes = 0;
   for (const note of notes) {
     if (isPlayNote(note.key)) {
-      // Hold/masher body counts as one; the release end is a second hit when present.
-      playNotes += note.endTick != null && note.endTick !== note.tick ? 2 : 1;
+      // Hold / one-tap hold always count start+end. Mashers stay one.
+      const holdTwo = note.key === "0F" || note.tapHold;
+      playNotes += holdTwo ? 2 : 1;
     } else if (isGearNote(note.key)) {
       gearNotes += 1;
     }
