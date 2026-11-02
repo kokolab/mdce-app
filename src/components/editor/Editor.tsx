@@ -78,8 +78,9 @@ export function Editor() {
   let gearNotes = 0;
   for (const note of notes) {
     if (isPlayNote(note.key)) {
-      // Hold / one-tap hold always count start+end. Mashers stay one.
-      const holdTwo = note.key === "0F" || note.tapHold;
+      // Hold / one-tap hold = 2. Mashers (incl. one-tap) always = 1.
+      const isMasher = note.key === "0G" || note.key === "16" || note.key === "17";
+      const holdTwo = !isMasher && (note.key === "0F" || note.tapHold);
       playNotes += holdTwo ? 2 : 1;
     } else if (isGearNote(note.key)) {
       gearNotes += 1;
