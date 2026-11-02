@@ -77,8 +77,12 @@ export function Editor() {
   let playNotes = 0;
   let gearNotes = 0;
   for (const note of notes) {
-    if (isPlayNote(note.key)) playNotes += 1;
-    else if (isGearNote(note.key)) gearNotes += 1;
+    if (isPlayNote(note.key)) {
+      // Hold/masher body counts as one; the release end is a second hit when present.
+      playNotes += note.endTick != null && note.endTick !== note.tick ? 2 : 1;
+    } else if (isGearNote(note.key)) {
+      gearNotes += 1;
+    }
   }
   const [notesOpen, setNotesOpen] = useState(false);
   const [side, setSide] = useState<"panel" | "notes" | null>(() => {
