@@ -1,6 +1,6 @@
 import { soundFor } from "./catalog";
 import type { ChartNote } from "./bms";
-import { rememberSong } from "./songStore";
+import { clearSong, rememberSong } from "./songStore";
 import { secondsAt, tickAt, type StopPoint, type TempoPoint } from "./timing";
 
 function holdPitch(audio: HTMLAudioElement) {
@@ -32,6 +32,11 @@ export class Player {
   private originCtx = 0;
   private originSong = 0;
   private look = 0.14;
+
+  /** Epoch for external loaders (bootMusic) to detect clears mid-flight. */
+  get musicEpoch() {
+    return this.musicGen;
+  }
 
   async ensure() {
     if (!this.ctx) this.ctx = new AudioContext();
@@ -122,6 +127,12 @@ export class Player {
     this.musicArmed = false;
     this.musicAt = 0;
     await rememberSong(file).catch(() => undefined);
+    // New may have cleared while we were writing IndexedDB — drop the re-saved blob.
+    if (gen !== this.musicGen) {
+      this.music = null;
+      this.musicName = "";
+      await clearSong().catch(() => undefined);
+    }
   }
 
   /** Unload chart music so a previous song cannot keep playing after New / folder switch. */
@@ -227,7 +238,6 @@ export class Player {
     if (!this.playing || !this.ctx) return this.originSong;
     const now = this.songSeconds();
     const horizon = now + this.look * this.rate;
-    // The music note is where the file begins. The offset slider only nudges that mark.
     this.musicAt = this.songStart(notes, points, stops);
     this.syncMusic(this.musicAt);
     const geminiHeard = new Set<string>();
@@ -274,7 +284,6 @@ export class Player {
         if (tick == null || note.tick < tick) tick = note.tick;
       }
     }
-    // No chart music mark and no loaded file → keep at 0 without arming audio.
     const at = tick == null ? 0 : secondsAt(tick, points, stops);
     return at + this.musicOffset;
   }
