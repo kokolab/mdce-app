@@ -1,10 +1,10 @@
-name: muse-dash-chart-editor
+name: mdce-site
 
 services:
   editor:
     build: .
     pull_policy: build
-    container_name: muse-dash-chart-editor
+    container_name: mdce-site
     restart: unless-stopped
     ports:
       - "8090:8080"
