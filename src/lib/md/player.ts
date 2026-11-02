@@ -3,8 +3,6 @@ import type { ChartNote } from "./bms";
 import { rememberSong } from "./songStore";
 import { secondsAt, tickAt, type StopPoint, type TempoPoint } from "./timing";
 
-type Hit = { id: string; time: number; key: string };
-
 function holdPitch(audio: HTMLAudioElement) {
   audio.preservesPitch = true;
   const extra = audio as HTMLAudioElement & { webkitPreservesPitch?: boolean; mozPreservesPitch?: boolean };
@@ -18,6 +16,8 @@ export class Player {
   private music: AudioBuffer | null = null;
   private song: HTMLAudioElement | null = null;
   private songUrl = "";
+  /** Bumps on clear/load so an in-flight decode cannot reinstall a cleared track. */
+  private musicGen = 0;
   musicName = "";
   bgmVolume = 0.25;
   sfxVolume = 0.25;
@@ -102,7 +102,9 @@ export class Player {
   }
 
   async loadMusic(file: File) {
+    const gen = ++this.musicGen;
     const ctx = await this.ensure();
+    if (gen !== this.musicGen) return;
     if (this.songUrl) URL.revokeObjectURL(this.songUrl);
     this.songUrl = URL.createObjectURL(file);
     if (!this.song) this.song = new Audio();
@@ -112,24 +114,38 @@ export class Player {
     this.song.playbackRate = this.rate;
     this.song.volume = this.bgmVolume;
     const raw = await file.arrayBuffer();
-    this.music = await ctx.decodeAudioData(raw.slice(0));
+    if (gen !== this.musicGen) return;
+    const decoded = await ctx.decodeAudioData(raw.slice(0));
+    if (gen !== this.musicGen) return;
+    this.music = decoded;
     this.musicName = file.name;
+    this.musicArmed = false;
+    this.musicAt = 0;
     await rememberSong(file).catch(() => undefined);
   }
 
-  /** Unload chart music so a previous song cannot keep playing after a folder switch. */
+  /** Unload chart music so a previous song cannot keep playing after New / folder switch. */
   clearMusic() {
+    this.musicGen += 1;
     this.stop();
     if (this.songUrl) URL.revokeObjectURL(this.songUrl);
     this.songUrl = "";
     if (this.song) {
+      try {
+        this.song.pause();
+      } catch {
+        /* ignore */
+      }
       this.song.removeAttribute("src");
       this.song.load();
+      this.song = null;
     }
     this.music = null;
     this.musicName = "";
     this.musicArmed = false;
     this.musicAt = 0;
+    this.musicNode = null;
+    this.musicGain = null;
   }
 
   duration() {
@@ -258,6 +274,7 @@ export class Player {
         if (tick == null || note.tick < tick) tick = note.tick;
       }
     }
+    // No chart music mark and no loaded file → keep at 0 without arming audio.
     const at = tick == null ? 0 : secondsAt(tick, points, stops);
     return at + this.musicOffset;
   }
@@ -309,7 +326,7 @@ export class Player {
     song.playbackRate = this.rate;
     song.volume = this.bgmVolume;
     const start = () => {
-      if (!this.playing || song !== this.song) return;
+      if (!this.playing || song !== this.song || !this.music) return;
       try {
         song.currentTime = offset;
       } catch {
