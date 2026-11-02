@@ -27,6 +27,17 @@ export async function rememberSong(file: File): Promise<void> {
   db.close();
 }
 
+export async function clearSong(): Promise<void> {
+  const db = await openDb();
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(STORE, "readwrite");
+    tx.objectStore(STORE).delete(KEY);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+  db.close();
+}
+
 export async function savedSong(): Promise<File | null> {
   const db = await openDb();
   const row = await new Promise<SavedSong | undefined>((resolve, reject) => {

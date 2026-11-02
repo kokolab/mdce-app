@@ -19,6 +19,20 @@ function isBms(name: string): boolean {
   return lower.endsWith(".bms") || lower.endsWith(".bme") || lower.endsWith(".bml");
 }
 
+function isAudio(name: string): boolean {
+  return /\.(ogg|mp3|wav|flac|m4a)$/i.test(name);
+}
+
+function audioType(name: string): string {
+  const lower = name.toLowerCase();
+  if (lower.endsWith(".ogg")) return "audio/ogg";
+  if (lower.endsWith(".mp3")) return "audio/mpeg";
+  if (lower.endsWith(".wav")) return "audio/wav";
+  if (lower.endsWith(".flac")) return "audio/flac";
+  if (lower.endsWith(".m4a")) return "audio/mp4";
+  return "application/octet-stream";
+}
+
 function bmsOrder(name: string): number {
   const lower = name.toLowerCase();
   if (lower === "map2.bms") return 0;
@@ -39,12 +53,24 @@ export default async function chartsGet(event: { req: Request }) {
 
   try {
     if (folder && name) {
-      if (!isBms(name) && name.toLowerCase() !== "info.json") {
+      const lower = name.toLowerCase();
+      const allowed = isBms(name) || lower === "info.json" || isAudio(name);
+      if (!allowed) {
         return Response.json({ ok: false, error: "File type not allowed" }, { status: 400 });
       }
       const target = join(root, folder, name);
       if (!target.startsWith(join(root, folder))) {
         return Response.json({ ok: false, error: "Invalid path" }, { status: 400 });
+      }
+      if (isAudio(name)) {
+        const data = await readFile(target);
+        return new Response(data, {
+          headers: {
+            "content-type": audioType(name),
+            "cache-control": "no-store",
+            "content-disposition": `inline; filename="${name.replace(/"/g, "")}"`,
+          },
+        });
       }
       const text = await readFile(target, "utf8");
       return { ok: true, name, text };
@@ -60,12 +86,16 @@ export default async function chartsGet(event: { req: Request }) {
         .filter((entry) => entry.isFile() && isBms(entry.name))
         .map((entry) => entry.name)
         .sort((a, b) => bmsOrder(a) - bmsOrder(b) || a.localeCompare(b));
+      const music = entries
+        .filter((entry) => entry.isFile() && isAudio(entry.name))
+        .map((entry) => entry.name)
+        .sort((a, b) => a.localeCompare(b));
       const charts: { name: string; text: string }[] = [];
       for (const file of files) {
         const text = await readFile(join(dir, file), "utf8");
         charts.push({ name: file, text });
       }
-      return { enabled: true, folder, charts };
+      return { enabled: true, folder, charts, music };
     }
 
     const entries = await readdir(root, { withFileTypes: true });

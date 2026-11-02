@@ -63,6 +63,10 @@ function isBms(name: string): boolean {
   return lower.endsWith(".bms") || lower.endsWith(".bme") || lower.endsWith(".bml");
 }
 
+function isAudio(name: string): boolean {
+  return /\.(ogg|mp3|wav|flac|m4a)$/i.test(name);
+}
+
 function bmsOrder(name: string): number {
   const lower = name.toLowerCase();
   if (lower === "map2.bms") return 0;
@@ -71,6 +75,15 @@ function bmsOrder(name: string): number {
   if (lower === "map4.bms") return 3;
   if (/^map\d+\.bms$/.test(lower)) return 4;
   return 5;
+}
+
+function musicCandidates(wanted: string | null | undefined): string[] {
+  const list: string[] = [];
+  if (wanted) list.push(wanted);
+  for (const name of ["music.ogg", "music.mp3", "music.wav", "music.flac", "music.m4a"]) {
+    if (!list.some((item) => item.toLowerCase() === name)) list.push(name);
+  }
+  return list;
 }
 
 export function syncedSongName(): string {
@@ -148,6 +161,68 @@ export async function listLinkedCharts(): Promise<AlbumChart[]> {
 export function pickDefaultChart(charts: AlbumChart[]): AlbumChart | null {
   if (!charts.length) return null;
   return charts.find((chart) => chart.name.toLowerCase() === "map2.bms") ?? charts[0] ?? null;
+}
+
+async function browserMusic(wanted: string | null | undefined): Promise<File | null> {
+  const dir = await stored().catch(() => null);
+  if (!dir) return null;
+  const ask = (dir as FileSystemDirectoryHandle & { requestPermission?: (options: { mode: "readwrite" }) => Promise<PermissionState> }).requestPermission;
+  if (ask) {
+    const perm = await ask.call(dir, { mode: "readwrite" });
+    if (perm !== "granted") return null;
+  }
+  const files = new Map<string, FileSystemFileHandle>();
+  for await (const [name, handle] of dir.entries()) {
+    if (handle.kind === "file" && isAudio(name)) files.set(name.toLowerCase(), handle);
+  }
+  for (const candidate of musicCandidates(wanted)) {
+    const handle = files.get(candidate.toLowerCase());
+    if (!handle) continue;
+    return handle.getFile();
+  }
+  // Any single audio file in the folder is better than a stale previous song.
+  if (files.size === 1) {
+    const only = files.values().next().value;
+    if (only) return only.getFile();
+  }
+  return null;
+}
+
+async function serverMusic(wanted: string | null | undefined): Promise<File | null> {
+  const folder = syncedSongName();
+  if (!folder) return null;
+  try {
+    const listRes = await fetch(`/api/charts?folder=${encodeURIComponent(folder)}`);
+    if (!listRes.ok) return null;
+    const data = (await listRes.json()) as { music?: string[] };
+    const available = Array.isArray(data.music) ? data.music : [];
+    const lowerMap = new Map(available.map((name) => [name.toLowerCase(), name]));
+    const tryNames = [
+      ...musicCandidates(wanted),
+      ...(available.length === 1 ? available : []),
+    ];
+    for (const candidate of tryNames) {
+      const real = lowerMap.get(candidate.toLowerCase()) ?? (available.includes(candidate) ? candidate : null);
+      if (!real) continue;
+      const response = await fetch(
+        `/api/charts?folder=${encodeURIComponent(folder)}&name=${encodeURIComponent(real)}`,
+      );
+      if (!response.ok) continue;
+      const blob = await response.blob();
+      if (!blob.size) continue;
+      return new File([blob], real, { type: blob.type || "audio/ogg" });
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+/** Prefer audio from the linked / synced chart folder over the previous session's song. */
+export async function loadLinkedMusic(wanted?: string | null): Promise<File | null> {
+  const browser = await browserMusic(wanted);
+  if (browser) return browser;
+  return serverMusic(wanted);
 }
 
 export async function linkChartFolder(): Promise<string | null> {
