@@ -30,8 +30,6 @@ export function MenuBar({
   const lockLane = useChart((state) => state.lockLane);
   const followPlay = useChart((state) => state.followPlay);
   const followTight = useChart((state) => state.followTight);
-  const followAmount = useChart((state) => state.followAmount);
-  const zoomSensitivity = useChart((state) => state.zoomSensitivity);
   const [dark, setDark] = useState(() => typeof localStorage === "undefined" || localStorage.getItem("stagepen-dark") !== "0");
 
   useEffect(() => {
@@ -96,14 +94,6 @@ export function MenuBar({
     state().setBanner(dir > 0 ? "Zoomed in." : "Zoomed out.");
   }
 
-  function jump() {
-    const raw = window.prompt("Go to this measure", "0");
-    if (raw == null) return;
-    const measure = Number(raw) || 0;
-    state().gotoMeasure(measure);
-    state().setBanner(`Jumped to measure ${measure}.`);
-  }
-
   return (
     <div
       ref={barRef}
@@ -165,39 +155,10 @@ export function MenuBar({
         }, dark)}
         {item("Zoom in", () => zoom(1))}
         {item("Zoom out", () => zoom(-1))}
-        {item("Go to measure…", jump)}
       </>)}
       {menu("options", "Options", <>
         {item("Follow play line", () => state().setFollowPlay(!followPlay), followPlay)}
         {item("Keep play line tight", () => state().setFollowTight(!followTight), followTight)}
-        <label className="flex h-12 items-center gap-2 px-3 text-sm text-dock-ink" onPointerDown={(event) => event.stopPropagation()}>
-          <span className="shrink-0">Follow</span>
-          <input
-            type="range"
-            min={0}
-            max={1}
-            step={0.05}
-            value={followAmount}
-            aria-label="Follow amount"
-            onChange={(event) => state().setFollowAmount(Number(event.target.value))}
-            className="min-w-0 flex-1"
-          />
-          <span className="w-8 font-mono text-xs">{followAmount.toFixed(2)}</span>
-        </label>
-        <label className="flex h-12 items-center gap-2 px-3 text-sm text-dock-ink" onPointerDown={(event) => event.stopPropagation()}>
-          <span className="shrink-0">Grid zoom</span>
-          <input
-            type="range"
-            min={0.05}
-            max={1}
-            step={0.05}
-            value={zoomSensitivity}
-            aria-label="Grid zoom sensitivity"
-            onChange={(event) => state().setZoomSensitivity(Number(event.target.value))}
-            className="min-w-0 flex-1"
-          />
-          <span className="w-8 font-mono text-xs">{zoomSensitivity.toFixed(2)}</span>
-        </label>
         {item("Snap to grid", () => state().setSnapOn(!snapOn), snapOn)}
         {item("Disable vertical moves", () => state().setLockLane(!lockLane), lockLane)}
       </>)}
@@ -229,7 +190,6 @@ export function MobileMenu({
   onSaveInfo: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [bar, setBar] = useState("0");
   const [dark, setDark] = useState(() => typeof localStorage === "undefined" || localStorage.getItem("stagepen-dark") !== "0");
   const showIcons = useChart((state) => state.showIcons);
   const snapOn = useChart((state) => state.snapOn);
@@ -240,8 +200,6 @@ export function MobileMenu({
   const lockLane = useChart((state) => state.lockLane);
   const followPlay = useChart((state) => state.followPlay);
   const followTight = useChart((state) => state.followTight);
-  const followAmount = useChart((state) => state.followAmount);
-  const zoomSensitivity = useChart((state) => state.zoomSensitivity);
   const state = useChart.getState;
 
   function go(action: () => void) {
@@ -272,22 +230,6 @@ export function MobileMenu({
             </button>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto pb-8">
-            <form
-              className="flex items-center gap-2 border-b border-white/10 px-4 py-3"
-              onSubmit={(event) => {
-                event.preventDefault();
-                state().gotoMeasure(Number(bar) || 0);
-                setOpen(false);
-              }}
-            >
-              <label className="text-sm" htmlFor="jump-bar">
-                Go to bar
-              </label>
-              <input id="jump-bar" inputMode="numeric" value={bar} onChange={(event) => setBar(event.target.value)} className="h-11 w-20 rounded border border-white/20 bg-chart px-2 text-center font-mono" />
-              <button type="submit" className="h-11 rounded bg-paper px-4 text-sm font-semibold text-ink">
-                Go
-              </button>
-            </form>
             <p className="px-4 pt-3 text-xs tracking-wide text-mute uppercase">File</p>
             {row("New", () => {
               void clearLoadedMusic();
@@ -319,34 +261,6 @@ export function MobileMenu({
             <p className="px-4 pt-3 text-xs tracking-wide text-mute uppercase">Options</p>
             {row("Follow play line", () => state().setFollowPlay(!followPlay), followPlay)}
             {row("Keep play line tight", () => state().setFollowTight(!followTight), followTight)}
-            <label className="flex h-12 items-center gap-3 border-b border-white/10 px-4 text-base">
-              <span className="shrink-0">Follow</span>
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.05}
-                value={followAmount}
-                aria-label="Follow amount"
-                onChange={(event) => state().setFollowAmount(Number(event.target.value))}
-                className="min-w-0 flex-1"
-              />
-              <span className="w-10 font-mono text-sm">{followAmount.toFixed(2)}</span>
-            </label>
-            <label className="flex h-12 items-center gap-3 border-b border-white/10 px-4 text-base">
-              <span className="shrink-0">Grid zoom</span>
-              <input
-                type="range"
-                min={0.05}
-                max={1}
-                step={0.05}
-                value={zoomSensitivity}
-                aria-label="Grid zoom sensitivity"
-                onChange={(event) => state().setZoomSensitivity(Number(event.target.value))}
-                className="min-w-0 flex-1"
-              />
-              <span className="w-10 font-mono text-sm">{zoomSensitivity.toFixed(2)}</span>
-            </label>
             {row("Snap to grid", () => state().setSnapOn(!snapOn), snapOn)}
             {row("Disable vertical moves", () => state().setLockLane(!lockLane), lockLane)}
             <p className="px-4 pt-3 text-xs tracking-wide text-mute uppercase">Conversion</p>
