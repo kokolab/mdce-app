@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { chartIssues } from "@/lib/md/bms";
 import { useChart } from "@/lib/md/store";
+import { clearLoadedMusic } from "@/lib/md/musicLink";
 
 type MenuId = "file" | "edit" | "view" | "options" | "convert" | "preview" | "tools" | "about";
 
@@ -138,7 +139,10 @@ export function MenuBar({
       }}
     >
       {menu("file", "File", <>
-        {item("New", () => state().reset())}
+        {item("New", () => {
+          void clearLoadedMusic();
+          state().reset();
+        })}
         {item("Open chart…", onOpen)}
         {item("Open song…", onSong)}
         {item("Save BMS", onSaveBms)}
@@ -326,7 +330,10 @@ export function MobileMenu({
               </button>
             </form>
             <p className="px-4 pt-3 text-xs tracking-wide text-mute uppercase">File</p>
-            {row("New", () => state().reset())}
+            {row("New", () => {
+              void clearLoadedMusic();
+              state().reset();
+            })}
             {row("Open chart…", onOpen)}
             {row("Open song…", onSong)}
             {row("Save BMS", onSaveBms)}
