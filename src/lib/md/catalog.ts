@@ -246,12 +246,13 @@ export const NOTES: NoteDef[] = [
 
 export const NOTE_BY_KEY: Record<string, NoteDef> = Object.fromEntries(NOTES.map((n) => [n.key, n]));
 
-/** Keys the player must hit: taps, accents, holds, mashers, boss melee/projectiles/mashers. */
+/** Keys the player must hit: taps, accents, holds, mashers, boss attacks, ghosts. */
 const PLAY_KEYS = new Set([
   "01", "02", "03", "04", "05", "06", "07", "08", "09",
   "0A", "0B", "0C", "0D", "0E", "0I", "0J",
   "0F", "0G",
   "11", "12", "13", "14", "15", "16", "17",
+  "21", // ghost — tappable
 ]);
 
 export function isPlayNote(key: string): boolean {
