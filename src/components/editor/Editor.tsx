@@ -537,9 +537,9 @@ export function Editor() {
       {folderPicker ? (
         <FolderPicker
           folders={folderPicker.folders}
-          current={folderPick}
+          value={folderPick}
           onChange={setFolderPick}
-          onConfirm={() => void confirmFolderPick()}
+          onLink={() => void confirmFolderPick()}
           onClear={() => {
             setFolderPick("");
             void confirmFolderPick();
