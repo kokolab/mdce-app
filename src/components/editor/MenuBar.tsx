@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { chartIssues } from "@/lib/md/bms";
 import { useChart } from "@/lib/md/store";
 import { clearLoadedMusic } from "@/lib/md/musicLink";
 
-type MenuId = "file" | "edit" | "view" | "options" | "convert" | "tools" | "about";
+type MenuId = "file" | "edit" | "view" | "options" | "convert" | "about";
 
 export function MenuBar({
   onOpen,
@@ -206,30 +205,6 @@ export function MenuBar({
         {item("Swap air and ground", () => state().swapGroundAir())}
         {item("Hidden note", () => state().toggleBlood(), heartOn)}
       </>)}
-      {menu("tools", "Tools", <>
-        {item("Find current note", () => state().findBrush())}
-        {item("Insert measure…", () => {
-          const raw = window.prompt("Insert an empty measure before this number", "0");
-          if (raw == null) return;
-          state().insertMeasure(Number(raw) || 0);
-        })}
-        {item("Remove measure…", () => {
-          const raw = window.prompt("Remove this measure number. Notes inside it are deleted.", "0");
-          if (raw == null) return;
-          state().removeMeasure(Number(raw) || 0);
-        })}
-        {item("Error check", () => {
-          const found = chartIssues(state().notes, state().sigs);
-          const first = found[0];
-          if (!first) {
-            state().setBanner("No chart problems found.");
-            return;
-          }
-          useChart.getState().revealNotes(first.ids);
-          state().setBanner(first.text);
-        })}
-        {item("Count notes", () => state().setBanner(`${state().notes.length} notes in this chart.`))}
-      </>)}
       {menu("about", "About", <>
         {item("Chart info", () => {
           const chart = state();
@@ -377,29 +352,7 @@ export function MobileMenu({
             <p className="px-4 pt-3 text-xs tracking-wide text-mute uppercase">Conversion</p>
             {row("Swap air and ground", () => state().swapGroundAir())}
             {row("Hidden note", () => state().toggleBlood(), heartOn)}
-            <p className="px-4 pt-3 text-xs tracking-wide text-mute uppercase">Tools</p>
-            {row("Find current note", () => state().findBrush())}
-            {row("Insert measure…", () => {
-              const raw = window.prompt("Insert an empty measure before this number", "0");
-              if (raw == null) return;
-              state().insertMeasure(Number(raw) || 0);
-            })}
-            {row("Remove measure…", () => {
-              const raw = window.prompt("Remove this measure number. Notes inside it are deleted.", "0");
-              if (raw == null) return;
-              state().removeMeasure(Number(raw) || 0);
-            })}
-            {row("Error check", () => {
-              const found = chartIssues(state().notes, state().sigs);
-              const first = found[0];
-              if (!first) {
-                state().setBanner("No chart problems found.");
-                return;
-              }
-              state().revealNotes(first.ids);
-              state().setBanner(first.text);
-            })}
-            {row("Count notes", () => state().setBanner(`${state().notes.length} notes in this chart.`))}
+            <p className="px-4 pt-3 text-xs tracking-wide text-mute uppercase">About</p>
             {row("Chart info", () => {
               const chart = state();
               state().setBanner(`${chart.meta.title || "Untitled"} · ${chart.meta.chartDifficulty || "hard"} · ${chart.notes.length} notes · ${Math.round(chart.meta.bpm)} BPM`);
