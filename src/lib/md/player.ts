@@ -10,6 +10,14 @@ function holdPitch(audio: HTMLAudioElement) {
   extra.mozPreservesPitch = true;
 }
 
+function clearSkipBootMusic() {
+  try {
+    sessionStorage.removeItem("mdce-skip-boot-music");
+  } catch {
+    /* private mode */
+  }
+}
+
 export class Player {
   private ctx: AudioContext | null = null;
   private buffers = new Map<string, AudioBuffer>();
@@ -126,6 +134,7 @@ export class Player {
     this.musicName = file.name;
     this.musicArmed = false;
     this.musicAt = 0;
+    clearSkipBootMusic();
     await rememberSong(file).catch(() => undefined);
     // New may have cleared while we were writing IndexedDB — drop the re-saved blob.
     if (gen !== this.musicGen) {
