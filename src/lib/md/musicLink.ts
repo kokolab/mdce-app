@@ -4,8 +4,17 @@ import { clearSong, savedSong } from "./songStore";
 import { loadLinkedMusic } from "./chartFolder";
 import { useChart } from "./store";
 
-/** Prefer folder music; clear stale IndexedDB song when none is found. */
+/** Stop playback and drop in-memory + IndexedDB song so nothing old can keep playing. */
+export async function clearLoadedMusic(): Promise<void> {
+  player.clearMusic();
+  await clearSong().catch(() => undefined);
+  useChart.getState().setSongName("");
+}
+
+/** Prefer folder music; always replace any previous track. */
 export async function applyLinkedMusic(bannerHead: string): Promise<string> {
+  // Drop the previous song first so linking never leaves stale audio mid-load.
+  await clearLoadedMusic();
   const chart = useChart.getState();
   const wanted = musicFileName(chart.wavNames ?? {}, chart.notes);
   const music = await loadLinkedMusic(wanted);
@@ -15,9 +24,6 @@ export async function applyLinkedMusic(bannerHead: string): Promise<string> {
     chart.setSongName(music.name);
     return `${bannerHead} Song ready: ${music.name}.`;
   }
-  player.clearMusic();
-  await clearSong().catch(() => undefined);
-  chart.setSongName("");
   return (
     `${bannerHead} No music in folder` +
     (wanted ? ` (expected ${wanted})` : "") +
