@@ -245,13 +245,16 @@ export const NOTES: NoteDef[] = [
 
 export const NOTE_BY_KEY: Record<string, NoteDef> = Object.fromEntries(NOTES.map((n) => [n.key, n]));
 
-/** Tap / accent / hold notes the player hits during gameplay (not gears, items, boss FX, mashers). */
+/** Keys the player must hit: taps, accents, holds, mashers, boss melee/projectiles/mashers. */
+const PLAY_KEYS = new Set([
+  "01", "02", "03", "04", "05", "06", "07", "08", "09",
+  "0A", "0B", "0C", "0D", "0E", "0I", "0J",
+  "0F", "0G",
+  "11", "12", "13", "14", "15", "16", "17",
+]);
+
 export function isPlayNote(key: string): boolean {
-  const def = NOTE_BY_KEY[key];
-  if (!def) return false;
-  if (def.group === "tap" || def.group === "accent") return true;
-  // Hold is tappable; masher (0G) is excluded.
-  return key === "0F";
+  return PLAY_KEYS.has(key);
 }
 
 /** Gear and boss gear hazards. */
