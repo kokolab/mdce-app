@@ -3,7 +3,7 @@ import { chartIssues } from "@/lib/md/bms";
 import { useChart } from "@/lib/md/store";
 import { clearLoadedMusic } from "@/lib/md/musicLink";
 
-type MenuId = "file" | "edit" | "view" | "options" | "convert" | "preview" | "tools" | "about";
+type MenuId = "file" | "edit" | "view" | "options" | "convert" | "tools" | "about";
 
 export function MenuBar({
   onOpen,
@@ -22,9 +22,7 @@ export function MenuBar({
   const [anchor, setAnchor] = useState({ top: 0, left: 0 });
   const barRef = useRef<HTMLDivElement>(null);
   const drag = useRef({ x: 0, left: 0, moved: false, id: "" });
-  const tool = useChart((state) => state.tool);
   const showIcons = useChart((state) => state.showIcons);
-  const showStage = useChart((state) => state.showStage);
   const snapOn = useChart((state) => state.snapOn);
   const heartOn = useChart((state) => {
     const ids = state.selection.length ? state.selection : state.selectedId ? [state.selectedId] : [];
@@ -166,7 +164,6 @@ export function MenuBar({
           localStorage.setItem("stagepen-dark", next ? "1" : "0");
           setDark(next);
         }, dark)}
-        {item("Stage preview", () => state().setShowStage(!showStage), showStage)}
         {item("Zoom in", () => zoom(1))}
         {item("Zoom out", () => zoom(-1))}
         {item("Go to measure…", jump)}
@@ -204,21 +201,10 @@ export function MenuBar({
         </label>
         {item("Snap to grid", () => state().setSnapOn(!snapOn), snapOn)}
         {item("Disable vertical moves", () => state().setLockLane(!lockLane), lockLane)}
-        {item("Write tool", () => state().setTool("write"), tool === "write")}
-        {item("Select tool", () => state().setTool("select"), tool === "select")}
       </>)}
       {menu("convert", "Conversion", <>
         {item("Swap air and ground", () => state().swapGroundAir())}
-        {item("Quantize selection", () => state().quantizeSelection())}
         {item("Hidden note", () => state().toggleBlood(), heartOn)}
-      </>)}
-      {menu("preview", "Preview", <>
-        {item("Play or pause", () => {
-          document.dispatchEvent(new CustomEvent("stagepen-toggle-play"));
-        })}
-        {item("Stop", () => {
-          document.dispatchEvent(new CustomEvent("stagepen-stop"));
-        })}
       </>)}
       {menu("tools", "Tools", <>
         {item("Find current note", () => state().findBrush())}
@@ -270,9 +256,7 @@ export function MobileMenu({
   const [open, setOpen] = useState(false);
   const [bar, setBar] = useState("0");
   const [dark, setDark] = useState(() => typeof localStorage === "undefined" || localStorage.getItem("stagepen-dark") !== "0");
-  const tool = useChart((state) => state.tool);
   const showIcons = useChart((state) => state.showIcons);
-  const showStage = useChart((state) => state.showStage);
   const snapOn = useChart((state) => state.snapOn);
   const heartOn = useChart((state) => {
     const ids = state.selection.length ? state.selection : state.selectedId ? [state.selectedId] : [];
@@ -355,7 +339,6 @@ export function MobileMenu({
               localStorage.setItem("stagepen-dark", next ? "1" : "0");
               setDark(next);
             }, dark)}
-            {row("Stage preview", () => state().setShowStage(!showStage), showStage)}
             {row("Zoom in", () => state().setXWidth(state().xWidth + 0.5))}
             {row("Zoom out", () => state().setXWidth(state().xWidth - 0.5))}
             <p className="px-4 pt-3 text-xs tracking-wide text-mute uppercase">Options</p>
@@ -391,15 +374,9 @@ export function MobileMenu({
             </label>
             {row("Snap to grid", () => state().setSnapOn(!snapOn), snapOn)}
             {row("Disable vertical moves", () => state().setLockLane(!lockLane), lockLane)}
-            {row("Write tool", () => state().setTool("write"), tool === "write")}
-            {row("Select tool", () => state().setTool("select"), tool === "select")}
             <p className="px-4 pt-3 text-xs tracking-wide text-mute uppercase">Conversion</p>
             {row("Swap air and ground", () => state().swapGroundAir())}
-            {row("Quantize selection", () => state().quantizeSelection())}
             {row("Hidden note", () => state().toggleBlood(), heartOn)}
-            <p className="px-4 pt-3 text-xs tracking-wide text-mute uppercase">Preview</p>
-            {row("Play or pause", () => document.dispatchEvent(new CustomEvent("stagepen-toggle-play")))}
-            {row("Stop", () => document.dispatchEvent(new CustomEvent("stagepen-stop")))}
             <p className="px-4 pt-3 text-xs tracking-wide text-mute uppercase">Tools</p>
             {row("Find current note", () => state().findBrush())}
             {row("Insert measure…", () => {
