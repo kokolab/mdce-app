@@ -11,7 +11,6 @@ import { NotePicker } from "./NotePicker";
 import { Roll } from "./Roll";
 import { Inspector } from "./Inspector";
 import { MenuBar, MobileMenu } from "./MenuBar";
-import { Stage } from "./Stage";
 import { Transport } from "./Transport";
 import { FolderPicker } from "./FolderPicker";
 
@@ -71,7 +70,6 @@ export function Editor() {
   const brush = useChart((state) => state.brush);
   const showIcons = useChart((state) => state.showIcons);
   const tool = useChart((state) => state.tool);
-  const showStage = useChart((state) => state.showStage);
   const songName = useChart((state) => state.songName);
   const banner = useChart((state) => state.banner);
   const selected = notes.find((note) => note.id === selectedId);
@@ -463,30 +461,7 @@ export function Editor() {
               </select>
             </label>
           ) : null}
-          <div className="flex h-8 overflow-hidden rounded border border-dock-line bg-field">
-            <button
-              type="button"
-              className={"h-8 px-3 text-sm " + (side === "panel" ? "bg-pink/20" : "")}
-              onClick={() => {
-                const next = side === "panel" ? null : "panel";
-                setSide(next);
-                localStorage.setItem("mdce-side", next ?? "closed");
-              }}
-            >
-              Panel
-            </button>
-            <button
-              type="button"
-              className={"h-8 border-l border-dock-line px-3 text-sm " + (side === "notes" ? "bg-pink/20" : "")}
-              onClick={() => {
-                const next = side === "notes" ? null : "notes";
-                setSide(next);
-                localStorage.setItem("mdce-side", next ?? "closed");
-              }}
-            >
-              Notes
-            </button>
-          </div>
+          <span className="text-xs text-mute">{saved}</span>
         </div>
       </div>
       {selected?.lane === "bpm" ? (
@@ -509,7 +484,6 @@ export function Editor() {
       ) : null}
       <div className="flex min-h-0 flex-1">
         <div className="chart-bg flex min-h-0 min-w-0 flex-1 flex-col">
-          {showStage ? <Stage /> : null}
           <div className="min-h-0 flex-1 overflow-hidden">
             <Roll playheadRef={playheadRef} scrollerRef={scrollerRef} />
           </div>
@@ -524,38 +498,48 @@ export function Editor() {
                 }}
               />
             ) : (
-              <div className="min-h-0 flex-1 overflow-y-auto p-3">
-                <Inspector />
-              </div>
+              <Inspector
+                onClose={() => {
+                  setSide(null);
+                  localStorage.setItem("mdce-side", "closed");
+                }}
+              />
             )}
           </aside>
         ) : null}
       </div>
-      <footer className="hidden h-7 items-center gap-4 overflow-x-auto border-t border-dock-line bg-menubar px-3 font-mono text-xs text-dock-ink lg:flex">
-        <span>Notes {notes.length}</span>
-        <span>Brush {brush}</span>
-        <span>{tool === "write" ? "Write" : "Select"}</span>
-        <span>{showIcons ? "Icons" : "Shapes"}</span>
-        <span className="ml-auto">{saved}</span>
-      </footer>
       {notesOpen ? (
-        <div className="fixed inset-0 z-50 flex flex-col bg-ink text-paper lg:hidden">
-          <NotePicker onClose={() => setNotesOpen(false)} />
+        <div className="fixed inset-0 z-[70] flex flex-col bg-ink text-paper lg:hidden">
+          <div className="flex h-12 items-center justify-between border-b border-white/10 px-3">
+            <span className="font-semibold">Notes</span>
+            <button type="button" className="h-10 rounded border border-white/20 px-3" onClick={() => setNotesOpen(false)}>
+              Close
+            </button>
+          </div>
+          <div className="min-h-0 flex-1 overflow-auto">
+            <NotePicker onClose={() => setNotesOpen(false)} />
+          </div>
         </div>
       ) : null}
       {songOpen ? (
-        <div className="fixed inset-0 z-40 flex flex-col bg-ink/80 lg:hidden" onClick={() => setSongOpen(false)}>
-          <div className="mt-auto max-h-[80vh] overflow-y-auto rounded-t-2xl bg-dock p-3" onClick={(event) => event.stopPropagation()}>
-            <Inspector />
+        <div className="fixed inset-0 z-[70] flex flex-col bg-ink text-paper lg:hidden">
+          <div className="flex h-12 items-center justify-between border-b border-white/10 px-3">
+            <span className="font-semibold">Panel</span>
+            <button type="button" className="h-10 rounded border border-white/20 px-3" onClick={() => setSongOpen(false)}>
+              Close
+            </button>
+          </div>
+          <div className="min-h-0 flex-1 overflow-auto">
+            <Inspector onClose={() => setSongOpen(false)} />
           </div>
         </div>
       ) : null}
       {folderPicker ? (
         <FolderPicker
           folders={folderPicker.folders}
-          value={folderPick}
+          current={folderPick}
           onChange={setFolderPick}
-          onLink={() => void confirmFolderPick()}
+          onConfirm={() => void confirmFolderPick()}
           onClear={() => {
             setFolderPick("");
             void confirmFolderPick();
@@ -563,16 +547,28 @@ export function Editor() {
           onCancel={() => setFolderPicker(null)}
         />
       ) : null}
-      <input ref={bmsInput} type="file" accept=".bms,.bme,.bml,.mdm,.md,.zip,.json,audio/*" className="hidden" multiple onChange={(event) => {
-        const files = [...(event.target.files ?? [])];
-        event.target.value = "";
-        if (files.length) void takeFiles(files);
-      }} />
-      <input ref={audioInput} type="file" accept="audio/*,.ogg,.mp3,.wav,.flac,.m4a" className="hidden" onChange={(event) => {
-        const file = event.target.files?.[0];
-        event.target.value = "";
-        if (file) void takeFile(file);
-      }} />
+      <input
+        ref={bmsInput}
+        type="file"
+        accept=".bms,.bme,.bml,.mdm,.md,.zip,application/json,.json"
+        className="hidden"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          event.target.value = "";
+          if (file) void takeFiles([file]);
+        }}
+      />
+      <input
+        ref={audioInput}
+        type="file"
+        accept="audio/*,.ogg,.mp3,.wav,.flac,.m4a"
+        className="hidden"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          event.target.value = "";
+          if (file) void takeFile(file);
+        }}
+      />
     </div>
   );
 }
