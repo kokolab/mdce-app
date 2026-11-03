@@ -1,1 +1,1 @@
-@/tmp/bms_final.ts
+file:///tmp/bms_final.ts
