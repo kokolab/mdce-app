@@ -114,7 +114,7 @@
   border-right: none;
   border-radius: 0;
   background: color-mix(in srgb, var(--color-field) 72%, var(--color-dock));
-  padding: 12px 8px 8px;
+  padding: 14px 10px 10px;
 }
 
 .groupbox > h2 {
