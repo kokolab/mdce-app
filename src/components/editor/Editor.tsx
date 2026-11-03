@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { rememberInfo } from "@/lib/md/bms";
 import { applyLinkedMusic } from "@/lib/md/musicLink";
 import { isChartDirty, persistChart, restoreChart, useChart } from "@/lib/md/store";
@@ -28,6 +28,11 @@ export function Editor() {
   const playheadRef = useRef<HTMLDivElement>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [shortcuts, setShortcuts] = useState(false);
+
+  // Default dark unless user explicitly chose light (stagepen-dark === "0").
+  useLayoutEffect(() => {
+    document.documentElement.classList.toggle("dark", localStorage.getItem("stagepen-dark") !== "0");
+  }, []);
 
   useEffect(() => {
     restoreChart();
