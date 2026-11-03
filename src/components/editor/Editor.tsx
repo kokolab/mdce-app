@@ -1,1 +1,2 @@
-PLACEHOLDER
+import { useEffect } from "react";
+// truncated
