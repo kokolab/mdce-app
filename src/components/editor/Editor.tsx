@@ -14,6 +14,7 @@ import { MenuBar, MobileMenu } from "./MenuBar";
 import { Transport } from "./Transport";
 import { FolderPicker } from "./FolderPicker";
 import { ModeBadge, SaveButton, StatusBar, useEditorMode } from "./EditorChrome";
+import { ShortcutsOverlay } from "./ShortcutsOverlay";
 
 function download(name: string, text: string, type: string) {
   const blob = new Blob([text], { type });
@@ -99,6 +100,7 @@ export function Editor() {
   const diskClearRef = useRef(0);
   const [folderPicker, setFolderPicker] = useState<{ folders: string[]; current: string } | null>(null);
   const [folderPick, setFolderPick] = useState("");
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
 
   useLayoutEffect(() => {
     document.documentElement.classList.toggle("dark", localStorage.getItem("stagepen-dark") !== "0");
@@ -126,6 +128,11 @@ export function Editor() {
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (typingTarget(event.target)) return;
+      if (event.key === "?" && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        event.preventDefault();
+        setShortcutsOpen((open) => !open);
+        return;
+      }
       const state = useChart.getState();
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") {
         event.preventDefault();
@@ -456,6 +463,7 @@ export function Editor() {
         onLinkFolder={() => void linkFolder()}
         onSaveBms={() => void saveBms()}
         onSaveInfo={() => void saveInfo()}
+        onShortcuts={() => setShortcutsOpen(true)}
       />
       <div className="flex h-12 items-center gap-1.5 border-b border-dock-line bg-menubar px-2 text-dock-ink lg:hidden">
         <MobileMenu
@@ -464,6 +472,7 @@ export function Editor() {
           onLinkFolder={() => void linkFolder()}
           onSaveBms={() => void saveBms()}
           onSaveInfo={() => void saveInfo()}
+          onShortcuts={() => setShortcutsOpen(true)}
         />
         <Transport compact live={false} playheadRef={playheadRef} scrollerRef={scrollerRef} />
         <SaveButton mode={mode} onSave={() => void saveBms()} compact />
@@ -490,7 +499,7 @@ export function Editor() {
               >
                 {album.charts.map((chart) => (
                   <option key={chart.name} value={chart.name}>
-                    {chartLabel(chart.name)}
+                    {chartLabel(chart.name, useChart.getState().meta)}
                   </option>
                 ))}
               </select>
@@ -604,6 +613,7 @@ export function Editor() {
           onCancel={() => setFolderPicker(null)}
         />
       ) : null}
+      {shortcutsOpen ? <ShortcutsOverlay onClose={() => setShortcutsOpen(false)} /> : null}
       <StatusBar
         playNotes={playNotes}
         gearNotes={gearNotes}
