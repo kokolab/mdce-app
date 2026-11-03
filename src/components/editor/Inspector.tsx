@@ -289,16 +289,6 @@ export function Inspector() {
   );
 }
 
-function download(name: string, text: string, type: string) {
-  const blob = new Blob([text], { type });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = name;
-  link.click();
-  URL.revokeObjectURL(url);
-}
-
 function InfoJsonModal({ onClose }: { onClose: () => void }) {
   const [text, setText] = useState(() => useChart.getState().exportInfo());
   const [error, setError] = useState("");
@@ -334,6 +324,8 @@ function InfoJsonModal({ onClose }: { onClose: () => void }) {
       unlockLevel: data.unlockLevel != null ? String(data.unlockLevel) : undefined,
     });
 
+    // Apply in-memory only. Downloads stay on File → Save info.json.
+    // Linked / Syncthing folders also write info.json in place.
     const origin = chartOrigin();
     const useDisk =
       origin === "linked" || (origin !== "mdm" && origin !== "loose" && Boolean(syncedSongName()));
@@ -346,14 +338,10 @@ function InfoJsonModal({ onClose }: { onClose: () => void }) {
       } else if (wrote === "denied") {
         useChart.getState().setBanner("Could not write info.json.");
       } else {
-        download("info.json", text, "application/json");
-        useChart.getState().setBanner("Downloaded info.json.");
+        useChart.getState().setBanner("Applied info.json in the editor. Use File → Save info.json to download.");
       }
     } else {
-      download("info.json", text, "application/json");
-      useChart.getState().setBanner(
-        origin === "mdm" ? "Downloaded info.json from the opened pack." : "Downloaded info.json.",
-      );
+      useChart.getState().setBanner("Applied info.json in the editor. Use File → Save info.json to download.");
     }
     setSaving(false);
     onClose();
