@@ -41,12 +41,21 @@ function audioType(name: string): string {
   return "application/octet-stream";
 }
 
-export function chartLabel(name: string): string {
+/** Map map1–map4 to Easy/Hard/Master/Hidden; append level when known. */
+export function chartLabel(
+  name: string,
+  levels?: Partial<Record<"difficulty1" | "difficulty2" | "difficulty3" | "difficulty4", string>>,
+): string {
   const file = name.toLowerCase();
-  if (file === "map1.bms") return "Easy · map1";
-  if (file === "map2.bms") return "Hard · map2";
-  if (file === "map3.bms") return "Master · map3";
-  if (file === "map4.bms") return "Hidden · map4";
+  const levelOf = (key: "difficulty1" | "difficulty2" | "difficulty3" | "difficulty4") => {
+    const raw = levels?.[key]?.trim();
+    if (!raw || raw === "0") return "";
+    return ` ${raw}`;
+  };
+  if (file === "map1.bms") return `Easy${levelOf("difficulty1")} · map1`;
+  if (file === "map2.bms") return `Hard${levelOf("difficulty2")} · map2`;
+  if (file === "map3.bms") return `Master${levelOf("difficulty3")} · map3`;
+  if (file === "map4.bms") return `Hidden${levelOf("difficulty4")} · map4`;
   return name;
 }
 
