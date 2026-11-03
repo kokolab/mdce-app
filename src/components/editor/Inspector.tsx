@@ -38,6 +38,18 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
 
 const field = "h-7 min-w-0 flex-1 rounded border border-dock-line bg-field px-1.5 text-xs text-dock-ink";
 
+function downloadInfoJson() {
+  const text = useChart.getState().exportInfo();
+  const blob = new Blob([text], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "info.json";
+  link.click();
+  URL.revokeObjectURL(url);
+  useChart.getState().setBanner("Downloaded info.json.");
+}
+
 export function Inspector() {
   const meta = useChart((state) => state.meta);
   const patchMeta = useChart((state) => state.patchMeta);
@@ -126,13 +138,22 @@ export function Inspector() {
         <Row label="Level">
           <input value={meta.playlevel} onChange={(event) => patchMeta({ playlevel: event.target.value })} className={field + " font-mono"} />
         </Row>
-        <button
-          type="button"
-          className="mt-1 h-7 w-full rounded border border-dock-line bg-field text-xs"
-          onClick={() => setInfoOpen(true)}
-        >
-          Edit info.json
-        </button>
+        <div className="mt-1 flex gap-1">
+          <button
+            type="button"
+            className="h-7 min-w-0 flex-1 rounded border border-dock-line bg-field text-xs"
+            onClick={() => setInfoOpen(true)}
+          >
+            Edit info.json
+          </button>
+          <button
+            type="button"
+            className="h-7 min-w-0 flex-1 rounded border border-dock-line bg-field text-xs"
+            onClick={downloadInfoJson}
+          >
+            Download info.json
+          </button>
+        </div>
         <button type="button" className="mt-1 h-7 w-full rounded border border-dock-line bg-field text-xs" onClick={() => setHeaderMore(!headerMore)}>
           Expand...
         </button>
@@ -324,7 +345,7 @@ function InfoJsonModal({ onClose }: { onClose: () => void }) {
       unlockLevel: data.unlockLevel != null ? String(data.unlockLevel) : undefined,
     });
 
-    // Apply in-memory only. Downloads stay on File → Save info.json.
+    // Apply in-memory only. Downloads stay on File → Save info.json / Download info.json.
     // Linked / Syncthing folders also write info.json in place.
     const origin = chartOrigin();
     const useDisk =
@@ -338,10 +359,10 @@ function InfoJsonModal({ onClose }: { onClose: () => void }) {
       } else if (wrote === "denied") {
         useChart.getState().setBanner("Could not write info.json.");
       } else {
-        useChart.getState().setBanner("Applied info.json in the editor. Use File → Save info.json to download.");
+        useChart.getState().setBanner("Applied info.json in the editor. Use Download info.json to download.");
       }
     } else {
-      useChart.getState().setBanner("Applied info.json in the editor. Use File → Save info.json to download.");
+      useChart.getState().setBanner("Applied info.json in the editor. Use Download info.json to download.");
     }
     setSaving(false);
     onClose();
