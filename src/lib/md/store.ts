@@ -150,6 +150,16 @@ function blank() {
   };
 }
 
+function snapshot(state: ChartState): Snapshot {
+  return {
+    notes: state.notes,
+    sigs: state.sigs,
+    meta: state.meta,
+    measureCount: state.measureCount,
+    extras: state.extras,
+  };
+}
+
 const seed = blank();
 
 export const useChart = create<ChartState>((set, get) => ({
@@ -593,16 +603,6 @@ export const useChart = create<ChartState>((set, get) => ({
   },
   exportInfo: () => infoJson(get().meta),
 }));
-
-function snapshot(state: ChartState): Snapshot {
-  return {
-    notes: state.notes,
-    sigs: state.sigs,
-    meta: state.meta,
-    measureCount: state.measureCount,
-    extras: state.extras,
-  };
-}
 
 export function selectedNote(): ChartNote | undefined {
   const { notes, selectedId } = useChart.getState();
