@@ -108,8 +108,11 @@
 .groupbox {
   position: relative;
   margin-top: 14px;
-  border: 1px solid var(--color-dock-line);
-  border-radius: 8px;
+  border-top: 1px solid var(--color-dock-line);
+  border-bottom: 1px solid var(--color-dock-line);
+  border-left: none;
+  border-right: none;
+  border-radius: 0;
   background: color-mix(in srgb, var(--color-field) 72%, var(--color-dock));
   padding: 12px 8px 8px;
 }
@@ -124,6 +127,18 @@
   font-size: 12px;
   font-weight: 600;
   line-height: 1;
+}
+
+/* Hide number spinner arrows (e.g. BPM in Header). */
+.dock input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.dock input[type="number"]::-webkit-outer-spin-button,
+.dock input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 html {
