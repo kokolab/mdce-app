@@ -25,6 +25,8 @@ export function Editor() {
 
   const fileInput = useRef<HTMLInputElement>(null);
   const audioInput = useRef<HTMLInputElement>(null);
+  const playheadRef = useRef<HTMLDivElement>(null);
+  const scrollerRef = useRef<HTMLDivElement>(null);
   const [shortcuts, setShortcuts] = useState(false);
 
   useEffect(() => {
@@ -117,9 +119,9 @@ export function Editor() {
           <div className="flex items-center gap-2 border-b border-zinc-800 px-2 py-1 lg:hidden">
             <MobileMenu {...menuProps} />
           </div>
-          <Transport />
+          <Transport playheadRef={playheadRef} scrollerRef={scrollerRef} />
           <div className="relative min-h-0 flex-1">
-            <Roll />
+            <Roll playheadRef={playheadRef} scrollerRef={scrollerRef} />
             {showStage && <Stage />}
           </div>
           <div className="border-t border-zinc-800 px-3 py-1 text-xs text-zinc-400">{banner}</div>
