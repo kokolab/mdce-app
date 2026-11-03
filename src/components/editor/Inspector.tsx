@@ -1,6 +1,9 @@
 import { useState, type ReactNode } from "react";
-import { SCENES } from "@/lib/md/catalog";
+import { SCENES, normalizeScene } from "@/lib/md/catalog";
 import { useChart } from "@/lib/md/store";
+import { rememberInfo } from "@/lib/md/bms";
+import { chartOrigin } from "@/lib/md/pack";
+import { syncedSongName, writeChartFile } from "@/lib/md/chartFolder";
 
 const SPEEDS = [
   { id: "1", label: "Speed 1" },
@@ -51,6 +54,7 @@ export function Inspector() {
   const [bar, setBar] = useState("0");
   const [headerMore, setHeaderMore] = useState(false);
   const [gridMore, setGridMore] = useState(false);
+  const [infoOpen, setInfoOpen] = useState(false);
   const knownScene = SCENES.some((scene) => scene.id === meta.genre);
 
   return (
@@ -122,6 +126,13 @@ export function Inspector() {
         <Row label="Level">
           <input value={meta.playlevel} onChange={(event) => patchMeta({ playlevel: event.target.value })} className={field + " font-mono"} />
         </Row>
+        <button
+          type="button"
+          className="mt-1 h-7 w-full rounded border border-dock-line bg-field text-xs"
+          onClick={() => setInfoOpen(true)}
+        >
+          Edit info.json
+        </button>
         <button type="button" className="mt-1 h-7 w-full rounded border border-dock-line bg-field text-xs" onClick={() => setHeaderMore(!headerMore)}>
           Expand...
         </button>
@@ -272,6 +283,113 @@ export function Inspector() {
           <span className="w-8 font-mono">ms</span>
         </label>
       </Group>
+
+      {infoOpen ? <InfoJsonModal onClose={() => setInfoOpen(false)} /> : null}
+    </div>
+  );
+}
+
+function download(name: string, text: string, type: string) {
+  const blob = new Blob([text], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = name;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function InfoJsonModal({ onClose }: { onClose: () => void }) {
+  const [text, setText] = useState(() => useChart.getState().exportInfo());
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  async function saveAndClose() {
+    let data: Record<string, unknown>;
+    try {
+      data = JSON.parse(text) as Record<string, unknown>;
+    } catch {
+      setError("Invalid JSON — fix syntax before saving.");
+      return;
+    }
+    if (!data || typeof data !== "object" || Array.isArray(data)) {
+      setError("info.json must be a JSON object.");
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+    rememberInfo(data);
+    const tags = Array.isArray(data.searchTags) ? data.searchTags.map(String).join(", ") : undefined;
+    useChart.getState().patchMeta({
+      title: typeof data.name === "string" ? data.name : undefined,
+      artist: typeof data.author === "string" ? data.author : undefined,
+      genre: typeof data.scene === "string" ? normalizeScene(data.scene) : undefined,
+      designer: typeof data.levelDesigner === "string" ? data.levelDesigner : undefined,
+      tags,
+      difficulty1: data.difficulty1 != null ? String(data.difficulty1) : undefined,
+      difficulty2: data.difficulty2 != null ? String(data.difficulty2) : undefined,
+      difficulty3: data.difficulty3 != null ? String(data.difficulty3) : undefined,
+      difficulty4: data.difficulty4 != null ? String(data.difficulty4) : undefined,
+      unlockLevel: data.unlockLevel != null ? String(data.unlockLevel) : undefined,
+    });
+
+    const origin = chartOrigin();
+    const useDisk =
+      origin === "linked" || (origin !== "mdm" && origin !== "loose" && Boolean(syncedSongName()));
+    if (useDisk) {
+      const wrote = await writeChartFile("info.json", text);
+      if (wrote === "wrote") {
+        useChart.getState().setBanner("Saved info.json.");
+      } else if (wrote === "stale") {
+        useChart.getState().setBanner("info.json write did not stick — try again.");
+      } else if (wrote === "denied") {
+        useChart.getState().setBanner("Could not write info.json.");
+      } else {
+        download("info.json", text, "application/json");
+        useChart.getState().setBanner("Downloaded info.json.");
+      }
+    } else {
+      download("info.json", text, "application/json");
+      useChart.getState().setBanner(
+        origin === "mdm" ? "Downloaded info.json from the opened pack." : "Downloaded info.json.",
+      );
+    }
+    setSaving(false);
+    onClose();
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-[90] flex items-center justify-center bg-black/50 p-4"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <div className="flex max-h-[min(80dvh,640px)] w-full max-w-2xl flex-col overflow-hidden rounded border border-dock-line bg-field shadow-xl">
+        <div className="flex h-10 shrink-0 items-center justify-between border-b border-dock-line px-3">
+          <span className="text-sm font-medium text-dock-ink">info.json</span>
+          <button
+            type="button"
+            className="h-7 rounded border border-dock-line bg-menubar px-2.5 text-xs text-dock-ink disabled:opacity-50"
+            disabled={saving}
+            onClick={() => void saveAndClose()}
+          >
+            {saving ? "Saving…" : "Save & Close"}
+          </button>
+        </div>
+        <textarea
+          value={text}
+          onChange={(event) => {
+            setText(event.target.value);
+            setError("");
+          }}
+          spellCheck={false}
+          className="min-h-0 flex-1 resize-none bg-chart p-3 font-mono text-xs leading-relaxed text-paper outline-none"
+          aria-label="info.json editor"
+        />
+        {error ? <p className="shrink-0 border-t border-dock-line px-3 py-1.5 text-xs text-red-400">{error}</p> : null}
+      </div>
     </div>
   );
 }
