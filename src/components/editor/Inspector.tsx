@@ -22,21 +22,26 @@ function Group({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="groupbox">
       <h2>{title}</h2>
-      <div className="flex flex-col gap-1">{children}</div>
+      <div className="flex flex-col gap-1.5">{children}</div>
     </section>
   );
 }
 
+/** Shared label column so Header / Grid / Volume line up. */
+const LABEL = "w-[4.75rem] shrink-0 text-right text-xs text-dock-ink/80";
+
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <label className="flex h-7 items-center gap-2 text-xs">
-      <span className="w-[4.5rem] shrink-0 text-right">{label}</span>
-      {children}
+    <label className="flex h-7 min-w-0 items-center gap-2">
+      <span className={LABEL}>{label}</span>
+      <div className="flex min-w-0 flex-1 items-center gap-1.5">{children}</div>
     </label>
   );
 }
 
-const field = "h-7 min-w-0 flex-1 rounded border border-dock-line bg-field px-1.5 text-xs text-dock-ink";
+const field = "h-7 min-w-0 flex-1 rounded border border-dock-line bg-field px-2 text-xs text-dock-ink";
+const mono = field + " font-mono";
+const value = "w-9 shrink-0 text-right font-mono text-xs tabular-nums text-dock-ink";
 
 function downloadInfoJson() {
   const text = useChart.getState().exportInfo();
@@ -81,7 +86,7 @@ export function Inspector() {
   const knownScene = SCENES.some((scene) => scene.id === meta.genre);
 
   return (
-    <div className="text-dock-ink">
+    <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-4 pt-1 text-dock-ink">
       <Group title="Header">
         <Row label="Title">
           <input value={meta.title} onChange={(event) => patchMeta({ title: event.target.value })} className={field} />
@@ -113,13 +118,13 @@ export function Inspector() {
             step={0.001}
             value={meta.bpm}
             onChange={(event) => patchMeta({ bpm: Number(event.target.value) || 1 })}
-            className={field + " font-mono"}
+            className={mono}
           />
         </Row>
         <Row label="Level">
-          <input value={meta.playlevel} onChange={(event) => patchMeta({ playlevel: event.target.value })} className={field + " font-mono"} />
+          <input value={meta.playlevel} onChange={(event) => patchMeta({ playlevel: event.target.value })} className={mono} />
         </Row>
-        <div className="mt-1 flex gap-1">
+        <div className="flex gap-1.5 pl-[calc(4.75rem+0.5rem)]">
           <button
             type="button"
             className="h-7 min-w-0 flex-1 rounded border border-dock-line bg-field text-xs"
@@ -135,11 +140,13 @@ export function Inspector() {
             Download info.json
           </button>
         </div>
-        <button type="button" className="mt-1 h-7 w-full rounded border border-dock-line bg-field text-xs" onClick={() => setHeaderMore(!headerMore)}>
-          Expand...
-        </button>
+        <div className="pl-[calc(4.75rem+0.5rem)]">
+          <button type="button" className="h-7 w-full rounded border border-dock-line bg-field text-xs" onClick={() => setHeaderMore(!headerMore)}>
+            {headerMore ? "Collapse…" : "Expand…"}
+          </button>
+        </div>
         {headerMore ? (
-          <div className="flex flex-col gap-1 pt-1">
+          <div className="flex flex-col gap-1.5 border-t border-dock-line/60 pt-1.5">
             <Row label="ChartDesign">
               <input value={meta.designer} onChange={(event) => patchMeta({ designer: event.target.value })} className={field} />
             </Row>
@@ -171,13 +178,13 @@ export function Inspector() {
               </select>
             </Row>
             <Row label="Scene id">
-              <input value={meta.genre} onChange={(event) => patchMeta({ genre: event.target.value })} className={field + " font-mono"} spellCheck={false} />
+              <input value={meta.genre} onChange={(event) => patchMeta({ genre: event.target.value })} className={mono} spellCheck={false} />
             </Row>
             {([1, 2, 3, 4] as const).map((index) => {
               const key = `difficulty${index}` as const;
               return (
                 <Row key={key} label={`Diff ${index}`}>
-                  <input value={meta[key]} onChange={(event) => patchMeta({ [key]: event.target.value })} className={field + " font-mono"} />
+                  <input value={meta[key]} onChange={(event) => patchMeta({ [key]: event.target.value })} className={mono} />
                 </Row>
               );
             })}
@@ -189,36 +196,29 @@ export function Inspector() {
       </Group>
 
       <Group title="Grid">
-        <div className="flex items-end justify-center gap-8">
-          <label className="flex flex-col items-center gap-0.5 text-center text-[11px]">
-            Divide
-            <input
-              type="number"
-              min={1}
-              max={192}
-              value={divide}
-              aria-label="Grid divide"
-              onChange={(event) => useChart.getState().setDivide(Number(event.target.value) || 1)}
-              className="h-7 w-16 rounded border border-dock-line bg-field px-1 text-center font-mono text-xs text-dock-ink"
-            />
-          </label>
-          <label className="flex flex-col items-center gap-0.5 text-center text-[11px]">
-            Sub
-            <input
-              type="number"
-              min={1}
-              max={48}
-              value={sub}
-              aria-label="Grid sub"
-              onChange={(event) => useChart.getState().setSub(Number(event.target.value) || 1)}
-              className="h-7 w-16 rounded border border-dock-line bg-field px-1 text-center font-mono text-xs text-dock-ink"
-            />
-          </label>
-        </div>
-        <label className="flex h-7 items-center gap-2 text-xs">
-          <span className="w-3 text-center font-mono" aria-hidden>
-            H
-          </span>
+        <Row label="Divide">
+          <input
+            type="number"
+            min={1}
+            max={192}
+            value={divide}
+            aria-label="Grid divide"
+            onChange={(event) => useChart.getState().setDivide(Number(event.target.value) || 1)}
+            className={mono}
+          />
+        </Row>
+        <Row label="Sub">
+          <input
+            type="number"
+            min={1}
+            max={48}
+            value={sub}
+            aria-label="Grid sub"
+            onChange={(event) => useChart.getState().setSub(Number(event.target.value) || 1)}
+            className={mono}
+          />
+        </Row>
+        <Row label="Height">
           <input
             type="range"
             min={0.5}
@@ -229,12 +229,9 @@ export function Inspector() {
             onChange={(event) => useChart.getState().setXHeight(Number(event.target.value))}
             className="min-w-0 flex-1"
           />
-          <span className="w-10 font-mono">{xHeight.toFixed(2)}</span>
-        </label>
-        <label className="flex h-7 items-center gap-2 text-xs">
-          <span className="w-3 text-center font-mono" aria-hidden>
-            W
-          </span>
+          <span className={value}>{xHeight.toFixed(2)}</span>
+        </Row>
+        <Row label="Width">
           <input
             type="range"
             min={0.5}
@@ -245,26 +242,31 @@ export function Inspector() {
             onChange={(event) => useChart.getState().setXWidth(Number(event.target.value))}
             className="min-w-0 flex-1"
           />
-          <span className="w-10 font-mono">{xWidth.toFixed(2)}</span>
-        </label>
+          <span className={value}>{xWidth.toFixed(2)}</span>
+        </Row>
         <label className="flex h-6 items-center gap-2 text-xs">
+          <span className={LABEL} aria-hidden />
           <input type="checkbox" checked={snapOn} onChange={(event) => useChart.getState().setSnapOn(event.target.checked)} />
-          Snap to grid (G)
+          <span>Snap to grid (G)</span>
         </label>
         <label className="flex h-6 items-center gap-2 text-xs">
+          <span className={LABEL} aria-hidden />
           <input type="checkbox" checked={lockLane} onChange={(event) => useChart.getState().setLockLane(event.target.checked)} />
-          Disable vertical moves (D)
+          <span>Disable vertical moves (D)</span>
         </label>
         <label className="flex h-6 items-center gap-2 text-xs">
+          <span className={LABEL} aria-hidden />
           <input type="checkbox" checked readOnly />
-          Horizontal View
+          <span>Horizontal View</span>
         </label>
-        <button type="button" className="mt-1 h-7 w-full rounded border border-dock-line bg-field text-xs" onClick={() => setGridMore(!gridMore)}>
-          Expand...
-        </button>
+        <div className="pl-[calc(4.75rem+0.5rem)]">
+          <button type="button" className="h-7 w-full rounded border border-dock-line bg-field text-xs" onClick={() => setGridMore(!gridMore)}>
+            {gridMore ? "Collapse…" : "Expand…"}
+          </button>
+        </div>
         {gridMore ? (
           <form
-            className="flex gap-1 pt-1"
+            className="flex gap-1.5 pl-[calc(4.75rem+0.5rem)] pt-0.5"
             onSubmit={(event) => {
               event.preventDefault();
               useChart.getState().gotoMeasure(Number(bar) || 0);
@@ -285,23 +287,19 @@ export function Inspector() {
       </Group>
 
       <Group title="Volume">
-        <label className="flex h-7 items-center gap-2 text-xs">
-          <span className="w-[4.5rem] shrink-0 text-right">Music</span>
+        <Row label="Music">
           <input type="range" min={0} max={1} step={0.05} value={bgmVolume} aria-label="Chart music volume" onChange={(event) => useChart.getState().setMix(Number(event.target.value), sfxVolume)} className="min-w-0 flex-1" />
-          <span className="w-8 font-mono">{bgmVolume.toFixed(2)}</span>
-        </label>
-        <label className="flex h-7 items-center gap-2 text-xs">
-          <span className="w-[4.5rem] shrink-0 text-right">Notes</span>
+          <span className={value}>{bgmVolume.toFixed(2)}</span>
+        </Row>
+        <Row label="Notes">
           <input type="range" min={0} max={1} step={0.05} value={sfxVolume} aria-label="Note sound volume" onChange={(event) => useChart.getState().setMix(bgmVolume, Number(event.target.value))} className="min-w-0 flex-1" />
-          <span className="w-8 font-mono">{sfxVolume.toFixed(2)}</span>
-        </label>
-        <label className="flex h-7 items-center gap-2 text-xs">
-          <span className="w-[4.5rem] shrink-0 text-right">Speed</span>
+          <span className={value}>{sfxVolume.toFixed(2)}</span>
+        </Row>
+        <Row label="Speed">
           <input type="range" min={0.25} max={2} step={0.25} value={bgmSpeed} aria-label="Playback speed" onChange={(event) => useChart.getState().setBgmSpeed(Number(event.target.value))} className="min-w-0 flex-1" />
-          <span className="w-8 font-mono">{bgmSpeed.toFixed(2)}</span>
-        </label>
-        <label className="flex h-7 items-center gap-2 text-xs">
-          <span className="w-[4.5rem] shrink-0 text-right">Offset</span>
+          <span className={value}>{bgmSpeed.toFixed(2)}</span>
+        </Row>
+        <Row label="Offset">
           <input
             type="number"
             min={-5000}
@@ -310,10 +308,10 @@ export function Inspector() {
             value={musicOffset}
             aria-label="Music offset in milliseconds"
             onChange={(event) => useChart.getState().setMusicOffset(Number(event.target.value) || 0)}
-            className="h-7 min-w-0 flex-1 rounded border border-dock-line bg-field px-1 font-mono text-xs"
+            className={mono}
           />
-          <span className="w-8 font-mono">ms</span>
-        </label>
+          <span className="w-6 shrink-0 text-xs text-mute">ms</span>
+        </Row>
       </Group>
 
       {infoOpen ? <InfoJsonModal onClose={() => setInfoOpen(false)} /> : null}
