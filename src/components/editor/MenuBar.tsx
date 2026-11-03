@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useChart } from "@/lib/md/store";
 import { clearLoadedMusic } from "@/lib/md/musicLink";
 import { player } from "@/lib/md/player";
+import { useChartOrigin } from "@/lib/md/pack";
 
 type MenuId = "file" | "edit" | "view" | "options" | "convert" | "about";
 
@@ -31,6 +32,8 @@ export function MenuBar({
   const lockLane = useChart((state) => state.lockLane);
   const followPlay = useChart((state) => state.followPlay);
   const followTight = useChart((state) => state.followTight);
+  const origin = useChartOrigin();
+  const linked = origin === "linked";
   const [dark, setDark] = useState(() => typeof localStorage === "undefined" || localStorage.getItem("stagepen-dark") !== "0");
 
   useEffect(() => {
@@ -135,10 +138,10 @@ export function MenuBar({
     >
       {menu("file", "File", <>
         {item("New", startNew)}
-        {item("Open chart", onOpen)}
-        {item("Open song", onSong)}
-        {item("Save BMS", onSaveBms)}
-        {item("Save info.json", onSaveInfo)}
+        {item("Load mdm/bms file", onOpen)}
+        {item("Load music file", onSong)}
+        {item(linked ? "Save BMS" : "Download mdm/bms file", onSaveBms)}
+        {item(linked ? "Save info.json" : "Download info.json", onSaveInfo)}
         {item("Link chart folder", onLinkFolder)}
       </>)}
       {menu("edit", "Edit", <>
@@ -205,6 +208,8 @@ export function MobileMenu({
   const lockLane = useChart((state) => state.lockLane);
   const followPlay = useChart((state) => state.followPlay);
   const followTight = useChart((state) => state.followTight);
+  const origin = useChartOrigin();
+  const linked = origin === "linked";
   const state = useChart.getState;
 
   function go(action: () => void) {
@@ -244,10 +249,10 @@ export function MobileMenu({
           <div className="min-h-0 flex-1 overflow-y-auto pb-8">
             <p className="px-4 pt-3 text-xs tracking-wide text-mute uppercase">File</p>
             {row("New", startNew)}
-            {row("Open chart", onOpen)}
-            {row("Open song", onSong)}
-            {row("Save BMS", onSaveBms)}
-            {row("Save info.json", onSaveInfo)}
+            {row("Load mdm/bms file", onOpen)}
+            {row("Load music file", onSong)}
+            {row(linked ? "Save BMS" : "Download mdm/bms file", onSaveBms)}
+            {row(linked ? "Save info.json" : "Download info.json", onSaveInfo)}
             {row("Link chart folder", onLinkFolder)}
             <p className="px-4 pt-3 text-xs tracking-wide text-mute uppercase">Edit</p>
             {row("Undo", () => state().undo())}

@@ -10,17 +10,34 @@ let pack: Pack = { charts: [], current: "" };
 let origin: ChartOrigin = "";
 const listeners = new Set<() => void>();
 
+function notify() {
+  listeners.forEach((listener) => listener());
+}
+
 export function setAlbumCharts(charts: AlbumChart[], current: string) {
   pack = { charts, current };
-  listeners.forEach((listener) => listener());
+  notify();
 }
 
 export function setChartOrigin(next: ChartOrigin) {
   origin = next;
+  notify();
 }
 
 export function chartOrigin(): ChartOrigin {
   return origin;
+}
+
+export function useChartOrigin(): ChartOrigin {
+  const [state, setState] = useState(origin);
+  useEffect(() => {
+    const listener = () => setState(origin);
+    listeners.add(listener);
+    return () => {
+      listeners.delete(listener);
+    };
+  }, []);
+  return state;
 }
 
 export function currentChartName(): string {
