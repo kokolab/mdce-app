@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { DISPLAY_LANES, HOLD_KEYS, PARTNER, flipTravel, normalizeScene, type LaneId } from "./catalog";
+import { DISPLAY_LANES, HOLD_KEYS, flipTravel, normalizeScene, type LaneId } from "./catalog";
 import {
   EMPTY_META,
   difficultyFromName,
