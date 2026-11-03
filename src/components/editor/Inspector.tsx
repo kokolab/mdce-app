@@ -50,6 +50,17 @@ function downloadInfoJson() {
   useChart.getState().setBanner("Downloaded info.json.");
 }
 
+function jsonErrorMessage(err: unknown, source: string): string {
+  const message = err instanceof Error ? err.message : "Invalid JSON";
+  const match = /position\s+(\d+)/i.exec(message) || /at position\s+(\d+)/i.exec(message);
+  if (match) {
+    const pos = Number(match[1]);
+    const line = source.slice(0, pos).split("\n").length;
+    return `Invalid JSON at line ${line}: ${message}`;
+  }
+  return `Invalid JSON — ${message}`;
+}
+
 export function Inspector() {
   const meta = useChart((state) => state.meta);
   const patchMeta = useChart((state) => state.patchMeta);
@@ -78,9 +89,6 @@ export function Inspector() {
         <Row label="Artist">
           <input value={meta.artist} onChange={(event) => patchMeta({ artist: event.target.value })} className={field} />
         </Row>
-        <Row label="ChartDesign">
-          <input value={meta.designer} onChange={(event) => patchMeta({ designer: event.target.value })} className={field} />
-        </Row>
         <Row label="Scene">
           <select
             value={knownScene ? meta.genre : "custom"}
@@ -108,33 +116,6 @@ export function Inspector() {
             className={field + " font-mono"}
           />
         </Row>
-        <Row label="NoteSpeed">
-          <select
-            value={meta.noteSpeed || ""}
-            onChange={(event) => useChart.getState().setSpeed(event.target.value)}
-            className={field}
-          >
-            <option value="">Not set</option>
-            {SPEEDS.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.label}
-              </option>
-            ))}
-          </select>
-        </Row>
-        <Row label="Difficulty">
-          <select
-            value={meta.chartDifficulty || "hard"}
-            onChange={(event) => patchMeta({ chartDifficulty: event.target.value as typeof meta.chartDifficulty })}
-            className={field}
-          >
-            {DIFFICULTIES.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.label}
-              </option>
-            ))}
-          </select>
-        </Row>
         <Row label="Level">
           <input value={meta.playlevel} onChange={(event) => patchMeta({ playlevel: event.target.value })} className={field + " font-mono"} />
         </Row>
@@ -159,6 +140,36 @@ export function Inspector() {
         </button>
         {headerMore ? (
           <div className="flex flex-col gap-1 pt-1">
+            <Row label="ChartDesign">
+              <input value={meta.designer} onChange={(event) => patchMeta({ designer: event.target.value })} className={field} />
+            </Row>
+            <Row label="NoteSpeed">
+              <select
+                value={meta.noteSpeed || ""}
+                onChange={(event) => useChart.getState().setSpeed(event.target.value)}
+                className={field}
+              >
+                <option value="">Not set</option>
+                {SPEEDS.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
+            </Row>
+            <Row label="Difficulty">
+              <select
+                value={meta.chartDifficulty || "hard"}
+                onChange={(event) => patchMeta({ chartDifficulty: event.target.value as typeof meta.chartDifficulty })}
+                className={field}
+              >
+                {DIFFICULTIES.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
+            </Row>
             <Row label="Scene id">
               <input value={meta.genre} onChange={(event) => patchMeta({ genre: event.target.value })} className={field + " font-mono"} spellCheck={false} />
             </Row>
@@ -315,12 +326,22 @@ function InfoJsonModal({ onClose }: { onClose: () => void }) {
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
+  function formatJson() {
+    try {
+      const data = JSON.parse(text);
+      setText(JSON.stringify(data, null, 2));
+      setError("");
+    } catch (err) {
+      setError(jsonErrorMessage(err, text));
+    }
+  }
+
   async function saveAndClose() {
     let data: Record<string, unknown>;
     try {
       data = JSON.parse(text) as Record<string, unknown>;
-    } catch {
-      setError("Invalid JSON — fix syntax before saving.");
+    } catch (err) {
+      setError(jsonErrorMessage(err, text));
       return;
     }
     if (!data || typeof data !== "object" || Array.isArray(data)) {
@@ -345,8 +366,6 @@ function InfoJsonModal({ onClose }: { onClose: () => void }) {
       unlockLevel: data.unlockLevel != null ? String(data.unlockLevel) : undefined,
     });
 
-    // Apply in-memory only. Downloads stay on File → Save info.json / Download info.json.
-    // Linked / Syncthing folders also write info.json in place.
     const origin = chartOrigin();
     const useDisk =
       origin === "linked" || (origin !== "mdm" && origin !== "loose" && Boolean(syncedSongName()));
@@ -376,16 +395,21 @@ function InfoJsonModal({ onClose }: { onClose: () => void }) {
       }}
     >
       <div className="flex h-[min(85dvh,720px)] w-full max-w-3xl flex-col overflow-hidden rounded border border-dock-line bg-field shadow-xl">
-        <div className="flex h-10 shrink-0 items-center justify-between border-b border-dock-line px-3">
+        <div className="flex h-10 shrink-0 items-center justify-between gap-2 border-b border-dock-line px-3">
           <span className="text-sm font-medium text-dock-ink">info.json</span>
-          <button
-            type="button"
-            className="h-7 rounded border border-dock-line bg-menubar px-2.5 text-xs text-dock-ink disabled:opacity-50"
-            disabled={saving}
-            onClick={() => void saveAndClose()}
-          >
-            {saving ? "Saving…" : "Save & Close"}
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button type="button" className="h-7 rounded border border-dock-line bg-menubar px-2.5 text-xs text-dock-ink" onClick={formatJson}>
+              Format
+            </button>
+            <button
+              type="button"
+              className="h-7 rounded border border-dock-line bg-menubar px-2.5 text-xs text-dock-ink disabled:opacity-50"
+              disabled={saving}
+              onClick={() => void saveAndClose()}
+            >
+              {saving ? "Saving…" : "Save & Close"}
+            </button>
+          </div>
         </div>
         <textarea
           value={text}
