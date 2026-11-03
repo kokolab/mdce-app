@@ -1,1 +1,1 @@
-RECOVER_FROM_TMP
+@/tmp/store_new.ts
