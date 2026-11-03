@@ -1,39 +1,30 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { chartLabel, readAlbum } from "@/lib/md/album";
-import { chartOrigin, currentChartName, setAlbumCharts, setChartOrigin, useAlbumCharts } from "@/lib/md/pack";
-import { declaredScene, musicFileName, rememberInfo, type Meta } from "@/lib/md/bms";
-import { isGearNote, isPlayNote, normalizeScene, sceneFromNotes } from "@/lib/md/catalog";
-import { applyLinkedMusic, bootMusic } from "@/lib/md/musicLink";
+import { useEffect, useRef, useState } from "react";
+import { rememberInfo } from "@/lib/md/bms";
+import { applyLinkedMusic } from "@/lib/md/musicLink";
 import { isChartDirty, persistChart, restoreChart, useChart } from "@/lib/md/store";
+import { currentChartName, setChartOrigin } from "@/lib/md/pack";
+import { loadChartFolder } from "@/lib/md/chartFolder";
 import { NotePicker } from "./NotePicker";
 import { Roll } from "./Roll";
 import { Inspector } from "./Inspector";
-import { MenuBar } from "./MenuBar";
+import { MenuBar, MobileMenu } from "./MenuBar";
 import { Transport } from "./Transport";
 import { Stage } from "./Stage";
 import { ShortcutsOverlay } from "./ShortcutsOverlay";
 import { FolderPicker } from "./FolderPicker";
 import { SongCard } from "./SongCard";
-import { EditorChrome } from "./EditorChrome";
-import { loadChartFolder } from "@/lib/md/chartFolder";
 
 export function Editor() {
   const songOpen = useChart((s) => s.songOpen);
   const setSongOpen = useChart((s) => s.setSongOpen);
   const showStage = useChart((s) => s.showStage);
   const banner = useChart((s) => s.banner);
-  const confirmNew = useChart((s) => s.confirmNew);
   const reset = useChart((s) => s.reset);
   const loadText = useChart((s) => s.loadText);
   const exportBms = useChart((s) => s.exportBms);
   const exportInfo = useChart((s) => s.exportInfo);
-  const meta = useChart((s) => s.meta);
-  const notes = useChart((s) => s.notes);
-  const songName = useChart((s) => s.songName);
   const setSongName = useChart((s) => s.setSongName);
-  const setBanner = useChart((s) => s.setBanner);
   const patchMeta = useChart((s) => s.patchMeta);
-  const albumCharts = useAlbumCharts();
 
   const fileInput = useRef<HTMLInputElement>(null);
   const audioInput = useRef<HTMLInputElement>(null);
@@ -78,10 +69,12 @@ export function Editor() {
         try {
           const j = JSON.parse(await info.text());
           rememberInfo(j);
-          if (j.title) patchMeta({ title: j.title });
-          if (j.artist) patchMeta({ artist: j.artist });
-          if (j.designer) patchMeta({ designer: j.designer });
-        } catch {}
+          if (typeof j.name === "string") patchMeta({ title: j.name });
+          if (typeof j.author === "string") patchMeta({ artist: j.author });
+          if (typeof j.levelDesigner === "string") patchMeta({ designer: j.levelDesigner });
+        } catch {
+          /* ignore */
+        }
       }
       if (audio) {
         setSongName(audio.name);
@@ -111,22 +104,23 @@ export function Editor() {
     persistChart();
   }
 
+  const menuProps = {
+    onOpen: () => fileInput.current?.click(),
+    onSong: () => audioInput.current?.click(),
+    onLinkFolder: () => setFolderOpen(true),
+    onSaveBms: () => download(currentChartName() || "chart.bms", exportBms()),
+    onSaveInfo: () => download("info.json", exportInfo()),
+    onShortcuts: () => setShortcuts(true),
+  };
+
   return (
     <div className="flex h-full flex-col bg-zinc-950 text-zinc-100">
-      <MenuBar
-        onOpen={() => fileInput.current?.click()}
-        onOpenAudio={() => audioInput.current?.click()}
-        onNew={() => {
-          if (isChartDirty() && !confirm("Discard unsaved chart?")) return;
-          reset();
-        }}
-        onSaveBms={() => download(currentChartName() || "chart.bms", exportBms())}
-        onSaveInfo={() => download("info.json", exportInfo())}
-        onFolder={() => setFolderOpen(true)}
-        onShortcuts={() => setShortcuts(true)}
-      />
+      <MenuBar {...menuProps} />
       <div className="flex min-h-0 flex-1">
         <div className="flex min-w-0 flex-1 flex-col">
+          <div className="flex items-center gap-2 border-b border-zinc-800 px-2 py-1 lg:hidden">
+            <MobileMenu {...menuProps} />
+          </div>
           <Transport />
           <div className="relative min-h-0 flex-1">
             <Roll />
