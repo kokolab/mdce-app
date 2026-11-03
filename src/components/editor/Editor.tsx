@@ -78,7 +78,6 @@ export function Editor() {
   let gearNotes = 0;
   for (const note of notes) {
     if (isPlayNote(note.key)) {
-      // Hold / one-tap hold = 2. Mashers (incl. one-tap) always = 1.
       const isMasher = note.key === "0G" || note.key === "16" || note.key === "17";
       const holdTwo = !isMasher && (note.key === "0F" || note.tapHold);
       playNotes += holdTwo ? 2 : 1;
@@ -308,7 +307,6 @@ export function Editor() {
     diskStatusRef.current = "Writing…";
     const state = useChart.getState();
     const origin = chartOrigin();
-    // Linked / Syncthing folder: write in place. MDM or loose chart: download.
     const useDisk = origin === "linked" || (origin !== "mdm" && origin !== "loose" && Boolean(syncedSongName()));
     if (useDisk) {
       const wrote = await writeChartFile(name, content);
@@ -328,7 +326,6 @@ export function Editor() {
         state.setBanner("Could not write the chart. Link the folder or synced song again.");
         return;
       }
-      // missing / unsupported while marked linked — fall through to download
     }
     download(name, content, type);
     showDiskStatus(`Downloaded ${name}`, 5000);
@@ -416,13 +413,29 @@ export function Editor() {
     const state = useChart.getState();
     const next = album.charts.find((chart) => chart.name === name);
     if (!next || next.name === album.current) return;
-    await saveBms();
+    const prevName = album.current;
+    const prevText = state.exportBms();
     const charts = album.charts.map((chart) =>
-      chart.name === album.current ? { ...chart, text: state.exportBms() } : chart,
+      chart.name === prevName ? { ...chart, text: prevText } : chart,
     );
+    // Linked / Syncthing: write previous chart in place. Never auto-download on switch.
+    const origin = chartOrigin();
+    const useDisk =
+      origin === "linked" || (origin !== "mdm" && origin !== "loose" && Boolean(syncedSongName()));
+    if (useDisk) {
+      const wrote = await writeChartFile(prevName, prevText);
+      if (wrote === "wrote") {
+        const sync = syncedSongName();
+        showDiskStatus(sync ? `On NAS · ${sync}/${prevName}` : `Local folder · ${prevName}`, 6000);
+      } else if (wrote === "stale") {
+        showDiskStatus(`Not on disk — retry ${prevName}`, 8000);
+      } else if (wrote === "denied") {
+        showDiskStatus("Write denied", 5000);
+      }
+    }
     state.loadText(next.text, next.name);
     setAlbumCharts(charts, next.name);
-    state.setBanner(`Editing ${chartLabel(next.name)}. Saved previous chart first.`);
+    state.setBanner(`Editing ${chartLabel(next.name)}.`);
   }
 
   return (
@@ -463,7 +476,7 @@ export function Editor() {
         <div className="ml-auto flex shrink-0 items-center gap-2">
           {album.charts.length > 1 ? (
             <label className="flex h-8 shrink-0 items-center gap-2 rounded border border-dock-line bg-field px-2 text-sm">
-              Chart
+              Difficulty
               <select
                 className="bg-transparent"
                 value={album.current}
