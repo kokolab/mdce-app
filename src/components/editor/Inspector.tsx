@@ -28,7 +28,7 @@ function Group({ title, children }: { title: string; children: ReactNode }) {
 }
 
 /** Shared label column so Header / Grid / Volume line up. */
-const LABEL = "w-[4.75rem] shrink-0 text-right text-xs text-dock-ink/80";
+const LABEL = "w-16 shrink-0 text-right text-xs text-dock-ink/80";
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -42,6 +42,7 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
 const field = "h-7 min-w-0 flex-1 rounded border border-dock-line bg-field px-2 text-xs text-dock-ink";
 const mono = field + " font-mono";
 const value = "w-9 shrink-0 text-right font-mono text-xs tabular-nums text-dock-ink";
+const btn = "h-7 w-full rounded border border-dock-line bg-field text-xs";
 
 function downloadInfoJson() {
   const text = useChart.getState().exportInfo();
@@ -86,7 +87,7 @@ export function Inspector() {
   const knownScene = SCENES.some((scene) => scene.id === meta.genre);
 
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-4 pt-1 text-dock-ink">
+    <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-4 pt-1 text-dock-ink">
       <Group title="Header">
         <Row label="Title">
           <input value={meta.title} onChange={(event) => patchMeta({ title: event.target.value })} className={field} />
@@ -124,27 +125,15 @@ export function Inspector() {
         <Row label="Level">
           <input value={meta.playlevel} onChange={(event) => patchMeta({ playlevel: event.target.value })} className={mono} />
         </Row>
-        <div className="flex gap-1.5 pl-[calc(4.75rem+0.5rem)]">
-          <button
-            type="button"
-            className="h-7 min-w-0 flex-1 rounded border border-dock-line bg-field text-xs"
-            onClick={() => setInfoOpen(true)}
-          >
-            Edit info.json
-          </button>
-          <button
-            type="button"
-            className="h-7 min-w-0 flex-1 rounded border border-dock-line bg-field text-xs"
-            onClick={downloadInfoJson}
-          >
-            Download info.json
-          </button>
-        </div>
-        <div className="pl-[calc(4.75rem+0.5rem)]">
-          <button type="button" className="h-7 w-full rounded border border-dock-line bg-field text-xs" onClick={() => setHeaderMore(!headerMore)}>
-            {headerMore ? "Collapse…" : "Expand…"}
-          </button>
-        </div>
+        <button type="button" className={btn} onClick={() => setInfoOpen(true)}>
+          Edit info.json
+        </button>
+        <button type="button" className={btn} onClick={downloadInfoJson}>
+          Download info.json
+        </button>
+        <button type="button" className={btn} onClick={() => setHeaderMore(!headerMore)}>
+          {headerMore ? "Collapse…" : "Expand…"}
+        </button>
         {headerMore ? (
           <div className="flex flex-col gap-1.5 border-t border-dock-line/60 pt-1.5">
             <Row label="ChartDesign">
@@ -259,14 +248,12 @@ export function Inspector() {
           <input type="checkbox" checked readOnly />
           <span>Horizontal View</span>
         </label>
-        <div className="pl-[calc(4.75rem+0.5rem)]">
-          <button type="button" className="h-7 w-full rounded border border-dock-line bg-field text-xs" onClick={() => setGridMore(!gridMore)}>
-            {gridMore ? "Collapse…" : "Expand…"}
-          </button>
-        </div>
+        <button type="button" className={btn} onClick={() => setGridMore(!gridMore)}>
+          {gridMore ? "Collapse…" : "Expand…"}
+        </button>
         {gridMore ? (
           <form
-            className="flex gap-1.5 pl-[calc(4.75rem+0.5rem)] pt-0.5"
+            className="flex gap-1.5"
             onSubmit={(event) => {
               event.preventDefault();
               useChart.getState().gotoMeasure(Number(bar) || 0);
