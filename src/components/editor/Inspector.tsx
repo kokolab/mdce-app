@@ -366,7 +366,7 @@ function InfoJsonModal({ onClose }: { onClose: () => void }) {
         if (event.target === event.currentTarget) onClose();
       }}
     >
-      <div className="flex max-h-[min(80dvh,640px)] w-full max-w-2xl flex-col overflow-hidden rounded border border-dock-line bg-field shadow-xl">
+      <div className="flex h-[min(85dvh,720px)] w-full max-w-3xl flex-col overflow-hidden rounded border border-dock-line bg-field shadow-xl">
         <div className="flex h-10 shrink-0 items-center justify-between border-b border-dock-line px-3">
           <span className="text-sm font-medium text-dock-ink">info.json</span>
           <button
@@ -385,7 +385,7 @@ function InfoJsonModal({ onClose }: { onClose: () => void }) {
             setError("");
           }}
           spellCheck={false}
-          className="min-h-0 flex-1 resize-none bg-chart p-3 font-mono text-xs leading-relaxed text-paper outline-none"
+          className="min-h-0 flex-1 resize-none overflow-auto bg-chart p-3 font-mono text-xs leading-relaxed text-paper outline-none"
           aria-label="info.json editor"
         />
         {error ? <p className="shrink-0 border-t border-dock-line px-3 py-1.5 text-xs text-red-400">{error}</p> : null}
