@@ -1,1 +1,1 @@
-RESTORED_FROM_TMP
+@/tmp/bms_final.ts
