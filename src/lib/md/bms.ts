@@ -570,13 +570,14 @@ export function infoJson(meta: Meta): string {
     unlockLevel: meta.unlockLevel || "0",
   };
 
-  // 2-space indent; keep searchTags on one line.
+  // 2-space indent; keep searchTags on one line with spaces after commas.
   const lines: string[] = ["{"];
   const entries = Object.entries(file);
   entries.forEach(([key, value], index) => {
     const comma = index < entries.length - 1 ? "," : "";
-    if (key === "searchTags") {
-      lines.push(`  "searchTags": ${JSON.stringify(value)}${comma}`);
+    if (key === "searchTags" && Array.isArray(value)) {
+      const inner = value.map((tag) => JSON.stringify(String(tag))).join(", ");
+      lines.push(`  "searchTags": [${inner}]${comma}`);
     } else {
       lines.push(`  ${JSON.stringify(key)}: ${JSON.stringify(value)}${comma}`);
     }
