@@ -3,15 +3,12 @@ import { rememberInfo } from "@/lib/md/bms";
 import { applyLinkedMusic } from "@/lib/md/musicLink";
 import { isChartDirty, persistChart, restoreChart, useChart } from "@/lib/md/store";
 import { currentChartName, setChartOrigin } from "@/lib/md/pack";
-import { loadChartFolder } from "@/lib/md/chartFolder";
-import { NotePicker } from "./NotePicker";
 import { Roll } from "./Roll";
 import { Inspector } from "./Inspector";
 import { MenuBar, MobileMenu } from "./MenuBar";
 import { Transport } from "./Transport";
 import { Stage } from "./Stage";
 import { ShortcutsOverlay } from "./ShortcutsOverlay";
-import { FolderPicker } from "./FolderPicker";
 import { SongCard } from "./SongCard";
 
 export function Editor() {
@@ -19,17 +16,16 @@ export function Editor() {
   const setSongOpen = useChart((s) => s.setSongOpen);
   const showStage = useChart((s) => s.showStage);
   const banner = useChart((s) => s.banner);
-  const reset = useChart((s) => s.reset);
   const loadText = useChart((s) => s.loadText);
   const exportBms = useChart((s) => s.exportBms);
   const exportInfo = useChart((s) => s.exportInfo);
   const setSongName = useChart((s) => s.setSongName);
   const patchMeta = useChart((s) => s.patchMeta);
+  const setBanner = useChart((s) => s.setBanner);
 
   const fileInput = useRef<HTMLInputElement>(null);
   const audioInput = useRef<HTMLInputElement>(null);
   const [shortcuts, setShortcuts] = useState(false);
-  const [folderOpen, setFolderOpen] = useState(false);
 
   useEffect(() => {
     restoreChart();
@@ -107,7 +103,7 @@ export function Editor() {
   const menuProps = {
     onOpen: () => fileInput.current?.click(),
     onSong: () => audioInput.current?.click(),
-    onLinkFolder: () => setFolderOpen(true),
+    onLinkFolder: () => setBanner("Link folder needs the full editor restore — use Load mdm/bms for now."),
     onSaveBms: () => download(currentChartName() || "chart.bms", exportBms()),
     onSaveInfo: () => download("info.json", exportInfo()),
     onShortcuts: () => setShortcuts(true),
@@ -132,23 +128,6 @@ export function Editor() {
       </div>
       {songOpen && <SongCard onClose={() => setSongOpen(false)} />}
       {shortcuts && <ShortcutsOverlay onClose={() => setShortcuts(false)} />}
-      {folderOpen && (
-        <FolderPicker
-          onClose={() => setFolderOpen(false)}
-          onPick={async (handle) => {
-            const result = await loadChartFolder(handle);
-            if (result) {
-              loadText(result.bms, result.name);
-              if (result.info) rememberInfo(result.info);
-              if (result.audio) {
-                setSongName(result.audio.name);
-                void applyLinkedMusic(result.audio);
-              }
-            }
-            setFolderOpen(false);
-          }}
-        />
-      )}
       <input
         ref={fileInput}
         type="file"
