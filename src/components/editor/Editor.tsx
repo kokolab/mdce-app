@@ -117,21 +117,23 @@ export function Editor() {
   };
 
   return (
-    <div className="flex h-full flex-col bg-zinc-950 text-zinc-100">
+    <div className="flex h-dvh flex-col bg-ink text-paper">
       <MenuBar {...menuProps} />
       <div className="flex min-h-0 flex-1">
-        <div className="flex min-w-0 flex-1 flex-col">
-          <div className="flex items-center gap-2 border-b border-zinc-800 px-2 py-1 lg:hidden">
+        <div className="chart-bg flex min-h-0 min-w-0 flex-1 flex-col">
+          <div className="flex items-center gap-2 border-b border-dock-line bg-menubar px-2 py-1 text-dock-ink lg:hidden">
             <MobileMenu {...menuProps} />
           </div>
           <Transport playheadRef={playheadRef} scrollerRef={scrollerRef} />
-          <div className="relative min-h-0 flex-1">
+          <div className="relative min-h-0 flex-1 overflow-hidden">
             <Roll playheadRef={playheadRef} scrollerRef={scrollerRef} />
             {showStage && <Stage />}
           </div>
-          <div className="border-t border-zinc-800 px-3 py-1 text-xs text-zinc-400">{banner}</div>
+          <div className="border-t border-line px-3 py-1 text-xs text-mute">{banner}</div>
         </div>
-        <Inspector />
+        <aside className="dock hidden w-80 shrink-0 flex-col overflow-hidden border-l border-dock-line lg:flex">
+          <Inspector />
+        </aside>
       </div>
       {songOpen && <SongCard onClose={() => setSongOpen(false)} />}
       {shortcuts && <ShortcutsOverlay onClose={() => setShortcuts(false)} />}
