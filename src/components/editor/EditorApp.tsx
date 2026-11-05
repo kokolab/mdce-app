@@ -1,11 +1,11 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { chartLabel, readAlbum } from "@/lib/md/album";
 import { chartOrigin, currentChartName, setAlbumCharts, setChartOrigin, useAlbumCharts } from "@/lib/md/pack";
-import { declaredScene, musicFileName, rememberInfo, type Meta } from "@/lib/md/bms";
+import { declaredScene, musicFileName, rememberInfo } from "@/lib/md/bms";
 import { isGearNote, isPlayNote, normalizeScene, sceneFromNotes } from "@/lib/md/catalog";
 import { player } from "@/lib/md/player";
 import { linkChartFolder, listLinkedCharts, pickDefaultChart, serverCharts, setSyncedSongName, syncedSongName, writeChartFile } from "@/lib/md/chartFolder";
-import { applyLinkedMusic, bootMusic } from "@/lib/md/musicLink";
+import { applyLinkedMusic, bootMusic, clearLoadedMusic } from "@/lib/md/musicLink";
 import { isChartDirty, persistChart, restoreChart, useChart } from "@/lib/md/store";
 import { NotePicker } from "./NotePicker";
 import { Roll } from "./Roll";
@@ -64,13 +64,8 @@ export function EditorApp() {
   const notes = useChart((state) => state.notes);
   const songOpen = useChart((state) => state.songOpen);
   const setSongOpen = useChart((state) => state.setSongOpen);
-  const selectedId = useChart((state) => state.selectedId);
-  const brush = useChart((state) => state.brush);
-  const showIcons = useChart((state) => state.showIcons);
-  const tool = useChart((state) => state.tool);
   const songName = useChart((state) => state.songName);
   const banner = useChart((state) => state.banner);
-  const selected = notes.find((note) => note.id === selectedId);
   const album = useAlbumCharts();
   const mode = useEditorMode();
   let playNotes = 0;
@@ -152,47 +147,67 @@ export function EditorApp() {
           state.setBanner("That file is not a chart pack. Use a .mdm (or .md zip) with the chart and music inside.");
           continue;
         }
+        // Always stop previous song when opening a new pack.
+        await clearLoadedMusic();
         state.loadText(pack.bmsText, pack.bmsName);
         setAlbumCharts(pack.charts, pack.bmsName);
         setChartOrigin("mdm");
         loadedChart = true;
+        const fromChart = declaredScene(pack.bmsText) ?? sceneFromNotes(useChart.getState().notes);
         if (pack.infoText) await takeFile(new File([pack.infoText], "info.json", { type: "application/json" }));
-        if (pack.music) {
-          state.setSongName(pack.music.name);
-          void applyLinkedMusic(pack.music);
-        }
-        state.setBanner(`Opened pack · ${pack.bmsName}`);
-      } else if (/\.(bms|bme|bml)$/i.test(lower)) {
-        const text = await file.text();
-        state.loadText(text, file.name);
+        if (fromChart) useChart.getState().patchMeta({ genre: fromChart });
+        if (pack.music) audio.push(pack.music);
+        continue;
+      }
+      if (lower.endsWith(".bms") || lower.endsWith(".bme") || lower.endsWith(".bml")) {
+        await clearLoadedMusic();
+        state.loadText(await file.text(), file.name);
         setAlbumCharts([], "");
         setChartOrigin("loose");
         loadedChart = true;
-        state.setBanner(`Opened ${file.name}`);
-      } else if (/info\.json$/i.test(lower) || lower.endsWith(".json")) {
-        await takeFile(file);
-      } else if (/\.(ogg|mp3|wav|flac|m4a)$/i.test(lower)) {
-        audio.push(file);
+        continue;
       }
+      if (lower.endsWith(".json")) {
+        await takeFile(file);
+        continue;
+      }
+      if (file.type.startsWith("audio/") || /\.(ogg|mp3|wav|flac|m4a)$/i.test(file.name)) audio.push(file);
     }
     const chart = useChart.getState();
     const wanted = musicFileName(chart.wavNames ?? {}, chart.notes);
-    if (wanted && audio.length) {
-      const match = audio.find((f) => f.name.toLowerCase() === wanted.toLowerCase()) ?? audio[0];
-      chart.setSongName(match.name);
-      void applyLinkedMusic(match);
-    } else if (audio.length && !loadedChart) {
-      chart.setSongName(audio[0].name);
-      void applyLinkedMusic(audio[0]);
+    const match = wanted ? audio.find((file) => file.name.toLowerCase() === wanted.toLowerCase()) : undefined;
+    const song = match ?? (audio.length === 1 ? audio[0] : undefined);
+    if (song) {
+      await player.ensure();
+      await player.loadMusic(song);
+      chart.setSongName(song.name);
+      chart.setBanner(
+        loadedChart
+          ? `Opened ${chartLabel(currentChartName())}. Song ready: ${song.name}. Press play.`
+          : `Song ready: ${song.name}. Press play.`,
+      );
+      return;
     }
+    if (loadedChart) {
+      chart.setBanner(
+        wanted
+          ? `Chart loaded. Hits play from built-in sounds. The song is a separate file named ${wanted} — drop it with the chart.`
+          : "Chart loaded. Hits play from built-in sounds. The song is not inside the .bms — drop the audio file with the chart.",
+      );
+      return;
+    }
+    if (files.length === 1) await takeFile(files[0]);
   }
 
   async function takeFile(file: File) {
     const lower = file.name.toLowerCase();
     const state = useChart.getState();
     if (/\.(ogg|mp3|wav|flac|m4a)$/i.test(lower)) {
+      await clearLoadedMusic();
+      await player.ensure();
+      await player.loadMusic(file);
       state.setSongName(file.name);
-      void applyLinkedMusic(file);
+      state.setBanner(`Song ready: ${file.name}. Press play.`);
       return;
     }
     if (/info\.json$/i.test(lower) || (lower.endsWith(".json") && lower.includes("info"))) {
@@ -219,6 +234,7 @@ export function EditorApp() {
       return;
     }
     if (/\.(bms|bme|bml)$/i.test(lower)) {
+      await clearLoadedMusic();
       const text = await file.text();
       state.loadText(text, file.name);
       setAlbumCharts([], "");
@@ -306,6 +322,8 @@ export function EditorApp() {
     if (!pick) return;
     const state = useChart.getState();
     try {
+      // Stop previous track before linking a different folder.
+      await clearLoadedMusic();
       const linked = await linkChartFolder(pick);
       if (!linked) {
         state.setBanner(`Could not link ${pick}`);
@@ -322,7 +340,8 @@ export function EditorApp() {
       }
       state.loadText(next.text, next.name);
       setAlbumCharts(charts, next.name);
-      state.setBanner(`Editing ${chartLabel(next.name)}.`);
+      const head = `Editing ${chartLabel(next.name)}.`;
+      state.setBanner(await applyLinkedMusic(head));
     } catch {
       state.setBanner(`Failed to link ${pick}`);
     }
@@ -330,7 +349,12 @@ export function EditorApp() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "?" && !e.ctrlKey && !e.metaKey && !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement)) {
+      if (
+        e.key === "?" &&
+        !e.ctrlKey &&
+        !e.metaKey &&
+        !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement)
+      ) {
         setShortcutsOpen((s) => !s);
       }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
@@ -344,7 +368,7 @@ export function EditorApp() {
 
   return (
     <div
-      className="flex h-dvh flex-col bg-ink text-paper"
+      className="flex h-dvh flex-col overflow-hidden bg-chart text-paper"
       onDragOver={(event) => {
         event.preventDefault();
         event.dataTransfer.dropEffect = "copy";
@@ -371,36 +395,75 @@ export function EditorApp() {
           onSaveInfo={() => void saveInfo()}
           onShortcuts={() => setShortcutsOpen(true)}
         />
-        <ModeBadge mode={mode} />
+        <Transport compact live={false} playheadRef={playheadRef} scrollerRef={scrollerRef} />
         <SaveButton mode={mode} onSave={() => void saveBms()} compact />
+        <button type="button" className="h-10 shrink-0 rounded border border-dock-line bg-field px-3 text-sm" onClick={() => setNotesOpen(true)}>
+          Notes
+        </button>
+        <button type="button" className="h-10 shrink-0 rounded border border-dock-line bg-field px-3 text-sm" onClick={() => setSongOpen(!songOpen)}>
+          Panel
+        </button>
       </div>
       <div className="hidden h-11 items-center gap-2 overflow-x-auto border-b border-dock-line bg-menubar px-2 text-dock-ink lg:flex">
         <Transport playheadRef={playheadRef} scrollerRef={scrollerRef} />
-        <ModeBadge mode={mode} />
-        <SaveButton mode={mode} onSave={() => void saveBms()} />
-        <button
-          type="button"
-          className={"h-8 shrink-0 rounded border px-3 text-sm " + (side === "notes" ? "border-pink bg-pink/20 text-dock-ink" : "border-dock-line bg-field text-dock-ink")}
-          onClick={() => {
-            const next = side === "notes" ? null : "notes";
-            setSide(next);
-            localStorage.setItem("mdce-side", next ?? "closed");
-          }}
-        >
-          Notes
-        </button>
-        <button
-          type="button"
-          className={"h-8 shrink-0 rounded border px-3 text-sm " + (side === "panel" ? "border-pink bg-pink/20 text-dock-ink" : "border-dock-line bg-field text-dock-ink")}
-          onClick={() => {
-            const next = side === "panel" ? null : "panel";
-            setSide(next);
-            localStorage.setItem("mdce-side", next ?? "closed");
-          }}
-        >
-          Panel
-        </button>
-        <span className="ml-auto shrink-0 text-mute">Stagepen</span>
+        <div className="ml-auto flex shrink-0 items-center gap-2">
+          {album.charts.length > 1 ? (
+            <label className="flex h-8 shrink-0 items-center gap-1.5 rounded border border-dock-line bg-field px-2 text-sm font-medium">
+              <span className="text-mute">Difficulty</span>
+              <select
+                className="min-w-24 bg-transparent font-mono"
+                value={album.current}
+                onChange={(event) => {
+                  const name = event.target.value;
+                  const chart = album.charts.find((c) => c.name === name);
+                  if (!chart) return;
+                  void (async () => {
+                    await clearLoadedMusic();
+                    useChart.getState().loadText(chart.text, chart.name);
+                    setAlbumCharts(album.charts, chart.name);
+                    useChart.getState().setBanner(await applyLinkedMusic(`Editing ${chartLabel(chart.name)}.`));
+                  })();
+                }}
+              >
+                {album.charts.map((chart) => (
+                  <option key={chart.name} value={chart.name}>
+                    {chartLabel(chart.name, useChart.getState().meta)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+          <ModeBadge mode={mode} />
+          <SaveButton mode={mode} onSave={() => void saveBms()} />
+          <button
+            type="button"
+            className={
+              "h-8 shrink-0 rounded border px-3 text-sm " +
+              (side === "notes" ? "border-pink bg-pink/20 text-dock-ink" : "border-dock-line bg-field text-dock-ink")
+            }
+            onClick={() => {
+              const next = side === "notes" ? null : "notes";
+              setSide(next);
+              localStorage.setItem("mdce-side", next ?? "closed");
+            }}
+          >
+            Notes
+          </button>
+          <button
+            type="button"
+            className={
+              "h-8 shrink-0 rounded border px-3 text-sm " +
+              (side === "panel" ? "border-pink bg-pink/20 text-dock-ink" : "border-dock-line bg-field text-dock-ink")
+            }
+            onClick={() => {
+              const next = side === "panel" ? null : "panel";
+              setSide(next);
+              localStorage.setItem("mdce-side", next ?? "closed");
+            }}
+          >
+            Panel
+          </button>
+        </div>
       </div>
       <div className="flex min-h-0 flex-1">
         <div className="chart-bg flex min-h-0 min-w-0 flex-1 flex-col">
@@ -457,6 +520,7 @@ export function EditorApp() {
           onChange={setFolderPick}
           onLink={() => void confirmFolderPick()}
           onClear={() => {
+            void clearLoadedMusic();
             setSyncedSongName("");
             setChartOrigin("");
             setFolderPicker(null);
