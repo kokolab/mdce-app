@@ -90,7 +90,8 @@ export function Transport({
   compact?: boolean;
   live?: boolean;
 }) {
-  const [, setBar] = useState(0);
+  const [bar, setBar] = useState(0);
+  const [gotoBar, setGotoBar] = useState("0");
   const clockRef = useRef<HTMLSpanElement>(null);
   const divide = useChart((state) => state.divide);
   const setDivide = useChart((state) => state.setDivide);
@@ -257,6 +258,26 @@ export function Transport({
     };
   }, []);
 
+  useEffect(() => {
+    setGotoBar(String(bar));
+  }, [bar]);
+
+  function goToMeasure() {
+    const measure = Math.max(0, Math.floor(Number(gotoBar) || 0));
+    useChart.getState().gotoMeasure(measure);
+    setBar(measure);
+    setGotoBar(String(measure));
+    const scroller = scrollerRef.current;
+    if (scroller) {
+      const state = useChart.getState();
+      const tick = measureStart(measure, state.sigs);
+      const x = tickToX(tick, livePx.current);
+      scroller.scrollLeft = Math.max(0, x - 48);
+      livePx.camera = scroller.scrollLeft;
+      livePx.redraw?.();
+    }
+  }
+
   return (
     <div className={"flex shrink-0 items-center " + (compact ? "gap-1" : "gap-1.5")}>
       <div className="flex items-center gap-1">
@@ -334,6 +355,26 @@ export function Transport({
               {[1, 2, 4, 6, 8, 12, 16, 24, 32, 48, 64, 96, 192].includes(divide) ? null : <option value={divide}>{divide}</option>}
             </select>
           </label>
+          <form
+            className="flex h-8 items-center gap-1.5 rounded border border-dock-line bg-field px-2 text-sm text-dock-ink"
+            onSubmit={(event) => {
+              event.preventDefault();
+              goToMeasure();
+            }}
+          >
+            <span className="shrink-0">Measure</span>
+            <input
+              type="number"
+              min={0}
+              value={gotoBar}
+              onChange={(event) => setGotoBar(event.target.value)}
+              aria-label="Go to measure"
+              className="h-6 w-14 rounded border border-dock-line bg-chart px-1 font-mono text-sm text-dock-ink tabular-nums"
+            />
+            <button type="submit" className="h-6 rounded border border-dock-line px-2 text-xs">
+              Go
+            </button>
+          </form>
           <div className="flex h-8 items-center overflow-hidden rounded border border-dock-line bg-field">
             <button type="button" className="h-8 px-2 text-sm text-dock-ink" onClick={() => setPx(px - 24)} aria-label="Zoom out">
               −
