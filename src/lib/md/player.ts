@@ -18,6 +18,16 @@ function clearSkipBootMusic() {
   }
 }
 
+/** Earliest MUSIC-row (bgm / key 10) tick, or null if the chart has no music mark. */
+function musicMarkTick(notes: ChartNote[]): number | null {
+  let tick: number | null = null;
+  for (const note of notes) {
+    if (note.lane !== "bgm" && note.key !== "10") continue;
+    if (tick == null || note.tick < tick) tick = note.tick;
+  }
+  return tick;
+}
+
 export class Player {
   private ctx: AudioContext | null = null;
   private buffers = new Map<string, AudioBuffer>();
@@ -86,7 +96,7 @@ export class Player {
     const nowNormal = Math.abs(next - 1) < 0.001;
     if (this.playing && this.musicArmed && wasNormal !== nowNormal) {
       this.stopMusic();
-      this.syncMusic(this.musicAt);
+      if (this.musicAt != null) this.syncMusic(this.musicAt);
     } else if (this.song && !nowNormal) {
       holdPitch(this.song);
       this.song.playbackRate = next;
@@ -133,7 +143,7 @@ export class Player {
     this.music = decoded;
     this.musicName = file.name;
     this.musicArmed = false;
-    this.musicAt = 0;
+    this.musicAt = null;
     clearSkipBootMusic();
     await rememberSong(file).catch(() => undefined);
     // New may have cleared while we were writing IndexedDB — drop the re-saved blob.
@@ -163,7 +173,7 @@ export class Player {
     this.music = null;
     this.musicName = "";
     this.musicArmed = false;
-    this.musicAt = 0;
+    this.musicAt = null;
     this.musicNode = null;
     this.musicGain = null;
   }
@@ -247,8 +257,14 @@ export class Player {
     if (!this.playing || !this.ctx) return this.originSong;
     const now = this.songSeconds();
     const horizon = now + this.look * this.rate;
+    // MDBMSC / Custom Albums: BGM only starts if a music mark exists on the MUSIC row.
     this.musicAt = this.songStart(notes, points, stops);
-    this.syncMusic(this.musicAt);
+    if (this.musicAt == null) {
+      // No mark — keep any loaded file silent for this playthrough.
+      if (this.musicArmed) this.stopMusic();
+    } else {
+      this.syncMusic(this.musicAt);
+    }
     const geminiHeard = new Set<string>();
     for (const note of notes) {
       if (note.lane === "bpm" || note.lane === "bgm" || note.key === "10") continue;
@@ -279,22 +295,18 @@ export class Player {
   }
 
   private musicArmed = false;
-  private musicAt = 0;
+  /** Chart time (seconds) where BGM should start, or null when no MUSIC note exists. */
+  private musicAt: number | null = null;
 
-  private songStart(notes: ChartNote[], points: TempoPoint[], stops: StopPoint[]): number {
-    let tick: number | null = null;
-    for (const note of notes) {
-      if (note.lane !== "bgm") continue;
-      if (tick == null || note.tick < tick) tick = note.tick;
-    }
-    if (tick == null) {
-      for (const note of notes) {
-        if (note.key !== "10") continue;
-        if (tick == null || note.tick < tick) tick = note.tick;
-      }
-    }
-    const at = tick == null ? 0 : secondsAt(tick, points, stops);
-    return at + this.musicOffset;
+  /**
+   * Seconds on the chart timeline where the audio file should start.
+   * Returns null when there is no music mark — matching MDBMSC / Custom Albums,
+   * which only play the song if a note is present on the MUSIC (bgm) row.
+   */
+  private songStart(notes: ChartNote[], points: TempoPoint[], stops: StopPoint[]): number | null {
+    const tick = musicMarkTick(notes);
+    if (tick == null) return null;
+    return secondsAt(tick, points, stops) + this.musicOffset;
   }
 
   syncMusic(musicStart: number) {
