@@ -20,7 +20,7 @@ export function FolderPicker({
         onClick={(event) => event.stopPropagation()}
       >
         <h2 className="text-base font-semibold text-paper">Link chart folder</h2>
-        <p className="mt-1 text-sm text-mute">Pick a folder from Custom_Albums on the NAS.</p>
+        <p className="mt-1 text-sm text-mute">Pick a song folder inside Custom_Albums, next to the Stagepen program.</p>
         <label className="mt-4 flex flex-col gap-2 text-sm">
           <span>Available folders</span>
           <select
