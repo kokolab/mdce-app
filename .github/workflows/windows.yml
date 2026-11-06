@@ -27,10 +27,10 @@ jobs:
           projectPath: .
           tagName: ${{ github.ref_type == 'tag' && github.ref_name || 'v0.1.0' }}
           releaseName: MDCE ${{ github.ref_type == 'tag' && github.ref_name || 'v0.1.0' }}
-          releaseBody: "Windows build. Run MDCE_0.1.0_x64_setup.exe, then use File → Link chart folder and pick your existing chart folder."
+          releaseBody: "Windows installer. Run MDCE_0.1.0_x64_setup.exe, then use File → Link chart folder and pick your existing chart folder."
           releaseDraft: false
           prerelease: false
-      - name: Publish MDCE.exe and the renamed installer
+      - name: Publish the installer
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -40,10 +40,11 @@ jobs:
           $tag = if ("${{ github.ref_type }}" -eq "tag") { "${{ github.ref_name }}" } else { "v0.1.0" }
           $setup = Get-ChildItem "src-tauri/target/release/bundle/nsis/*-setup.exe" | Select-Object -First 1
           Copy-Item $setup.FullName "MDCE_0.1.0_x64_setup.exe"
-          gh release upload $tag "src-tauri/target/release/MDCE.exe" "MDCE_0.1.0_x64_setup.exe" --clobber --repo ${{ github.repository }}
+          gh release upload $tag "MDCE_0.1.0_x64_setup.exe" --clobber --repo ${{ github.repository }}
           if ($setup.Name -ne "MDCE_0.1.0_x64_setup.exe") {
             gh release delete-asset $tag $setup.Name --yes --repo ${{ github.repository }}
           }
-          gh release delete-asset $tag "stagepen.exe" --yes --repo ${{ github.repository }} 2>$null
-          gh release delete-asset $tag "Stagepen_0.1.0_x64-setup.exe" --yes --repo ${{ github.repository }} 2>$null
+          gh release delete-asset $tag "MDCE.exe" --yes --repo ${{ github.repository }}
+          gh release delete-asset $tag "stagepen.exe" --yes --repo ${{ github.repository }}
+          gh release delete-asset $tag "Stagepen_0.1.0_x64-setup.exe" --yes --repo ${{ github.repository }}
 
