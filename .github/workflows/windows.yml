@@ -50,8 +50,12 @@ jobs:
           if ($setup.Name -ne $name) {
             gh release delete-asset $tag $setup.Name --yes --repo ${{ github.repository }}
           }
-          gh release delete-asset $tag "MDCE.exe" --yes --repo ${{ github.repository }}
-          gh release delete-asset $tag "stagepen.exe" --yes --repo ${{ github.repository }}
+          foreach ($old in @("MDCE.exe", "stagepen.exe")) {
+            gh release delete-asset $tag $old --yes --repo ${{ github.repository }}
+            if ($LASTEXITCODE -ne 0) { Write-Host "no $old on this release" }
+          }
+          Write-Host "installer published"
+
 
   linux:
     runs-on: ubuntu-22.04
