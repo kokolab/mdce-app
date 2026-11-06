@@ -146,41 +146,54 @@ export function Transport({
         stopsHeader = state.headerExtras;
         stopsExtras = state.extras;
         stopsSigs = state.sigs;
-        stops = stopPoints(state.headerExtras, state.extras, state.sigs);
+        stops = stopPoints(state.headerExtras ?? [], state.extras ?? [], state.sigs);
       }
-      const tick = player.tickFor(points, stops);
-      const view = scrollerRef.current?.clientWidth || 1;
-      const amount = state.followAmount;
-      const tight = state.followTight;
-      const anchor = view * (tight ? 0.12 + (1 - amount) * 0.38 : 0.22 + (1 - amount) * 0.28);
-      const target = tickToX(tick, state.px) - anchor;
+      player.pump(state.notes, points, stops);
+      const tick = Math.max(0, player.tickFor(points, stops));
+      if (tick >= chartEndTick(state.notes, state.sigs)) {
+        stop();
+        return;
+      }
+      const node = playheadRef.current;
+      if (node) node.style.setProperty("--play", String(tick));
       const scroller = scrollerRef.current;
-      const sheet = sheetOf(scroller, playheadRef.current);
-      if (scroller && state.followPlay) panFollow(scroller, sheet, Math.max(0, target));
+      if (scroller && state.followPlay) {
+        const x = tickToX(tick, livePx.current);
+        const view = scroller.clientWidth || 1;
+        const amount = state.followAmount;
+        const tight = state.followTight;
+        const anchor = view * (tight ? 0.12 + (1 - amount) * 0.38 : 0.22 + (1 - amount) * 0.28);
+        panFollow(scroller, sheetOf(scroller, node), Math.max(0, x - anchor));
+      } else {
+        clearPan(scroller, node);
+      }
       if (now - lastPaint > 180) {
         lastPaint = now;
         setBar(locate(tick, state.sigs, state.measureCount).measure);
-        if (!clockTimer) {
-          paintClock();
-          clockTimer = window.setInterval(paintClock, 100);
-        }
       }
     };
-    frame = requestAnimationFrame(loop);
+    const start = () => {
+      const state = useChart.getState();
+      points = tempoPoints(state.notes, state.meta.bpm);
+      stops = stopPoints(state.headerExtras ?? [], state.extras ?? [], state.sigs);
+      if (!frame && player.playing) frame = requestAnimationFrame(loop);
+      if (!clockTimer && player.playing) clockTimer = window.setInterval(paintClock, 100);
+    };
+    document.addEventListener("stagepen-playback", start);
     return () => {
       alive = false;
       if (frame) cancelAnimationFrame(frame);
-      window.clearInterval(clockTimer);
+      if (clockTimer) window.clearInterval(clockTimer);
+      document.removeEventListener("stagepen-playback", start);
     };
-  }, [live, playheadRef, scrollerRef]);
+  }, [playheadRef, scrollerRef, live]);
 
-  async function playFrom(tick: number) {
+  async function playFrom(seconds: number) {
     const state = useChart.getState();
-    const start = Math.max(0, tick);
     await player.ensure();
-    player.seek(start);
-    const end = chartEndTick(state.notes, state.sigs);
-    await player.play(start, end);
+    await player.loadUsed(state.notes);
+    player.play(Math.max(0, seconds));
+    document.dispatchEvent(new Event("stagepen-playback"));
   }
 
   async function playStart() {
@@ -208,38 +221,56 @@ export function Transport({
       measure = index;
     }
     const start = measureStart(measure, state.sigs);
-    await playFrom(start);
+    const points = tempoPoints(state.notes, state.meta.bpm);
+    const stops = stopPoints(state.headerExtras ?? [], state.extras ?? [], state.sigs);
+    await playFrom(secondsAt(start, points, stops));
   }
 
   function stop() {
     player.stop();
-    clearPan(scrollerRef.current, playheadRef.current);
     if (clockRef.current) clockRef.current.textContent = formatClock(0);
+    setBar(0);
+    playheadRef.current?.style.setProperty("--play", "0");
+    clearPan(scrollerRef.current, playheadRef.current);
   }
 
+  const playStartRef = useRef(playStart);
+  playStartRef.current = playStart;
+
   useEffect(() => {
+    if (!live) return;
     const onKey = (event: KeyboardEvent) => {
-      if (typingTarget(event.target)) return;
-      if (event.code === "Space") {
-        event.preventDefault();
-        if (player.playing) stop();
-        else void playStart();
-      }
+      if (event.code !== "Space" || typingTarget(event.target)) return;
+      event.preventDefault();
+      if (player.playing) stop();
+      else void playStartRef.current();
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
+    const onToggle = () => {
+      if (player.playing) stop();
+      else void playStartRef.current();
+    };
+    const onStop = () => stop();
+    document.addEventListener("stagepen-toggle-play", onToggle);
+    document.addEventListener("stagepen-stop", onStop);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.removeEventListener("stagepen-toggle-play", onToggle);
+      document.removeEventListener("stagepen-stop", onStop);
+    };
+  }, [live]);
 
   return (
-    <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
-      <div className="flex shrink-0 items-center gap-1">
-        <button type="button" onClick={() => void playStart()} className={toolButton + " border-dock-line bg-field"} aria-label="Play from start">
+    <div className={"flex shrink-0 items-center " + (compact ? "gap-1" : "gap-1.5")}>
+      <div className="flex items-center gap-1">
+        <button type="button" onClick={() => void playStart()} className={toolButton + " border-dock-line bg-field"} aria-label="Play from the beginning">
           <PlayStartIcon />
           {compact ? null : "Play"}
         </button>
         {compact ? null : (
           <button type="button" onClick={() => void playMeasure()} className={toolButton + " border-dock-line bg-field"} aria-label="Play from the measure on screen">
             <PlayMeasureIcon />
+            Measure
           </button>
         )}
         <button type="button" onClick={stop} className={toolButton + " border-dock-line bg-field"} aria-label="Stop">
@@ -247,13 +278,12 @@ export function Transport({
           {compact ? null : "Stop"}
         </button>
       </div>
-      {compact ? null : <span className="mx-0.5 h-5 w-px bg-dock-line" aria-hidden />}
       <div className="flex h-8 items-center gap-1 rounded border border-dock-line bg-field px-1 text-sm text-dock-ink" title={`Playback speed. 1.00x matches this chart at ${chartBpm} BPM.`}>
-        <button type="button" className="h-7 rounded px-1.5 text-xs" onClick={() => useChart.getState().setBgmSpeed(Math.max(0.25, Math.round((bgmSpeed - 0.05) * 100) / 100))}>
+        <button type="button" className="h-6 w-6 rounded border border-dock-line" aria-label="Slower" onClick={() => useChart.getState().setBgmSpeed(Math.max(0.25, Math.round((bgmSpeed - 0.05) * 100) / 100))}>
           −
         </button>
         <span className="min-w-[3.25rem] text-center font-mono tabular-nums">{bgmSpeed.toFixed(2)}x</span>
-        <button type="button" className="h-7 rounded px-1.5 text-xs" onClick={() => useChart.getState().setBgmSpeed(Math.min(2, Math.round((bgmSpeed + 0.05) * 100) / 100))}>
+        <button type="button" className="h-6 w-6 rounded border border-dock-line" aria-label="Faster" onClick={() => useChart.getState().setBgmSpeed(Math.min(2, Math.round((bgmSpeed + 0.05) * 100) / 100))}>
           +
         </button>
       </div>
