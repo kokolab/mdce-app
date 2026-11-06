@@ -1,4 +1,4 @@
-name: Windows installer
+name: Release
 
 on:
   workflow_dispatch:
@@ -7,7 +7,7 @@ on:
       - "v*"
 
 jobs:
-  build:
+  windows:
     runs-on: windows-latest
     permissions:
       contents: write
@@ -25,28 +25,102 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           projectPath: .
-          tagName: ${{ github.ref_type == 'tag' && github.ref_name || 'v0.1.0' }}
-          releaseName: MDCE ${{ github.ref_type == 'tag' && github.ref_name || 'v0.1.0' }}
-          releaseBody: "Windows installer. Run MDCE_0.1.0_x64_setup.exe, then use File → Link chart folder and pick your existing chart folder."
+          tagName: ${{ github.ref_type == 'tag' && github.ref_name || 'v0.1.1' }}
+          releaseName: MDCE ${{ github.ref_type == 'tag' && github.ref_name || 'v0.1.1' }}
+          releaseBody: |
+            Windows: run MDCE_0.1.1_x64_setup.exe.
+            Linux: install the .deb or .rpm, or run the .AppImage. The .AppImage needs WebKitGTK 4.1.
+            Then use File → Link chart folder and pick your chart folder.
+            SHA256.txt lists the checksum for each file.
           releaseDraft: false
           prerelease: false
-      - name: Publish the installer
+      - name: Publish the Windows installer
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           $ErrorActionPreference = "Continue"
           $PSNativeCommandUseErrorActionPreference = $false
-          $tag = if ("${{ github.ref_type }}" -eq "tag") { "${{ github.ref_name }}" } else { "v0.1.0" }
+          $version = (Get-Content src-tauri/tauri.conf.json | ConvertFrom-Json).version
+          $tag = if ("${{ github.ref_type }}" -eq "tag") { "${{ github.ref_name }}" } else { "v$version" }
+          $name = "MDCE_${version}_x64_setup.exe"
           $setup = Get-ChildItem "src-tauri/target/release/bundle/nsis/*-setup.exe" | Select-Object -First 1
-          Copy-Item $setup.FullName "MDCE_0.1.0_x64_setup.exe"
-          $hash = (Get-FileHash "MDCE_0.1.0_x64_setup.exe" -Algorithm SHA256).Hash.ToLower()
-          Set-Content -NoNewline -Path "SHA256.txt" -Value "$hash  MDCE_0.1.0_x64_setup.exe`n"
-          gh release upload $tag "MDCE_0.1.0_x64_setup.exe" "SHA256.txt" --clobber --repo ${{ github.repository }}
-          if ($setup.Name -ne "MDCE_0.1.0_x64_setup.exe") {
+          Copy-Item $setup.FullName $name
+          gh release upload $tag $name --clobber --repo ${{ github.repository }}
+          if ($setup.Name -ne $name) {
             gh release delete-asset $tag $setup.Name --yes --repo ${{ github.repository }}
           }
           gh release delete-asset $tag "MDCE.exe" --yes --repo ${{ github.repository }}
           gh release delete-asset $tag "stagepen.exe" --yes --repo ${{ github.repository }}
-          gh release delete-asset $tag "Stagepen_0.1.0_x64-setup.exe" --yes --repo ${{ github.repository }}
 
+  linux:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file \
+            libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev patchelf \
+            librsvg2-dev rpm libfuse2
+      - name: Install frontend dependencies
+        run: npm ci
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+        with:
+          projectPath: .
+          args: --bundles deb,rpm,appimage
+      - name: Publish the Linux packages
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          version="$(jq -r .version src-tauri/tauri.conf.json)"
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then tag="${GITHUB_REF_NAME}"; else tag="v${version}"; fi
+          deb="$(find src-tauri/target/release/bundle/deb -name '*.deb' | head -n 1)"
+          rpm="$(find src-tauri/target/release/bundle/rpm -name '*.rpm' | head -n 1)"
+          app="$(find src-tauri/target/release/bundle/appimage -name '*.AppImage' | head -n 1)"
+          cp "$deb" "MDCE_${version}_amd64.deb"
+          cp "$rpm" "MDCE_${version}_x86_64.rpm"
+          cp "$app" "MDCE_${version}_amd64.AppImage"
+          chmod +x "MDCE_${version}_amd64.AppImage"
+          if ! gh release view "$tag" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            gh release create "$tag" --repo "${GITHUB_REPOSITORY}" --title "MDCE ${tag}" --notes "Windows installer and Linux packages. SHA256.txt lists the checksum for each file."
+          fi
+          gh release upload "$tag" \
+            "MDCE_${version}_amd64.deb" \
+            "MDCE_${version}_x86_64.rpm" \
+            "MDCE_${version}_amd64.AppImage" \
+            --clobber --repo "${GITHUB_REPOSITORY}"
+
+  checksums:
+    needs: [windows, linux]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Publish SHA256.txt
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          version="$(jq -r .version src-tauri/tauri.conf.json)"
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then tag="${GITHUB_REF_NAME}"; else tag="v${version}"; fi
+          mkdir -p assets
+          gh release download "$tag" --repo "${GITHUB_REPOSITORY}" --dir assets --clobber
+          rm -f assets/SHA256.txt
+          (
+            cd assets
+            sha256sum -- * | sort -k2
+          ) > SHA256.txt
+          gh release upload "$tag" SHA256.txt --clobber --repo "${GITHUB_REPOSITORY}"
