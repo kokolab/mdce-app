@@ -78,6 +78,7 @@ function clearPan(scroller: HTMLElement | null, playhead: HTMLElement | null) {
 }
 
 const toolButton = "flex h-8 shrink-0 items-center gap-1.5 rounded border px-2 text-sm text-dock-ink";
+const GRID_OPTIONS = [8, 16, 32, 64, 192] as const;
 
 export function Transport({
   playheadRef,
@@ -99,6 +100,16 @@ export function Transport({
   const bgmSpeed = useChart((state) => state.bgmSpeed);
   const chartBpm = useChart((state) => state.meta.bpm);
   const tool = useChart((state) => state.tool);
+
+  // Stable stop for the rAF loop (effect runs once; must not close over a stale stop).
+  const stopRef = useRef<() => void>(() => {});
+  stopRef.current = () => {
+    player.stop();
+    if (clockRef.current) clockRef.current.textContent = formatClock(0);
+    setBar(0);
+    playheadRef.current?.style.setProperty("--play", "0");
+    clearPan(scrollerRef.current, playheadRef.current);
+  };
 
   useEffect(() => {
     if (!live) return;
@@ -151,7 +162,7 @@ export function Transport({
       player.pump(state.notes, points, stops);
       const tick = Math.max(0, player.tickFor(points, stops));
       if (tick >= chartEndTick(state.notes, state.sigs)) {
-        stop();
+        stopRef.current();
         return;
       }
       const node = playheadRef.current;
@@ -192,6 +203,8 @@ export function Transport({
     const state = useChart.getState();
     await player.ensure();
     await player.loadUsed(state.notes);
+    // Keep player rate in sync with the UI speed control.
+    player.setRate(state.bgmSpeed);
     player.play(Math.max(0, seconds));
     document.dispatchEvent(new Event("stagepen-playback"));
   }
@@ -207,8 +220,10 @@ export function Transport({
       await playFrom(0);
       return;
     }
+    // Use livePx.current so zoom matches the scroll coordinate system.
+    const pxPer = livePx.current || state.px || 1;
     const x = scroller.scrollLeft + (scroller.clientWidth || 1) * 0.2;
-    let tick = xToTick(x, state.px);
+    const tick = xToTick(x, pxPer);
     let measure = 0;
     let acc = 0;
     for (let index = 0; index < state.measureCount; index++) {
@@ -227,11 +242,7 @@ export function Transport({
   }
 
   function stop() {
-    player.stop();
-    if (clockRef.current) clockRef.current.textContent = formatClock(0);
-    setBar(0);
-    playheadRef.current?.style.setProperty("--play", "0");
-    clearPan(scrollerRef.current, playheadRef.current);
+    stopRef.current();
   }
 
   const playStartRef = useRef(playStart);
@@ -279,11 +290,21 @@ export function Transport({
         </button>
       </div>
       <div className="flex h-8 items-center gap-1 rounded border border-dock-line bg-field px-1 text-sm text-dock-ink" title={`Playback speed. 1.00x matches this chart at ${chartBpm} BPM.`}>
-        <button type="button" className="h-6 w-6 rounded border border-dock-line" aria-label="Slower" onClick={() => useChart.getState().setBgmSpeed(Math.max(0.25, Math.round((bgmSpeed - 0.05) * 100) / 100))}>
+        <button
+          type="button"
+          className="h-6 w-6 rounded border border-dock-line"
+          aria-label="Slower"
+          onClick={() => useChart.getState().setBgmSpeed(Math.max(0.25, Math.round((bgmSpeed - 0.05) * 100) / 100))}
+        >
           −
         </button>
         <span className="min-w-[3.25rem] text-center font-mono tabular-nums">{bgmSpeed.toFixed(2)}x</span>
-        <button type="button" className="h-6 w-6 rounded border border-dock-line" aria-label="Faster" onClick={() => useChart.getState().setBgmSpeed(Math.min(2, Math.round((bgmSpeed + 0.05) * 100) / 100))}>
+        <button
+          type="button"
+          className="h-6 w-6 rounded border border-dock-line"
+          aria-label="Faster"
+          onClick={() => useChart.getState().setBgmSpeed(Math.min(2, Math.round((bgmSpeed + 0.05) * 100) / 100))}
+        >
           +
         </button>
       </div>
@@ -296,7 +317,7 @@ export function Transport({
           <button
             type="button"
             onClick={() => useChart.getState().setTool("select")}
-            className={toolButton + (tool === "select" ? " border-pink bg-pink/20" : " border-dock-line bg-field")}
+            className={toolButton + (tool === "write" ? " border-pink bg-pink/20" : " border-dock-line bg-field")}
             aria-label="Select"
           >
             <MousePointer2 className="size-4 shrink-0" />
@@ -325,12 +346,12 @@ export function Transport({
           <label className="flex h-8 items-center gap-2 rounded border border-dock-line bg-field px-2 text-sm text-dock-ink">
             Grid
             <select value={divide} onChange={(event) => setDivide(Number(event.target.value))} className="bg-transparent font-mono text-dock-ink">
-              {[8, 16, 32, 64, 192].map((value) => (
+              {GRID_OPTIONS.map((value) => (
                 <option key={value} value={value}>
                   {value}
                 </option>
               ))}
-              {[8, 16, 32, 64, 192].includes(divide) ? null : <option value={divide}>{divide}</option>}
+              {GRID_OPTIONS.includes(divide as (typeof GRID_OPTIONS)[number]) ? null : <option value={divide}>{divide}</option>}
             </select>
           </label>
           <div className="flex h-8 items-center overflow-hidden rounded border border-dock-line bg-field">
