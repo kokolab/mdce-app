@@ -6,7 +6,7 @@ Saving a linked chart writes `map*.bms` and `info.json` back into that existing 
 
 ## Install a release
 
-1. Open the [Releases](https://github.com/kokolab/stagepen-windows/releases) page.
+1. Open the [Releases](https://github.com/kokolab/mdce-windows/releases) page.
 2. Download `Stagepen_*_x64-setup.exe`.
 3. Run it. WebView2 is installed automatically if Windows does not already have it (Windows 10/11 usually do).
 4. In Stagepen: **File → Link chart folder**, select your existing chart folder, pick the song, then **Link**.
@@ -22,8 +22,8 @@ Requirements:
 - WebView2 (the Evergreen runtime). The NSIS installer can bootstrap it.
 
 ```bat
-git clone https://github.com/kokolab/stagepen-windows.git
-cd stagepen-windows
+git clone https://github.com/kokolab/mdce-windows.git
+cd mdce-windows
 npm ci
 npm run desktop:build
 npx tauri build
