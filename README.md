@@ -1,17 +1,15 @@
 # MDCE
 
-Muse Dash Chart Editor for Windows.
+MDCE (Muse Dash Chart Editor) is a Windows editor for Muse Dash custom charts.
 
-MDCE edits custom charts. It does not create a chart folder. **File → Link chart folder** opens a folder dialog so you can select a folder you already have. Song folders inside it are then listed for you to link.
-
-Saving a linked chart writes the chart files and `info.json` back into that existing song folder.
+You place notes on a timing grid, set the song header, and play the chart against its music. **File → Link chart folder** connects a song folder on your computer. MDCE lists the songs in that folder, opens the chart you pick, and saves the chart and `info.json` back into that song folder.
 
 ## Install
 
 1. Open the [Releases](https://github.com/kokolab/mdce-windows/releases) page.
 2. Download `MDCE_0.1.0_x64_setup.exe`.
 3. Run it. WebView2 is installed automatically if Windows does not already have it (Windows 10 and 11 usually do).
-4. In MDCE: **File → Link chart folder**, select your existing chart folder, pick the song, then **Link**.
+4. In MDCE: **File → Link chart folder**, select your chart folder, pick the song, then **Link**.
 
 ## Build it yourself
 
@@ -41,5 +39,3 @@ While developing:
 ```bat
 npm run tauri:dev
 ```
-
-Dev and installed builds use the folder you select. MDCE does not create one.
