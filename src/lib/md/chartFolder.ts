@@ -103,12 +103,12 @@ export function setSyncedSongName(name: string): void {
   }
 }
 
-/** Desktop shell (Tauri). Charts live in Custom_Albums next to the installed exe. */
+/** Desktop shell (Tauri). The user picks an existing chart folder. Nothing is created. */
 function inDesktop(): boolean {
   return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 }
 
-type DesktopStatus = { enabled: boolean; folders: string[]; root?: string };
+type DesktopStatus = { enabled: boolean; folders: string[]; root?: string; needsPick?: boolean; cancelled?: boolean };
 type DesktopFolder = { charts: AlbumChart[]; music: string[] };
 type DesktopFile = { name: string; mime: string; text?: string; base64?: string };
 type DesktopWrite = { ok: boolean; verified?: boolean };
@@ -143,12 +143,30 @@ export async function linkServerFolder(name: string): Promise<boolean> {
   return charts.length > 0;
 }
 
-export async function serverCharts(): Promise<{ enabled: boolean; folders: string[] }> {
+export function desktopApp(): boolean {
+  return inDesktop();
+}
+
+export async function pickDesktopChartRoot(): Promise<{ enabled: boolean; folders: string[]; needsPick?: boolean; cancelled?: boolean }> {
+  const data = await desktopInvoke<DesktopStatus>("charts_pick_root");
+  return {
+    enabled: Boolean(data.enabled),
+    folders: Array.isArray(data.folders) ? data.folders : [],
+    needsPick: Boolean(data.needsPick),
+    cancelled: Boolean(data.cancelled),
+  };
+}
+
+export async function serverCharts(): Promise<{ enabled: boolean; folders: string[]; needsPick?: boolean; cancelled?: boolean }> {
   if (inDesktop()) {
     try {
       const data = await desktopInvoke<DesktopStatus>("charts_status");
       serverEnabled = Boolean(data.enabled);
-      return { enabled: Boolean(data.enabled), folders: Array.isArray(data.folders) ? data.folders : [] };
+      return {
+        enabled: Boolean(data.enabled),
+        folders: Array.isArray(data.folders) ? data.folders : [],
+        needsPick: Boolean(data.needsPick),
+      };
     } catch {
       serverEnabled = false;
       return { enabled: false, folders: [] };

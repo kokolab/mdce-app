@@ -4,7 +4,7 @@ import { chartOrigin, currentChartName, setAlbumCharts, setChartOrigin, useAlbum
 import { declaredScene, musicFileName, nextId, rememberInfo, type ChartNote } from "@/lib/md/bms";
 import { isGearNote, isPlayNote, normalizeScene, sceneFromNotes } from "@/lib/md/catalog";
 import { player } from "@/lib/md/player";
-import { clearBrowserLink, linkServerFolder, listLinkedCharts, pickDefaultChart, serverCharts, setSyncedSongName, syncedSongName, writeChartFile } from "@/lib/md/chartFolder";
+import { clearBrowserLink, desktopApp, linkServerFolder, listLinkedCharts, pickDefaultChart, pickDesktopChartRoot, serverCharts, setSyncedSongName, syncedSongName, writeChartFile } from "@/lib/md/chartFolder";
 import { applyLinkedMusic, bootMusic, clearLoadedMusic } from "@/lib/md/musicLink";
 import { isChartDirty, persistChart, restoreChart, useChart } from "@/lib/md/store";
 import { NotePicker } from "./NotePicker";
@@ -311,19 +311,25 @@ export function EditorApp() {
   async function linkFolder() {
     const state = useChart.getState();
     try {
-      const { enabled, folders } = await serverCharts();
-      if (!enabled) {
+      let listed = await serverCharts();
+      if (desktopApp() && listed.needsPick) {
+        listed = await pickDesktopChartRoot();
+        if (listed.cancelled) {
+          state.setBanner("No chart folder selected.");
+          return;
+        }
+      } else if (!listed.enabled) {
         state.setBanner("Chart folder server is offline.");
         return;
       }
-      if (!folders.length) {
-        state.setBanner("No song folders yet. Extract a .mdm into Custom_Albums first.");
+      if (!listed.folders.length) {
+        state.setBanner(desktopApp() ? "That folder has no song folders." : "No song folders yet. Extract a .mdm into Custom_Albums first.");
         return;
       }
       const current = syncedSongName() || "";
-      const initial = current && folders.includes(current) ? current : folders[0];
+      const initial = current && listed.folders.includes(current) ? current : listed.folders[0];
       setFolderPick(initial);
-      setFolderPicker({ folders, current });
+      setFolderPicker({ folders: listed.folders, current });
     } catch {
       state.setBanner("Could not list chart folders.");
     }
@@ -342,7 +348,7 @@ export function EditorApp() {
       const next = pickDefaultChart(charts);
       if (!next) {
         setAlbumCharts([], "");
-        state.setBanner(ok ? `Linked ${pick} (no BMS found)` : `Linked ${pick}, but no charts were returned. Put the song folder in Custom_Albums next to Stagepen.`);
+        state.setBanner(ok ? `Linked ${pick} (no BMS found)` : `Linked ${pick}, but no charts were returned.`);
         return;
       }
       state.loadText(next.text, next.name);
@@ -452,6 +458,19 @@ export function EditorApp() {
           value={folderPick}
           onChange={setFolderPick}
           onLink={() => void confirmFolderPick()}
+          onBrowse={desktopApp() ? () => void (async () => {
+            const listed = await pickDesktopChartRoot();
+            if (listed.cancelled) return;
+            if (!listed.folders.length) {
+              setFolderPicker(null);
+              useChart.getState().setBanner("That folder has no song folders.");
+              return;
+            }
+            const current = syncedSongName() || "";
+            const initial = current && listed.folders.includes(current) ? current : listed.folders[0];
+            setFolderPick(initial);
+            setFolderPicker({ folders: listed.folders, current });
+          })() : undefined}
           onClear={() => {
             void clearLoadedMusic();
             void clearBrowserLink();

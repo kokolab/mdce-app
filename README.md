@@ -1,27 +1,15 @@
 # Stagepen for Windows
 
-Standalone Windows build of the Stagepen chart editor (Muse Dash custom BMS maps). The editor UI is the same as the website. Chart folders are **not** read from the homelab API. They live on disk next to the installed program.
+Standalone Windows build of the Stagepen chart editor (Muse Dash custom BMS maps). The editor UI is the same as the website. The app does not create a chart folder. **File → Link chart folder** opens a folder dialog so you can select the folder you already have (the same step as linking a folder on the website). Song folders inside it are then listed for you to link.
 
-```
-%LOCALAPPDATA%\Stagepen\stagepen.exe
-%LOCALAPPDATA%\Stagepen\Custom_Albums\<song name>\
-    map1.bms
-    map2.bms
-    info.json
-    music.ogg
-```
-
-The installer is per-user, so that folder is writable without administrator rights. Link chart folder in the app lists every subfolder of `Custom_Albums`.
+Saving a linked chart writes `map*.bms` and `info.json` back into that existing song folder.
 
 ## Install a release
 
 1. Open the [Releases](https://github.com/kokolab/stagepen-windows/releases) page.
 2. Download `Stagepen_*_x64-setup.exe`.
 3. Run it. WebView2 is installed automatically if Windows does not already have it (Windows 10/11 usually do).
-4. Create a song folder under `Custom_Albums` beside `stagepen.exe`, or copy an extracted `.mdm` there.
-5. In Stagepen: **File → Link chart folder**, pick the song, then **Link**.
-
-Saving a linked chart writes `map*.bms` and `info.json` back into that folder.
+4. In Stagepen: **File → Link chart folder**, select your existing chart folder, pick the song, then **Link**.
 
 ## Build it yourself
 
@@ -53,12 +41,12 @@ While developing:
 npm run tauri:dev
 ```
 
-Dev builds read charts from `src-tauri\target\debug\Custom_Albums`, which is the folder next to the debug executable.
+Dev and installed builds use the folder you select. The app does not create one.
 
 ## What changed from the website
 
 - Native window via [Tauri 2](https://v2.tauri.app/).
-- `File → Link chart folder` talks to Rust (`charts_status`, `charts_folder`, `charts_read`, `charts_write`) instead of `/api/charts`.
+- `File → Link chart folder` asks you to select an existing folder, then lists the song folders inside it.
 - Song audio in the linked folder is loaded from disk the same way.
 
 The website repo stays [kokolab/mdce](https://github.com/kokolab/mdce). This repository is the Windows edition.

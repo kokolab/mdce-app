@@ -3,6 +3,7 @@ export function FolderPicker({
   value,
   onChange,
   onLink,
+  onBrowse,
   onClear,
   onCancel,
 }: {
@@ -10,6 +11,7 @@ export function FolderPicker({
   value: string;
   onChange: (name: string) => void;
   onLink: () => void;
+  onBrowse?: () => void;
   onClear: () => void;
   onCancel: () => void;
 }) {
@@ -20,7 +22,7 @@ export function FolderPicker({
         onClick={(event) => event.stopPropagation()}
       >
         <h2 className="text-base font-semibold text-paper">Link chart folder</h2>
-        <p className="mt-1 text-sm text-mute">Pick a song folder inside Custom_Albums, next to the Stagepen program.</p>
+        <p className="mt-1 text-sm text-mute">Pick a song folder inside the chart folder you selected.</p>
         <label className="mt-4 flex flex-col gap-2 text-sm">
           <span>Available folders</span>
           <select
@@ -37,6 +39,11 @@ export function FolderPicker({
           </select>
         </label>
         <div className="mt-4 flex flex-wrap justify-end gap-2">
+          {onBrowse ? (
+            <button type="button" className="mr-auto h-10 rounded border border-dock-line px-4 text-sm" onClick={onBrowse}>
+              Choose folder
+            </button>
+          ) : null}
           <button type="button" className="h-10 rounded border border-dock-line px-4 text-sm" onClick={onClear}>
             Clear link
           </button>

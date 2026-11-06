@@ -6,6 +6,7 @@
   "permissions": [
     "core:default",
     "allow-charts-status",
+    "allow-charts-pick-root",
     "allow-charts-folder",
     "allow-charts-read",
     "allow-charts-write"

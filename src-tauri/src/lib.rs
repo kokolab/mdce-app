@@ -5,8 +5,11 @@ use base64::Engine;
 use serde::Serialize;
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct ChartsStatus {
     enabled: bool,
+    needs_pick: bool,
+    cancelled: bool,
     folders: Vec<String>,
     root: String,
 }
@@ -37,10 +40,101 @@ struct WritePayload {
     verified: bool,
 }
 
-fn charts_root() -> PathBuf {
-    let exe = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("."));
-    let dir = exe.parent().unwrap_or_else(|| Path::new("."));
-    dir.join("Custom_Albums")
+fn config_file() -> PathBuf {
+    let base = dirs::data_local_dir().unwrap_or_else(|| PathBuf::from("."));
+    base.join("Stagepen").join("chart-root.txt")
+}
+
+fn saved_root() -> Option<PathBuf> {
+    let text = fs::read_to_string(config_file()).ok()?;
+    let path = PathBuf::from(text.trim());
+    if path.is_dir() { Some(path) } else { None }
+}
+
+fn dir_has_bms(dir: &Path) -> bool {
+    let Ok(entries) = fs::read_dir(dir) else { return false };
+    entries.flatten().any(|entry| {
+        entry.file_type().map(|kind| kind.is_file()).unwrap_or(false) && is_bms(&entry.file_name().to_string_lossy())
+    })
+}
+
+fn list_song_folders(root: &Path) -> Vec<String> {
+    let mut folders = Vec::new();
+    if let Ok(entries) = fs::read_dir(root) {
+        for entry in entries.flatten() {
+            let Ok(kind) = entry.file_type() else { continue };
+            if !kind.is_dir() {
+                continue;
+            }
+            let name = entry.file_name().to_string_lossy().to_string();
+            if name.starts_with('.') {
+                continue;
+            }
+            folders.push(name);
+        }
+    }
+    if folders.is_empty() && dir_has_bms(root) {
+        if let Some(name) = root.file_name().and_then(|name| name.to_str()) {
+            folders.push(name.to_string());
+        }
+    }
+    folders.sort();
+    folders
+}
+
+fn song_dir(folder: &str) -> Result<PathBuf, String> {
+    let root = saved_root().ok_or_else(|| "No chart folder selected".to_string())?;
+    let nested = root.join(folder);
+    if nested.is_dir() {
+        return Ok(nested);
+    }
+    if root.file_name().and_then(|name| name.to_str()) == Some(folder) && root.is_dir() {
+        return Ok(root);
+    }
+    Err("Chart folder is missing".into())
+}
+
+fn status_of(cancelled: bool) -> ChartsStatus {
+    match saved_root() {
+        Some(root) => ChartsStatus {
+            enabled: true,
+            needs_pick: false,
+            cancelled,
+            folders: list_song_folders(&root),
+            root: root.display().to_string(),
+        },
+        None => ChartsStatus {
+            enabled: true,
+            needs_pick: true,
+            cancelled,
+            folders: Vec::new(),
+            root: String::new(),
+        },
+    }
+}
+
+#[tauri::command]
+fn charts_status() -> ChartsStatus {
+    status_of(false)
+}
+
+#[tauri::command]
+fn charts_pick_root() -> ChartsStatus {
+    let picked = rfd::FileDialog::new().set_title("Select chart folder").pick_folder();
+    let Some(path) = picked else {
+        return status_of(true);
+    };
+    if !path.is_dir() {
+        return status_of(true);
+    }
+    let file = config_file();
+    if let Some(parent) = file.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    if fs::write(&file, path.to_string_lossy().as_bytes()).is_err() {
+        return status_of(true);
+    }
+    status_of(false)
 }
 
 fn safe_name(value: &str) -> Result<String, String> {
@@ -108,35 +202,9 @@ fn allowed_write(name: &str) -> bool {
 }
 
 #[tauri::command]
-fn charts_status() -> ChartsStatus {
-    let root = charts_root();
-    let _ = fs::create_dir_all(&root);
-    let mut folders = Vec::new();
-    if let Ok(entries) = fs::read_dir(&root) {
-        for entry in entries.flatten() {
-            let Ok(kind) = entry.file_type() else { continue };
-            if !kind.is_dir() {
-                continue;
-            }
-            let name = entry.file_name().to_string_lossy().to_string();
-            if name.starts_with('.') {
-                continue;
-            }
-            folders.push(name);
-        }
-    }
-    folders.sort();
-    ChartsStatus {
-        enabled: true,
-        folders,
-        root: root.display().to_string(),
-    }
-}
-
-#[tauri::command]
 fn charts_folder(folder: String) -> Result<FolderPayload, String> {
     let folder = safe_name(&folder)?;
-    let dir = charts_root().join(&folder);
+    let dir = song_dir(&folder)?;
     let entries = fs::read_dir(&dir).map_err(|err| err.to_string())?;
     let mut charts = Vec::new();
     let mut music = Vec::new();
@@ -166,7 +234,7 @@ fn charts_read(folder: String, name: String) -> Result<ReadPayload, String> {
     if !allowed {
         return Err("File type not allowed".into());
     }
-    let path = charts_root().join(&folder).join(&name);
+    let path = song_dir(&folder)?.join(&name);
     if is_audio(&name) {
         let bytes = fs::read(&path).map_err(|err| err.to_string())?;
         Ok(ReadPayload {
@@ -193,8 +261,10 @@ fn charts_write(folder: String, name: String, content: String) -> Result<WritePa
     if !allowed_write(&name) {
         return Err("File type not allowed".into());
     }
-    let dir = charts_root().join(&folder);
-    fs::create_dir_all(&dir).map_err(|err| err.to_string())?;
+    let dir = song_dir(&folder)?;
+    if !dir.is_dir() {
+        return Err("Chart folder is missing".into());
+    }
     let path = dir.join(&name);
     fs::write(&path, &content).map_err(|err| err.to_string())?;
     let on_disk = fs::read_to_string(&path).map_err(|err| err.to_string())?;
@@ -209,6 +279,7 @@ pub fn run() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             charts_status,
+            charts_pick_root,
             charts_folder,
             charts_read,
             charts_write
