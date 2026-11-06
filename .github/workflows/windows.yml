@@ -41,17 +41,12 @@ jobs:
           $setup = Get-ChildItem "src-tauri/target/release/bundle/nsis/*-setup.exe" | Select-Object -First 1
           Copy-Item $setup.FullName "MDCE_0.1.0_x64_setup.exe"
           $hash = (Get-FileHash "MDCE_0.1.0_x64_setup.exe" -Algorithm SHA256).Hash.ToLower()
-          gh release upload $tag "MDCE_0.1.0_x64_setup.exe" --clobber --repo ${{ github.repository }}
+          Set-Content -NoNewline -Path "SHA256.txt" -Value "$hash  MDCE_0.1.0_x64_setup.exe`n"
+          gh release upload $tag "MDCE_0.1.0_x64_setup.exe" "SHA256.txt" --clobber --repo ${{ github.repository }}
           if ($setup.Name -ne "MDCE_0.1.0_x64_setup.exe") {
             gh release delete-asset $tag $setup.Name --yes --repo ${{ github.repository }}
           }
           gh release delete-asset $tag "MDCE.exe" --yes --repo ${{ github.repository }}
           gh release delete-asset $tag "stagepen.exe" --yes --repo ${{ github.repository }}
           gh release delete-asset $tag "Stagepen_0.1.0_x64-setup.exe" --yes --repo ${{ github.repository }}
-          $notes = @"
-Windows installer. Run MDCE_0.1.0_x64_setup.exe, then use File → Link chart folder and pick your existing chart folder.
-
-SHA256: $hash
-"@
-          gh release edit $tag --notes $notes --repo ${{ github.repository }}
 
