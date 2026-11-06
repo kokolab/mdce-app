@@ -101,7 +101,6 @@ export function Transport({
   const chartBpm = useChart((state) => state.meta.bpm);
   const tool = useChart((state) => state.tool);
 
-  // Stable stop for the rAF loop (effect runs once; must not close over a stale stop).
   const stopRef = useRef<() => void>(() => {});
   stopRef.current = () => {
     player.stop();
@@ -203,7 +202,6 @@ export function Transport({
     const state = useChart.getState();
     await player.ensure();
     await player.loadUsed(state.notes);
-    // Keep player rate in sync with the UI speed control.
     player.setRate(state.bgmSpeed);
     player.play(Math.max(0, seconds));
     document.dispatchEvent(new Event("stagepen-playback"));
@@ -220,7 +218,6 @@ export function Transport({
       await playFrom(0);
       return;
     }
-    // Use livePx.current so zoom matches the scroll coordinate system.
     const pxPer = livePx.current || state.px || 1;
     const x = scroller.scrollLeft + (scroller.clientWidth || 1) * 0.2;
     const tick = xToTick(x, pxPer);
@@ -317,7 +314,7 @@ export function Transport({
           <button
             type="button"
             onClick={() => useChart.getState().setTool("select")}
-            className={toolButton + (tool === "write" ? " border-pink bg-pink/20" : " border-dock-line bg-field")}
+            className={toolButton + (tool === "select" ? " border-pink bg-pink/20" : " border-dock-line bg-field")}
             aria-label="Select"
           >
             <MousePointer2 className="size-4 shrink-0" />
