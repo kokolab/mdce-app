@@ -213,28 +213,28 @@ export function Transport({
 
   async function playMeasure() {
     const state = useChart.getState();
-    const scroller = scrollerRef.current;
-    if (!scroller) {
-      await playFrom(0);
-      return;
-    }
-    const pxPer = livePx.current || state.px || 1;
-    const x = scroller.scrollLeft + (scroller.clientWidth || 1) * 0.2;
-    const tick = xToTick(x, pxPer);
-    let measure = 0;
-    let acc = 0;
-    for (let index = 0; index < state.measureCount; index++) {
-      const len = measureTicks(index, state.sigs);
-      if (acc + len > tick) {
-        measure = index;
-        break;
-      }
-      acc += len;
-      measure = index;
-    }
-    const start = measureStart(measure, state.sigs);
     const points = tempoPoints(state.notes, state.meta.bpm);
     const stops = stopPoints(state.headerExtras ?? [], state.extras ?? [], state.sigs);
+
+    // Mid-playback: use the playhead tick so we restart the measure the line is on.
+    // Stopped: use the visible viewport (livePx.camera includes follow-pan offset).
+    let tick: number;
+    if (player.playing) {
+      tick = Math.max(0, player.tickFor(points, stops));
+    } else {
+      const scroller = scrollerRef.current;
+      if (!scroller) {
+        await playFrom(0);
+        return;
+      }
+      const pxPer = livePx.current || state.px || 1;
+      const origin = livePx.follow ? livePx.camera : scroller.scrollLeft;
+      const x = origin + (scroller.clientWidth || 1) * 0.2;
+      tick = Math.max(0, xToTick(x, pxPer));
+    }
+
+    const measure = locate(tick, state.sigs, state.measureCount).measure;
+    const start = measureStart(measure, state.sigs);
     await playFrom(secondsAt(start, points, stops));
   }
 
