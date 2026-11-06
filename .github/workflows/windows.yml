@@ -25,7 +25,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           projectPath: .
-          tagName: ${{ github.ref_name }}
+          tagName: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
           releaseName: Stagepen ${{ github.ref_name }}
+          releaseBody: "Windows installer. Charts go in Custom_Albums next to stagepen.exe."
           releaseDraft: true
           prerelease: false
