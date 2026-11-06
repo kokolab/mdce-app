@@ -1,0 +1,24 @@
+[[permission]]
+identifier = "allow-charts-status"
+description = "List song folders in the selected chart folder."
+commands.allow = ["charts_status"]
+
+[[permission]]
+identifier = "allow-charts-pick-root"
+description = "Open a folder dialog for the chart folder."
+commands.allow = ["charts_pick_root"]
+
+[[permission]]
+identifier = "allow-charts-folder"
+description = "Read charts in a song folder."
+commands.allow = ["charts_folder"]
+
+[[permission]]
+identifier = "allow-charts-read"
+description = "Read a file from a song folder."
+commands.allow = ["charts_read"]
+
+[[permission]]
+identifier = "allow-charts-write"
+description = "Write a chart file into a song folder."
+commands.allow = ["charts_write"]

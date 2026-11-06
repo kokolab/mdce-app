@@ -25,8 +25,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           projectPath: .
-          tagName: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
-          releaseName: Stagepen ${{ github.ref_name }}
-          releaseBody: "Windows installer. Charts go in Custom_Albums next to stagepen.exe."
-          releaseDraft: true
+          tagName: ${{ github.ref_type == 'tag' && github.ref_name || 'v0.1.0' }}
+          releaseName: Stagepen ${{ github.ref_type == 'tag' && github.ref_name || 'v0.1.0' }}
+          releaseBody: "Windows build. Run the setup exe, then use File → Link chart folder and pick your existing chart folder."
+          releaseDraft: false
           prerelease: false
+      - name: Attach the program exe
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload ${{ github.ref_type == 'tag' && github.ref_name || 'v0.1.0' }} src-tauri/target/release/stagepen.exe --clobber --repo ${{ github.repository }}
