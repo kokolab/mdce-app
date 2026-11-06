@@ -1,76 +1,64 @@
-# Muse Dash Chart Editor
+# Stagepen for Windows
 
-A browser editor for Muse Dash BMS charts. Open a `.bms` file and a song, edit notes, then save `.bms` and `info.json`.
+Standalone Windows build of the Stagepen chart editor (Muse Dash custom BMS maps). The editor UI is the same as the website. Chart folders are **not** read from the homelab API. They live on disk next to the installed program.
 
-Charts and the loaded song stay in the browser (`localStorage` key `stagepen.v1`). The server only serves the page. You do not need Postgres.
-
-## Deploy with Portainer
-
-Docker already runs on the Proxmox VM **services** (VM 103). Portainer on that VM can build and start this app. Do not install Docker on the Proxmox host.
-
-1. Open Portainer.
-2. Select the **services** environment.
-3. Go to **Stacks** → **Add stack**.
-4. Name it `Muse Dash Chart Editor`. If Portainer rejects the spaces, use `muse-dash-chart-editor`.
-5. Choose **Git repository**.
-6. Repository URL: `https://github.com/kokolab/mdce`
-7. Repository reference: `refs/heads/main`
-8. Compose path: `docker-compose.yml`
-9. Turn on **Authentication** if the repo is private, and use a GitHub personal access token with repository read access.
-10. Click **Deploy the stack**.
-
-The first build takes a few minutes. Then open `http://<services-vm-ip>:8090`.
-
-## GoDoxy (`mdce.kokomilk.net`)
-
-GoDoxy reads Docker labels on this stack. The compose file already sets alias `mdce`, so the route is `mdce.kokomilk.net` if GoDoxy's domain is `kokomilk.net`.
-
-1. DNS: if you already have `*.kokomilk.net` pointing at the GoDoxy host, skip this. Otherwise add:
-
-```text
-A    mdce.kokomilk.net    <godoxy-public-or-LAN-IP>
+```
+%LOCALAPPDATA%\Stagepen\stagepen.exe
+%LOCALAPPDATA%\Stagepen\Custom_Albums\<song name>\
+    map1.bms
+    map2.bms
+    info.json
+    music.ogg
 ```
 
-or a CNAME to the same name your other apps use.
+The installer is per-user, so that folder is writable without administrator rights. Link chart folder in the app lists every subfolder of `Custom_Albums`.
 
-2. Pull and redeploy the Portainer stack with **Re-pull image** off so the new labels apply.
-3. Open [https://mdce.kokomilk.net](https://mdce.kokomilk.net). GoDoxy should issue the cert if autocert is already on for `kokomilk.net`.
+## Install a release
 
-The container still listens on LAN port 8090. GoDoxy talks to container port **8080**, not 8090.
+1. Open the [Releases](https://github.com/kokolab/stagepen-windows/releases) page.
+2. Download `Stagepen_*_x64-setup.exe`.
+3. Run it. WebView2 is installed automatically if Windows does not already have it (Windows 10/11 usually do).
+4. Create a song folder under `Custom_Albums` beside `stagepen.exe`, or copy an extracted `.mdm` there.
+5. In Stagepen: **File → Link chart folder**, pick the song, then **Link**.
 
-If the page does not appear, in the GoDoxy web UI confirm a route named `mdce` exists and is healthy. The GoDoxy container must be able to see Docker on the **services** VM (same host, or a docker-socket provider pointed at that VM).
+Saving a linked chart writes `map*.bms` and `info.json` back into that folder.
 
-If port 8090 is already taken, change the left number in `docker-compose.yml` (`"8090:8080"`) before deploying. The right number stays 8080.
+## Build it yourself
 
-To pick up later edits, push to `main` and use **Pull and redeploy** on that stack. Turn on **GitOps updates** if you want Portainer to do that by itself.
+Requirements:
 
-Fonts load from `fonts.bunny.net`, so the VM needs outbound internet.
+- Windows 10 or 11, 64-bit
+- [Node.js 22](https://nodejs.org/)
+- [Rust](https://rustup.rs/) (stable)
+- [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) with the **Desktop development with C++** workload
+- WebView2 (the Evergreen runtime). The NSIS installer can bootstrap it.
 
-## Keep editing with another LLM
-
-This project is plain TypeScript. Claude Code, Cursor, Aider, Continue, or Cline can keep working on the same GitHub repo.
-
-1. Clone `https://github.com/kokolab/mdce`.
-2. Tell the agent to read `README.md` and `CLAUDE.md` before changing anything.
-3. Install Node 22, then `npm ci` and `npm run dev`.
-4. Push to `main`. Portainer redeploys from that branch.
-
-`AGENTS.md` is only for the Grok preview sandbox. Ignore it on the homelab.
-
-## What not to break
-
-- Note keys and names in `src/lib/md/catalog.ts` must stay aligned with the `#WAV` header. The game looks up sounds by those keys.
-- Air lanes are `air` and `air2`. Ground lanes are `gnd` and `gnd2`.
-- A gear (`0H`) is a full icon on air and the top half on ground. A boss gear (`18`) is the same, with the word BOSS under it.
-- Holds (`0F`) are a circle with a star and four lines. Mashers (`0G`, `16`, `17`) use the glove and a zigzag.
-- The music note (`10`) is a vertical bar labeled `music`, with its left edge on the grid line.
-- Default music volume and note-sound volume are `0.25`. OLED dark mode is on unless the browser stored `stagepen-dark` as `0`.
-
-## Layout
-
-```text
-src/components/editor/   the page
-src/lib/md/              chart format, playback, state
-public/sfx/              note sounds
-public/glove.png         masher icon
+```bat
+git clone https://github.com/kokolab/stagepen-windows.git
+cd stagepen-windows
+npm ci
+npm run desktop:build
+npx tauri build
 ```
+
+The installer is written to:
+
+```
+src-tauri\target\release\bundle\nsis\
+```
+
+While developing:
+
+```bat
+npm run tauri:dev
+```
+
+Dev builds read charts from `src-tauri\target\debug\Custom_Albums`, which is the folder next to the debug executable.
+
+## What changed from the website
+
+- Native window via [Tauri 2](https://v2.tauri.app/).
+- `File → Link chart folder` talks to Rust (`charts_status`, `charts_folder`, `charts_read`, `charts_write`) instead of `/api/charts`.
+- Song audio in the linked folder is loaded from disk the same way.
+
+The website repo stays [kokolab/mdce](https://github.com/kokolab/mdce). This repository is the Windows edition.

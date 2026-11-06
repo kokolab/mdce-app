@@ -4,6 +4,8 @@ node_modules/
 artifacts/
 attachments/
 screenshots/
-dist/
+dist-desktop/
+src-tauri/target/
+src-tauri/gen/
 *.zip
 .node_modules.lock

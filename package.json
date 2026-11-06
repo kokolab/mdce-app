@@ -1,5 +1,5 @@
 {
-  "name": "app-builder-workspace",
+  "name": "stagepen-windows",
   "private": true,
   "sideEffects": false,
   "type": "module",
@@ -18,7 +18,12 @@
     "check:auth": "node scripts/check-auth-invariant.mjs",
     "test": "node --test 'scripts/**/*.test.mjs' && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/app-data/readiness-schedule.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "desktop:dev": "vite --config vite.desktop.config.ts",
+    "desktop:build": "vite build --config vite.desktop.config.ts && node -e \"require('node:fs').copyFileSync('dist-desktop/desktop.html','dist-desktop/index.html')\"",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.4",
@@ -50,6 +55,7 @@
     "@tanstack/react-start": "^1.168.60",
     "@tanstack/react-table": "^8.21.0",
     "@tanstack/router-plugin": "^1.168.0",
+    "@tauri-apps/api": "^2.12.4",
     "@vitejs/plugin-react": "^5.2.0",
     "better-auth": "~1.6.30",
     "class-variance-authority": "^0.7.1",
@@ -81,6 +87,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.20.0",
+    "@tauri-apps/cli": "^2.12.4",
     "@types/node": "^22.16.5",
     "@types/pg": "^8.11.10",
     "@types/react": "^19.2.0",

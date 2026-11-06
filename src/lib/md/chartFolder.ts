@@ -103,7 +103,20 @@ export function setSyncedSongName(name: string): void {
   }
 }
 
-/** Drop the browser directory handle so server-synced folders take effect. */
+/** Desktop shell (Tauri). Charts live in Custom_Albums next to the installed exe. */
+function inDesktop(): boolean {
+  return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+}
+
+type DesktopStatus = { enabled: boolean; folders: string[]; root?: string };
+type DesktopFolder = { charts: AlbumChart[]; music: string[] };
+type DesktopFile = { name: string; mime: string; text?: string; base64?: string };
+type DesktopWrite = { ok: boolean; verified?: boolean };
+
+async function desktopInvoke<T>(command: string, args?: Record<string, unknown>): Promise<T> {
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<T>(command, args);
+}
 export async function clearBrowserLink(): Promise<void> {
   linked = null;
   try {
@@ -131,6 +144,16 @@ export async function linkServerFolder(name: string): Promise<boolean> {
 }
 
 export async function serverCharts(): Promise<{ enabled: boolean; folders: string[] }> {
+  if (inDesktop()) {
+    try {
+      const data = await desktopInvoke<DesktopStatus>("charts_status");
+      serverEnabled = Boolean(data.enabled);
+      return { enabled: Boolean(data.enabled), folders: Array.isArray(data.folders) ? data.folders : [] };
+    } catch {
+      serverEnabled = false;
+      return { enabled: false, folders: [] };
+    }
+  }
   try {
     const response = await fetch("/api/charts");
     if (!response.ok) {
@@ -164,6 +187,17 @@ async function listBrowserCharts(): Promise<AlbumChart[]> {
 }
 
 async function listServerCharts(folder: string): Promise<AlbumChart[]> {
+  if (inDesktop()) {
+    try {
+      const data = await desktopInvoke<DesktopFolder>("charts_folder", { folder });
+      const charts = Array.isArray(data.charts) ? data.charts : [];
+      return charts
+        .filter((chart) => chart && typeof chart.name === "string" && typeof chart.text === "string")
+        .sort((a, b) => bmsOrder(a.name) - bmsOrder(b.name) || a.name.localeCompare(b.name));
+    } catch {
+      return [];
+    }
+  }
   try {
     const response = await fetch(`/api/charts?folder=${encodeURIComponent(folder)}`);
     if (!response.ok) return [];
@@ -218,6 +252,28 @@ async function browserMusic(wanted: string | null | undefined): Promise<File | n
 async function serverMusic(wanted: string | null | undefined): Promise<File | null> {
   const folder = syncedSongName();
   if (!folder) return null;
+  if (inDesktop()) {
+    try {
+      const data = await desktopInvoke<DesktopFolder>("charts_folder", { folder });
+      const available = Array.isArray(data.music) ? data.music : [];
+      const lowerMap = new Map(available.map((name) => [name.toLowerCase(), name]));
+      const tryNames = [...musicCandidates(wanted), ...(available.length === 1 ? available : [])];
+      for (const candidate of tryNames) {
+        const real = lowerMap.get(candidate.toLowerCase()) ?? (available.includes(candidate) ? candidate : null);
+        if (!real) continue;
+        const file = await desktopInvoke<DesktopFile>("charts_read", { folder, name: real });
+        if (!file.base64) continue;
+        const binary = atob(file.base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        if (!bytes.byteLength) continue;
+        return new File([bytes], real, { type: file.mime || "audio/ogg" });
+      }
+    } catch {
+      return null;
+    }
+    return null;
+  }
   try {
     const listRes = await fetch(`/api/charts?folder=${encodeURIComponent(folder)}`);
     if (!listRes.ok) return null;
@@ -275,9 +331,19 @@ async function writeBrowser(name: string, text: string): Promise<WriteResult> {
 }
 
 async function writeServer(name: string, text: string): Promise<WriteResult> {
-  if (serverEnabled === false) return "unsupported";
   const folder = syncedSongName();
   if (!folder) return "missing";
+  if (inDesktop()) {
+    try {
+      const data = await desktopInvoke<DesktopWrite>("charts_write", { folder, name, content: text });
+      if (!data.ok) return "denied";
+      if (data.verified === false) return "stale";
+      return "wrote";
+    } catch {
+      return "denied";
+    }
+  }
+  if (serverEnabled === false) return "unsupported";
   try {
     const response = await fetch("/api/charts", {
       method: "POST",

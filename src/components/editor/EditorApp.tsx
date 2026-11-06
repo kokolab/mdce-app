@@ -342,7 +342,7 @@ export function EditorApp() {
       const next = pickDefaultChart(charts);
       if (!next) {
         setAlbumCharts([], "");
-        state.setBanner(ok ? `Linked ${pick} (no BMS found)` : `Linked ${pick}, but no charts were returned. Check the folder on the NAS.`);
+        state.setBanner(ok ? `Linked ${pick} (no BMS found)` : `Linked ${pick}, but no charts were returned. Put the song folder in Custom_Albums next to Stagepen.`);
         return;
       }
       state.loadText(next.text, next.name);
