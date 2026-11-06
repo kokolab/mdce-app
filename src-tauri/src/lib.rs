@@ -42,7 +42,7 @@ struct WritePayload {
 
 fn config_file() -> PathBuf {
     let base = dirs::data_local_dir().unwrap_or_else(|| PathBuf::from("."));
-    base.join("Stagepen").join("chart-root.txt")
+    base.join("MDCE").join("chart-root.txt")
 }
 
 fn saved_root() -> Option<PathBuf> {

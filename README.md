@@ -1,4 +1,4 @@
-# Stagepen for Windows
+# MDCE for Windows
 
 Standalone Windows build of the Stagepen chart editor (Muse Dash custom BMS maps). The editor UI is the same as the website. The app does not create a chart folder. **File → Link chart folder** opens a folder dialog so you can select the folder you already have (the same step as linking a folder on the website). Song folders inside it are then listed for you to link.
 
@@ -7,9 +7,9 @@ Saving a linked chart writes `map*.bms` and `info.json` back into that existing 
 ## Install a release
 
 1. Open the [Releases](https://github.com/kokolab/mdce-windows/releases) page.
-2. Download `Stagepen_*_x64-setup.exe`.
+2. Download `MDCE_0.1.0_x64_setup.exe`.
 3. Run it. WebView2 is installed automatically if Windows does not already have it (Windows 10/11 usually do).
-4. In Stagepen: **File → Link chart folder**, select your existing chart folder, pick the song, then **Link**.
+4. In MDCE: **File → Link chart folder**, select your existing chart folder, pick the song, then **Link**.
 
 ## Build it yourself
 

@@ -1,8 +1,9 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Stagepen",
+  "productName": "MDCE",
+  "mainBinaryName": "MDCE",
   "version": "0.1.0",
-  "identifier": "net.kokomilk.stagepen",
+  "identifier": "net.kokomilk.mdce",
   "build": {
     "beforeDevCommand": "npm run desktop:dev",
     "devUrl": "http://127.0.0.1:1420/desktop.html",
@@ -13,7 +14,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Stagepen",
+        "title": "MDCE",
         "width": 1440,
         "height": 900,
         "minWidth": 960,
