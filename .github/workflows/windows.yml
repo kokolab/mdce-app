@@ -55,6 +55,7 @@ jobs:
             if ($LASTEXITCODE -ne 0) { Write-Host "no $old on this release" }
           }
           Write-Host "installer published"
+          exit 0
 
 
   linux:
