@@ -25,10 +25,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           projectPath: .
-          tagName: ${{ github.ref_type == 'tag' && github.ref_name || 'v0.1.1' }}
-          releaseName: MDCE ${{ github.ref_type == 'tag' && github.ref_name || 'v0.1.1' }}
+          tagName: ${{ github.ref_type == 'tag' && github.ref_name || 'v0.1.2' }}
+          releaseName: MDCE ${{ github.ref_type == 'tag' && github.ref_name || 'v0.1.2' }}
           releaseBody: |
-            Windows: run MDCE_0.1.1_x64_setup.exe.
+            Windows: run MDCE_0.1.2_x64_setup.exe.
             Linux: install the .deb or .rpm, or run the .AppImage. The .AppImage needs WebKitGTK 4.1.
             Then use File → Link chart folder and pick your chart folder.
             SHA256.txt lists the checksum for each file.

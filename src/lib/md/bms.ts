@@ -58,20 +58,20 @@ export type BmsChart = {
 };
 
 export const EMPTY_META: Meta = {
-  title: "Untitled",
+  title: "",
   artist: "",
-  designer: "Kokomilk",
-  genre: "scene_01",
-  bpm: 120,
-  playlevel: "1",
+  designer: "",
+  genre: "",
+  bpm: 0,
+  playlevel: "",
   rank: "1",
   player: "3",
-  chartDifficulty: "hard",
-  noteSpeed: "3",
-  difficulty1: "0",
-  difficulty2: "1",
-  difficulty3: "0",
-  difficulty4: "0",
+  chartDifficulty: "",
+  noteSpeed: "",
+  difficulty1: "",
+  difficulty2: "",
+  difficulty3: "",
+  difficulty4: "",
   unlockLevel: "0",
   tags: "",
 };
@@ -283,10 +283,9 @@ export function parseBms(text: string): BmsChart {
     if (!meta.noteSpeed) meta.noteSpeed = speedLevel(note.key);
     return false;
   });
-  if (!meta.noteSpeed) meta.noteSpeed = "3";
   const written = genreSet ? normalizeScene(meta.genre) : "";
   const known = SCENES.some((scene) => scene.id === written);
-  meta.genre = known ? written : (sceneFromNotes(notes) ?? (written || "scene_01"));
+  meta.genre = known ? written : (sceneFromNotes(notes) ?? written);
 
   return {
     meta,
@@ -401,10 +400,10 @@ export function serializeBms(
     `#TITLE ${meta.title}`,
     `#ARTIST ${meta.artist}`,
     `#LEVELDESIGN ${meta.designer}`,
-    `#BPM ${Math.round(meta.bpm)}`,
-    `#PLAYLEVEL ${meta.playlevel || "1"}`,
+    `#BPM ${meta.bpm > 0 ? Math.round(meta.bpm) : ""}`,
+    `#PLAYLEVEL ${meta.playlevel}`,
     `#RANK ${meta.rank || "1"}`,
-    `#DIFFICULTY ${DIFFICULTY_CODE[meta.chartDifficulty || "hard"]}`,
+    ...(meta.chartDifficulty ? [`#DIFFICULTY ${DIFFICULTY_CODE[meta.chartDifficulty]}`] : []),
     "#LNTYPE 1",
     ...headerExtras.filter((line) => !/^#(DIFFICULTY|NOTESPEED)\b/i.test(line.trim())),
   ];
@@ -557,7 +556,7 @@ export function infoJson(meta: Meta): string {
     name: meta.title,
     author: meta.artist,
     bpm: String(Math.round(meta.bpm)),
-    scene: meta.genre || "scene_01",
+    scene: meta.genre,
     searchTags: tags,
     levelDesigner: meta.designer,
     levelDesigner1: loadedDesigner(1),

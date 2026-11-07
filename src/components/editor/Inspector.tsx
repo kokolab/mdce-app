@@ -95,18 +95,21 @@ export function Inspector() {
         </Row>
         <Row label="Scene">
           <select
-            value={knownScene ? meta.genre : "custom"}
+            value={meta.genre === "" ? "" : knownScene ? meta.genre : "custom"}
             onChange={(event) => {
-              if (event.target.value !== "custom") useChart.getState().setScene(event.target.value);
+              const value = event.target.value;
+              if (value === "") patchMeta({ genre: "" });
+              else if (value !== "custom") useChart.getState().setScene(value);
             }}
             className={field}
           >
+            <option value=""></option>
             {SCENES.map((scene) => (
               <option key={scene.id} value={scene.id}>
                 {scene.label}
               </option>
             ))}
-            {knownScene ? null : <option value="custom">{meta.genre || "Custom"}</option>}
+            {knownScene || !meta.genre ? null : <option value="custom">{meta.genre}</option>}
           </select>
         </Row>
         <Row label="BPM">
@@ -115,8 +118,8 @@ export function Inspector() {
             min={1}
             max={999}
             step={0.001}
-            value={meta.bpm}
-            onChange={(event) => patchMeta({ bpm: Number(event.target.value) || 1 })}
+            value={meta.bpm > 0 ? meta.bpm : ""}
+            onChange={(event) => patchMeta({ bpm: event.target.value === "" ? 0 : Number(event.target.value) })}
             className={mono}
           />
         </Row>
@@ -143,7 +146,7 @@ export function Inspector() {
                 onChange={(event) => useChart.getState().setSpeed(event.target.value)}
                 className={field}
               >
-                <option value="">Not set</option>
+                <option value=""></option>
                 {SPEEDS.map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.label}
@@ -153,10 +156,11 @@ export function Inspector() {
             </Row>
             <Row label="Difficulty">
               <select
-                value={meta.chartDifficulty || "hard"}
+                value={meta.chartDifficulty}
                 onChange={(event) => patchMeta({ chartDifficulty: event.target.value as typeof meta.chartDifficulty })}
                 className={field}
               >
+                <option value=""></option>
                 {DIFFICULTIES.map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.label}

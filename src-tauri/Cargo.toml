@@ -1,6 +1,6 @@
 [package]
 name = "stagepen"
-version = "0.1.1"
+version = "0.1.2"
 description = "Stagepen — Muse Dash chart editor"
 authors = ["Kokomilk"]
 edition = "2021"

@@ -334,8 +334,8 @@ export const useChart = create<ChartState>((set, get) => ({
   },
   setSpeed: (key) =>
     set((state) => {
-      const level = key === "0O" || key === "1" ? "1" : key === "0P" || key === "2" ? "2" : key === "0Q" || key === "3" ? "3" : "3";
-      return { meta: { ...state.meta, noteSpeed: level }, banner: `Default note speed is now ${level}.` };
+      const level = key === "" ? "" : key === "0O" || key === "1" ? "1" : key === "0P" || key === "2" ? "2" : key === "0Q" || key === "3" ? "3" : "";
+      return { meta: { ...state.meta, noteSpeed: level }, banner: level ? `Default note speed is now ${level}.` : "Note speed cleared." };
     }),
   setScene: (scene) => set((state) => ({ meta: { ...state.meta, genre: normalizeScene(scene) }, banner: "Scene updated." })),
   setTool: (tool) => set({ tool }),
