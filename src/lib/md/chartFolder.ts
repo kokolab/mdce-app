@@ -147,6 +147,15 @@ export function desktopApp(): boolean {
   return inDesktop();
 }
 
+export async function pickDesktopChart(): Promise<File | null> {
+  const data = await desktopInvoke<{ cancelled?: boolean; name?: string; base64?: string }>("charts_pick_chart");
+  if (data.cancelled || !data.name || !data.base64) return null;
+  const binary = atob(data.base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new File([bytes], data.name);
+}
+
 export async function pickDesktopChartRoot(): Promise<{ enabled: boolean; folders: string[]; needsPick?: boolean; cancelled?: boolean }> {
   const data = await desktopInvoke<DesktopStatus>("charts_pick_root");
   return {

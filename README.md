@@ -10,15 +10,15 @@ Open the [Releases](https://github.com/kokolab/mdce-windows/releases) page. `SHA
 
 Windows:
 
-1. Download `MDCE_0.1.2_x64_setup.exe`.
+1. Download `MDCE_0.1.3_x64_setup.exe`.
 2. Run it. WebView2 is installed automatically if Windows does not already have it (Windows 10 and 11 usually do).
 3. In MDCE: **File → Link chart folder**, select your chart folder, pick the song, then **Link**.
 
 Linux:
 
-- Debian, Ubuntu, and Mint: `MDCE_0.1.2_amd64.deb`
-- Fedora and openSUSE: `MDCE_0.1.2_x86_64.rpm`
-- Any other desktop: `MDCE_0.1.2_amd64.AppImage`. Install WebKitGTK 4.1 first. If the AppImage does not start, install FUSE (`libfuse2` on Debian and Ubuntu).
+- Debian, Ubuntu, and Mint: `MDCE_0.1.3_amd64.deb`
+- Fedora and openSUSE: `MDCE_0.1.3_x86_64.rpm`
+- Any other desktop: `MDCE_0.1.3_amd64.AppImage`. Install WebKitGTK 4.1 first. If the AppImage does not start, install FUSE (`libfuse2` on Debian and Ubuntu).
 
 ## Build it yourself
 

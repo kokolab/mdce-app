@@ -274,12 +274,40 @@ fn charts_write(folder: String, name: String, content: String) -> Result<WritePa
     Ok(WritePayload { ok: true, verified: true })
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PickedChart {
+    cancelled: bool,
+    name: String,
+    base64: String,
+}
+
+#[tauri::command]
+fn charts_pick_chart() -> Result<PickedChart, String> {
+    let picked = rfd::FileDialog::new()
+        .set_title("Load chart")
+        .add_filter("Chart", &["bms", "bme", "bml", "mdm", "md", "zip", "json"])
+        .add_filter("All files", &["*"])
+        .pick_file();
+    let Some(path) = picked else {
+        return Ok(PickedChart { cancelled: true, name: String::new(), base64: String::new() });
+    };
+    let name = path.file_name().and_then(|name| name.to_str()).unwrap_or("chart").to_string();
+    let bytes = fs::read(&path).map_err(|err| err.to_string())?;
+    Ok(PickedChart {
+        cancelled: false,
+        name,
+        base64: base64::engine::general_purpose::STANDARD.encode(bytes),
+    })
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             charts_status,
             charts_pick_root,
+            charts_pick_chart,
             charts_folder,
             charts_read,
             charts_write

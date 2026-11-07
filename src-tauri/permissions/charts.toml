@@ -9,6 +9,11 @@ description = "Open a folder dialog for the chart folder."
 commands.allow = ["charts_pick_root"]
 
 [[permission]]
+identifier = "allow-charts-pick-chart"
+description = "Open a file dialog for a chart file."
+commands.allow = ["charts_pick_chart"]
+
+[[permission]]
 identifier = "allow-charts-folder"
 description = "Read charts in a song folder."
 commands.allow = ["charts_folder"]

@@ -4,7 +4,7 @@ import { chartOrigin, currentChartName, setAlbumCharts, setChartOrigin, useAlbum
 import { declaredScene, musicFileName, nextId, rememberInfo, type ChartNote } from "@/lib/md/bms";
 import { isGearNote, isPlayNote, normalizeScene, sceneFromNotes } from "@/lib/md/catalog";
 import { player } from "@/lib/md/player";
-import { clearBrowserLink, desktopApp, linkServerFolder, listLinkedCharts, pickDefaultChart, pickDesktopChartRoot, serverCharts, setSyncedSongName, syncedSongName, writeChartFile } from "@/lib/md/chartFolder";
+import { clearBrowserLink, desktopApp, linkServerFolder, listLinkedCharts, pickDefaultChart, pickDesktopChart, pickDesktopChartRoot, serverCharts, setSyncedSongName, syncedSongName, writeChartFile } from "@/lib/md/chartFolder";
 import { applyLinkedMusic, bootMusic, clearLoadedMusic } from "@/lib/md/musicLink";
 import { isChartDirty, persistChart, restoreChart, useChart } from "@/lib/md/store";
 import { NotePicker } from "./NotePicker";
@@ -375,6 +375,15 @@ export function EditorApp() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  async function openChart() {
+    if (!desktopApp()) {
+      bmsInput.current?.click();
+      return;
+    }
+    const file = await pickDesktopChart();
+    if (file) await takeFiles([file]);
+  }
+
   return (
     <div
       className="flex h-dvh flex-col overflow-hidden bg-chart text-paper"
@@ -387,9 +396,9 @@ export function EditorApp() {
         void collectDropped(event.dataTransfer).then((files) => takeFiles(files));
       }}
     >
-      <MenuBar onOpen={() => bmsInput.current?.click()} onSong={() => audioInput.current?.click()} onLinkFolder={() => void linkFolder()} onSaveBms={() => void saveBms()} onSaveInfo={() => void saveInfo()} onShortcuts={() => setShortcutsOpen(true)} />
+      <MenuBar onOpen={() => void openChart()} onSong={() => audioInput.current?.click()} onLinkFolder={() => void linkFolder()} onSaveBms={() => void saveBms()} onSaveInfo={() => void saveInfo()} onShortcuts={() => setShortcutsOpen(true)} />
       <div className="flex h-12 items-center gap-1.5 border-b border-dock-line bg-menubar px-2 text-dock-ink lg:hidden">
-        <MobileMenu onOpen={() => bmsInput.current?.click()} onSong={() => audioInput.current?.click()} onLinkFolder={() => void linkFolder()} onSaveBms={() => void saveBms()} onSaveInfo={() => void saveInfo()} onShortcuts={() => setShortcutsOpen(true)} />
+        <MobileMenu onOpen={() => void openChart()} onSong={() => audioInput.current?.click()} onLinkFolder={() => void linkFolder()} onSaveBms={() => void saveBms()} onSaveInfo={() => void saveInfo()} onShortcuts={() => setShortcutsOpen(true)} />
         <Transport compact live={false} playheadRef={playheadRef} scrollerRef={scrollerRef} />
         <button type="button" className="h-10 shrink-0 rounded border border-dock-line bg-field px-3 text-sm" onClick={() => setNotesOpen(true)}>Notes</button>
         <button type="button" className="h-10 shrink-0 rounded border border-dock-line bg-field px-3 text-sm" onClick={() => setSongOpen(!songOpen)}>Panel</button>
