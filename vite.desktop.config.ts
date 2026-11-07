@@ -3,7 +3,7 @@ import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
 
-/** Tauri loads index.html from the bundle. The source file stays desktop.html so the web app is untouched. */
+/** Tauri loads index.html from the bundle. The source page is desktop.html. */
 function publishIndexHtml(): Plugin {
   return {
     name: "desktop-index-html",
