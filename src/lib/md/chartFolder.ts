@@ -109,7 +109,7 @@ function inDesktop(): boolean {
 }
 
 type DesktopStatus = { enabled: boolean; folders: string[]; root?: string; needsPick?: boolean; cancelled?: boolean };
-type DesktopFolder = { charts: AlbumChart[]; music: string[] };
+type DesktopFolder = { charts: AlbumChart[]; music: string[]; info?: string | null };
 type DesktopFile = { name: string; mime: string; text?: string; base64?: string };
 type DesktopWrite = { ok: boolean; verified?: boolean };
 
@@ -236,6 +236,35 @@ async function listServerCharts(folder: string): Promise<AlbumChart[]> {
   } catch {
     return [];
   }
+}
+
+export async function readLinkedInfo(): Promise<string | null> {
+  const folder = syncedSongName();
+  if (folder && inDesktop()) {
+    try {
+      const data = await desktopInvoke<DesktopFolder>("charts_folder", { folder });
+      return typeof data.info === "string" ? data.info : null;
+    } catch {
+      return null;
+    }
+  }
+  const dir = await stored().catch(() => null);
+  if (!dir) return null;
+  try {
+    const ask = (dir as FileSystemDirectoryHandle & { requestPermission?: (options: { mode: "readwrite" }) => Promise<PermissionState> }).requestPermission;
+    if (ask) {
+      const perm = await ask.call(dir, { mode: "readwrite" });
+      if (perm !== "granted") return null;
+    }
+    for await (const [name, handle] of dir.entries()) {
+      if (handle.kind === "file" && name.toLowerCase() === "info.json") {
+        return await (await handle.getFile()).text();
+      }
+    }
+  } catch {
+    return null;
+  }
+  return null;
 }
 
 export async function listLinkedCharts(): Promise<AlbumChart[]> {

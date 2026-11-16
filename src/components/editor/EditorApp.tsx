@@ -1,10 +1,10 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { chartLabel, readAlbum } from "@/lib/md/album";
 import { chartOrigin, currentChartName, setAlbumCharts, setChartOrigin, useAlbumCharts } from "@/lib/md/pack";
-import { declaredScene, musicFileName, nextId, rememberInfo, type ChartNote } from "@/lib/md/bms";
-import { isGearNote, isPlayNote, normalizeScene, sceneFromNotes } from "@/lib/md/catalog";
+import { declaredScene, infoToMeta, musicFileName, nextId, rememberInfo, type ChartNote } from "@/lib/md/bms";
+import { isGearNote, isPlayNote, sceneFromNotes } from "@/lib/md/catalog";
 import { player } from "@/lib/md/player";
-import { clearBrowserLink, desktopApp, linkServerFolder, listLinkedCharts, pickDefaultChart, pickDesktopChart, pickDesktopChartRoot, serverCharts, setSyncedSongName, syncedSongName, writeChartFile } from "@/lib/md/chartFolder";
+import { clearBrowserLink, desktopApp, linkServerFolder, listLinkedCharts, pickDefaultChart, pickDesktopChart, pickDesktopChartRoot, readLinkedInfo, serverCharts, setSyncedSongName, syncedSongName, writeChartFile } from "@/lib/md/chartFolder";
 import { applyLinkedMusic, bootMusic, clearLoadedMusic } from "@/lib/md/musicLink";
 import { isChartDirty, persistChart, restoreChart, useChart } from "@/lib/md/store";
 import { NotePicker } from "./NotePicker";
@@ -233,18 +233,7 @@ export function EditorApp() {
         const text = await file.text();
         const data = JSON.parse(text) as Record<string, unknown>;
         rememberInfo(data);
-        const tags = Array.isArray(data.searchTags) ? data.searchTags.map(String).join(", ") : undefined;
-        state.patchMeta({
-          title: typeof data.name === "string" ? data.name : undefined,
-          artist: typeof data.author === "string" ? data.author : undefined,
-          genre: typeof data.scene === "string" ? normalizeScene(data.scene) : undefined,
-          designer: typeof data.levelDesigner === "string" ? data.levelDesigner : undefined,
-          tags,
-          difficulty1: data.difficulty1 != null ? String(data.difficulty1) : undefined,
-          difficulty2: data.difficulty2 != null ? String(data.difficulty2) : undefined,
-          difficulty3: data.difficulty3 != null ? String(data.difficulty3) : undefined,
-          difficulty4: data.difficulty4 != null ? String(data.difficulty4) : undefined,
-        });
+        state.patchMeta(infoToMeta(data, currentChartName()));
         state.setBanner("Loaded info.json");
       } catch {
         state.setBanner("Could not parse info.json");
@@ -353,6 +342,7 @@ export function EditorApp() {
       }
       state.loadText(next.text, next.name);
       setAlbumCharts(charts, next.name);
+      await applyLinkedInfo(next.name);
       const head = `Editing ${chartLabel(next.name)}.`;
       state.setBanner(await applyLinkedMusic(head));
       warnMusicIfMissing(setMusicWarnOpen);
@@ -374,6 +364,23 @@ export function EditorApp() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+
+  async function applyLinkedInfo(chartName: string) {
+    if (chartOrigin() !== "linked") return;
+    const text = await readLinkedInfo();
+    if (!text) return;
+    try {
+      const data = JSON.parse(text) as Record<string, unknown>;
+      if (!data || typeof data !== "object" || Array.isArray(data)) return;
+      rememberInfo(data);
+      const patch = infoToMeta(data, chartName);
+      const chart = useChart.getState();
+      chart.patchMeta(patch);
+      if (patch.bpm) useChart.setState({ playBpm: Math.round(patch.bpm), bgmSpeed: 1 });
+    } catch {
+      useChart.getState().setBanner("Could not parse info.json");
+    }
+  }
 
   async function openChart() {
     if (!desktopApp()) {
@@ -417,6 +424,7 @@ export function EditorApp() {
                   await clearLoadedMusic();
                   useChart.getState().loadText(chart.text, chart.name);
                   setAlbumCharts(album.charts, chart.name);
+                  await applyLinkedInfo(chart.name);
                   useChart.getState().setBanner(await applyLinkedMusic(`Editing ${chartLabel(chart.name)}.`));
                   warnMusicIfMissing(setMusicWarnOpen);
                 })();

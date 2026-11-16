@@ -538,6 +538,40 @@ export function rememberInfo(data: Record<string, unknown> | null) {
   loadedInfo = data;
 }
 
+function infoSlot(chartName?: string): 1 | 2 | 3 | 4 | null {
+  const name = (chartName ?? "").toLowerCase();
+  if (name === "map1.bms") return 1;
+  if (name === "map2.bms" || name === "map.bms") return 2;
+  if (name === "map3.bms") return 3;
+  if (name === "map4.bms") return 4;
+  return null;
+}
+
+/** Header fields stored in a song folder's info.json. */
+export function infoToMeta(data: Record<string, unknown>, chartName?: string): Partial<Meta> {
+  const patch: Partial<Meta> = {};
+  if (typeof data.name === "string") patch.title = data.name;
+  if (typeof data.author === "string") patch.artist = data.author;
+  if (typeof data.scene === "string" && data.scene.trim()) patch.genre = normalizeScene(data.scene);
+  const bpm = Number(data.bpm);
+  if (Number.isFinite(bpm) && bpm > 0) patch.bpm = bpm;
+  const slot = infoSlot(chartName);
+  const slotDesigner = slot ? data[`levelDesigner${slot}`] : undefined;
+  if (typeof data.levelDesigner === "string" && data.levelDesigner.trim()) patch.designer = data.levelDesigner;
+  else if (typeof slotDesigner === "string") patch.designer = slotDesigner;
+  if (Array.isArray(data.searchTags)) patch.tags = data.searchTags.map(String).join(", ");
+  if (data.difficulty1 != null) patch.difficulty1 = String(data.difficulty1);
+  if (data.difficulty2 != null) patch.difficulty2 = String(data.difficulty2);
+  if (data.difficulty3 != null) patch.difficulty3 = String(data.difficulty3);
+  if (data.difficulty4 != null) patch.difficulty4 = String(data.difficulty4);
+  if (data.unlockLevel != null) patch.unlockLevel = String(data.unlockLevel);
+  if (slot) {
+    const level = data[`difficulty${slot}`];
+    if (level != null && String(level) !== "") patch.playlevel = String(level);
+  }
+  return patch;
+}
+
 export function infoJson(meta: Meta): string {
   const tags = meta.tags
     .split(",")

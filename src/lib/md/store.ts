@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { DISPLAY_LANES, HOLD_KEYS, flipTravel, normalizeScene, type LaneId } from "./catalog";
+import { DISPLAY_LANES, HOLD_KEYS, PARTNER, flipTravel, normalizeScene, type LaneId } from "./catalog";
 import {
   EMPTY_META,
   difficultyFromName,
@@ -149,6 +149,13 @@ function blank() {
   };
 }
 
+function geminiMate(notes: ChartNote[], note: ChartNote): ChartNote | undefined {
+  if (note.key !== "0E") return undefined;
+  const partner = PARTNER[note.lane];
+  if (!partner) return undefined;
+  return notes.find((item) => item.id !== note.id && item.key === "0E" && item.lane === partner && item.tick === note.tick);
+}
+
 function snapshot(state: ChartState): Snapshot {
   return {
     notes: state.notes,
@@ -292,8 +299,14 @@ export const useChart = create<ChartState>((set, get) => ({
   deleteSelection: () => {
     const state = get();
     if (!state.selection.length) return;
+    const drop = new Set(state.selection);
+    for (const id of state.selection) {
+      const note = state.notes.find((item) => item.id === id);
+      const mate = note ? geminiMate(state.notes, note) : undefined;
+      if (mate) drop.add(mate.id);
+    }
     set((s) => ({
-      notes: s.notes.filter((n) => !s.selection.includes(n.id)),
+      notes: s.notes.filter((n) => !drop.has(n.id)),
       selectedId: null,
       selection: [],
       past: [...s.past, snapshot(s)],
@@ -444,12 +457,17 @@ export const useChart = create<ChartState>((set, get) => ({
     if (!anchor) return;
     const delta = tick - anchor.tick;
     const ids = new Set(state.selection.includes(anchorId) ? state.selection : [anchorId]);
+    const mate = geminiMate(state.notes, anchor);
+    const nextLane = lane ?? anchor.lane;
+    const mateLane = mate ? (PARTNER[nextLane] ?? mate.lane) : undefined;
+    if (mate) ids.add(mate.id);
     set((s) => ({
       notes: s.notes.map((n) => {
         if (!ids.has(n.id)) return n;
-        const next: ChartNote = { ...n, tick: n.tick + delta };
-        if (n.endTick != null) next.endTick = n.endTick + delta;
+        const next: ChartNote = { ...n, tick: Math.max(0, n.tick + delta) };
+        if (n.endTick != null) next.endTick = Math.max(0, n.endTick + delta);
         if (lane != null && n.id === anchorId) next.lane = lane;
+        if (mate && n.id === mate.id && mateLane) next.lane = mateLane;
         return next;
       }),
       past: [...s.past, snapshot(s)],
@@ -498,10 +516,15 @@ export const useChart = create<ChartState>((set, get) => ({
       tapHold,
       blood,
     };
+    const added = [note];
+    const partner = key === "0E" ? PARTNER[lane] : undefined;
+    if (partner && !state.notes.some((item) => item.key === "0E" && item.lane === partner && item.tick === tick)) {
+      added.push({ id: nextId(), lane: partner, key, tick });
+    }
     set((s) => ({
-      notes: [...s.notes, note],
+      notes: [...s.notes, ...added],
       selectedId: note.id,
-      selection: [note.id],
+      selection: added.map((item) => item.id),
       past: [...s.past, snapshot(s)],
       future: [],
     }));
@@ -521,13 +544,19 @@ export const useChart = create<ChartState>((set, get) => ({
     }));
   },
   remove: (id) => {
-    set((s) => ({
-      notes: s.notes.filter((n) => n.id !== id),
-      selectedId: s.selectedId === id ? null : s.selectedId,
-      selection: s.selection.filter((x) => x !== id),
-      past: [...s.past, snapshot(s)],
-      future: [],
-    }));
+    set((s) => {
+      const note = s.notes.find((item) => item.id === id);
+      const drop = new Set<string>([id]);
+      const mate = note ? geminiMate(s.notes, note) : undefined;
+      if (mate) drop.add(mate.id);
+      return {
+        notes: s.notes.filter((n) => !drop.has(n.id)),
+        selectedId: s.selectedId && drop.has(s.selectedId) ? null : s.selectedId,
+        selection: s.selection.filter((x) => !drop.has(x)),
+        past: [...s.past, snapshot(s)],
+        future: [],
+      };
+    });
   },
   toggleBlood: () => {
     const state = get();

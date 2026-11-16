@@ -24,6 +24,7 @@ struct ChartFile {
 struct FolderPayload {
     charts: Vec<ChartFile>,
     music: Vec<String>,
+    info: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -208,6 +209,7 @@ fn charts_folder(folder: String) -> Result<FolderPayload, String> {
     let entries = fs::read_dir(&dir).map_err(|err| err.to_string())?;
     let mut charts = Vec::new();
     let mut music = Vec::new();
+    let mut info = None;
     for entry in entries.flatten() {
         let Ok(kind) = entry.file_type() else { continue };
         if !kind.is_file() {
@@ -219,11 +221,15 @@ fn charts_folder(folder: String) -> Result<FolderPayload, String> {
             charts.push(ChartFile { name, text });
         } else if is_audio(&name) {
             music.push(name);
+        } else if name.eq_ignore_ascii_case("info.json") {
+            if let Ok(text) = fs::read_to_string(entry.path()) {
+                info = Some(text);
+            }
         }
     }
     charts.sort_by(|a, b| bms_order(&a.name).cmp(&bms_order(&b.name)).then(a.name.cmp(&b.name)));
     music.sort();
-    Ok(FolderPayload { charts, music })
+    Ok(FolderPayload { charts, music, info })
 }
 
 #[tauri::command]
