@@ -37,12 +37,16 @@ export function locate(tick: number, sigs: Sig[], _measureCount = 0) {
 }
 
 export function snapTick(tick: number, snap: number, sigs: Sig[], measureCount: number): number {
-  const safeSnap = Math.max(1, snap);
+  const step = gridStep(snap);
   const spot = locate(Math.max(0, tick), sigs, measureCount);
-  const step = spot.len / safeSnap;
   const snapped = Math.round(spot.local / step) * step;
   if (snapped >= spot.len - 0.001) return spot.start + spot.len;
   return spot.start + Math.max(0, snapped);
+}
+
+/** Ticks between grid lines. A 16-grid is 12 ticks, which is what the roll paints. */
+export function gridStep(divide: number): number {
+  return Math.max(1, Math.round(TICKS / Math.max(1, divide)));
 }
 
 export function tickToX(tick: number, pxPerMeasure: number): number {
@@ -50,7 +54,11 @@ export function tickToX(tick: number, pxPerMeasure: number): number {
 }
 
 /** Pixels per measure. iBMSC draws one 4/4 bar as 192 × the width slider. */
-export const livePx = { current: 912, camera: 0, follow: false, viewTick: 0, viewSpan: 192, redraw: null as (() => void) | null, wave: null as (() => void) | null };
+export function pxForWidth(xWidth: number): number {
+  return Math.round(xWidth * TICKS);
+}
+
+export const livePx = { current: pxForWidth(4.8), camera: 0, follow: false, viewTick: 0, viewSpan: 192, redraw: null as (() => void) | null, wave: null as (() => void) | null };
 
 /** Hover time readout between the grid and bar controls. Updated without a React render. */
 export const hoverTime = {
@@ -62,10 +70,6 @@ export const hoverTime = {
     if (this.node) this.node.textContent = text;
   },
 };
-
-export function pxForWidth(xWidth: number): number {
-  return Math.round(xWidth * TICKS);
-}
 
 export function xToTick(x: number, pxPerMeasure: number): number {
   return (x / pxPerMeasure) * TICKS;

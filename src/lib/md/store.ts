@@ -12,7 +12,7 @@ import {
   type Meta,
   type RawEvent,
 } from "./bms";
-import { snapTick, measureStart, measureTicks, locate, livePx, pxForWidth, type Sig } from "./timing";
+import { snapTick, gridStep, measureStart, measureTicks, locate, livePx, pxForWidth, type Sig } from "./timing";
 import { player } from "./player";
 
 const STORAGE_KEY = "stagepen.v1";
@@ -474,10 +474,10 @@ export const useChart = create<ChartState>((set, get) => ({
       future: [],
     }));
   },
-  nudgeSelection: (gridStep, laneStep) => {
+  nudgeSelection: (steps, laneStep) => {
     const state = get();
     if (!state.selection.length) return;
-    const step = measureTicks(0, state.sigs) / state.snap;
+    const step = gridStep(state.snap);
     set((s) => ({
       notes: s.notes.map((n) => {
         if (!s.selection.includes(n.id)) return n;
@@ -487,8 +487,8 @@ export const useChart = create<ChartState>((set, get) => ({
           const next = Math.min(DISPLAY_LANES.length - 1, Math.max(0, idx + laneStep));
           lane = DISPLAY_LANES[next];
         }
-        const tick = n.tick + gridStep * step;
-        const endTick = n.endTick != null ? n.endTick + gridStep * step : undefined;
+        const tick = n.tick + steps * step;
+        const endTick = n.endTick != null ? n.endTick + steps * step : undefined;
         return { ...n, lane, tick, endTick };
       }),
       past: [...s.past, snapshot(s)],

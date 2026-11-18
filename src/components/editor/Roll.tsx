@@ -4,7 +4,7 @@ import type { ChartNote } from "@/lib/md/bms";
 import { player } from "@/lib/md/player";
 import { NoteIcon, HoldNote, MasherNote, GearIcon, GeminiIcon, ApproachArrow, BossBadge, bossMark } from "./NoteIcon";
 import { useChart } from "@/lib/md/store";
-import { hoverTime, livePx, locate, measureTicks, pxForWidth, secondsAt, snapTick, tempoPoints, tickToX, totalTicks, xToTick, type Sig } from "@/lib/md/timing";
+import { hoverTime, livePx, measureTicks, pxForWidth, secondsAt, snapTick, tempoPoints, tickToX, totalTicks, xToTick, gridStep, type Sig } from "@/lib/md/timing";
 import { stopPoints } from "@/lib/md/bms";
 
 type Ghost = { lane: LaneId; tick: number; end?: number };
@@ -163,9 +163,8 @@ function GridCanvas({
             ctx.fillRect(x, 0, weight, cssHeight);
           }
         };
-        // iBMSC: divide lines every 192/gDivide, sub lines every 192/gSub. Not divide×sub.
-        paint(192 / divN, "rgba(255,255,255,0.16)", 1);
-        paint(192 / subN, "rgba(255,255,255,0.45)", 1);
+        paint(gridStep(divN), "rgba(255,255,255,0.16)", 1);
+        paint(gridStep(subN), "rgba(255,255,255,0.45)", 1);
         const bar = (tick: number, weight: number) => {
           const x = tickToX(start + tick, livePx.current) - viewLeft;
           if (x < -2 || x > width + 2) return;
@@ -206,6 +205,12 @@ type DragState = {
   end?: number;
   origins: DragOrigin[];
 };
+
+function pxOf(sheet: HTMLElement | null) {
+  const raw = sheet?.style.getPropertyValue("--px");
+  const n = raw ? Number(raw) : Number.NaN;
+  return n > 0 ? n : livePx.current;
+}
 
 function layoutNote(el: HTMLElement, tick: number, endTick: number | undefined, music: boolean, boxW: number) {
   const held = endTick != null && endTick > tick;
@@ -339,7 +344,7 @@ const NoteChip = memo(function NoteChip({
         if (!active || active.id !== note.id) return;
         const state = useChart.getState();
         const grid = state.snapOn ? state.snap : 192;
-        const delta = xToTick(event.clientX - active.x, livePx.current);
+        const delta = xToTick(event.clientX - active.x, pxOf(sheetRef.current));
         const sheet = sheetRef.current;
         if (active.mode === "resize") {
           const end = snapTick(Math.max(note.tick, (active.end ?? note.tick) + delta), grid, state.sigs, state.measureCount);
@@ -365,9 +370,8 @@ const NoteChip = memo(function NoteChip({
         if (!active || active.id !== note.id) return;
         drag.current = null;
         if ((event.currentTarget.closest(".roll") as HTMLElement | null)?.dataset.pan === "1") return;
-        const delta = xToTick(event.clientX - active.x, livePx.current);
-        const moved = Math.abs(event.clientX - active.x) >= 4 || Math.abs(event.clientY - active.y) >= 4;
         const sheet = sheetRef.current;
+        const moved = Math.abs(event.clientX - active.x) >= 4 || Math.abs(event.clientY - active.y) >= 4;
         if (!moved) {
           for (const origin of active.origins) {
             const el = noteEl(sheet, origin.id);
@@ -378,10 +382,29 @@ const NoteChip = memo(function NoteChip({
           return;
         }
         const state = useChart.getState();
-        if (active.mode === "resize") state.resizeNote(note.id, (active.end ?? note.tick) + delta);
-        else {
+        const grid = state.snapOn ? state.snap : 192;
+        const delta = xToTick(event.clientX - active.x, pxOf(sheet));
+        if (active.mode === "resize") {
+          const end = snapTick(Math.max(note.tick, (active.end ?? note.tick) + delta), grid, state.sigs, state.measureCount);
+          if (end === note.endTick) {
+            const el = noteEl(sheet, note.id);
+            if (el) layoutNote(el, note.tick, note.endTick, music, boxW);
+            return;
+          }
+          state.resizeNote(note.id, end);
+        } else {
+          const tick = snapTick(Math.max(0, active.tick + delta), grid, state.sigs, state.measureCount);
           const lane = !state.lockLane && sheet ? (laneAt(sheet, event.clientY) ?? undefined) : undefined;
-          state.moveGroup(note.id, Math.max(0, active.tick + delta), lane);
+          if (tick === note.tick && (lane == null || lane === note.lane)) {
+            for (const origin of active.origins) {
+              const el = noteEl(sheet, origin.id);
+              if (!el) continue;
+              layoutNote(el, origin.tick, origin.endTick, origin.music, origin.boxW);
+              el.style.top = origin.top;
+            }
+            return;
+          }
+          state.moveGroup(note.id, tick, lane);
         }
       }}
       onContextMenu={(event) => {
@@ -449,7 +472,6 @@ export function Roll({
   const sigs = useChart((state) => state.sigs);
   const measureCount = useChart((state) => state.measureCount);
   const px = useChart((state) => state.px);
-  const snap = useChart((state) => state.snap);
   const divide = useChart((state) => state.divide);
   const sub = useChart((state) => state.sub);
   const xHeight = useChart((state) => state.xHeight);
@@ -695,22 +717,31 @@ export function Roll({
     useChart.setState({ focusTick: null });
   }, [focusTick, scrollerRef]);
 
-  function tickAt(clientX: number, host: HTMLElement) {
-    const rect = host.getBoundingClientRect();
-    return snapTick(xToTick(clientX - rect.left, livePx.current), snap, sigs, measureCount);
+  function contentX(clientX: number) {
+    const scroller = scrollerRef.current;
+    if (!scroller) return 0;
+    const rect = scroller.getBoundingClientRect();
+    let tx = 0;
+    const transform = sheetRef.current?.style.transform;
+    if (transform) {
+      const match = /translate3d\(\s*(-?[\d.]+)px/i.exec(transform);
+      tx = match ? Number(match[1]) : new DOMMatrix(transform).m41;
+    }
+    return clientX - rect.left - scroller.clientLeft + scroller.scrollLeft - tx;
   }
 
-  function showHover(clientX: number, host: HTMLElement) {
+  function tickAt(clientX: number) {
     const state = useChart.getState();
-    const raw = xToTick(clientX - host.getBoundingClientRect().left, livePx.current);
-    const grid = Math.max(1, state.divide);
+    const grid = state.snapOn ? state.snap : 192;
+    return snapTick(xToTick(contentX(clientX), pxOf(sheetRef.current)), grid, state.sigs, state.measureCount);
+  }
+
+  function showHover(clientX: number) {
+    const state = useChart.getState();
+    const grid = state.snapOn ? state.snap : 192;
+    const raw = xToTick(contentX(clientX), pxOf(sheetRef.current));
     const end = totalTicks(state.measureCount, state.sigs);
-    const spot = locate(Math.max(0, raw), state.sigs, state.measureCount);
-    const step = 192 / grid;
-    let local = Math.round(spot.local / step) * step;
-    if (local < 0) local = 0;
-    if (local >= spot.len - 0.001) local = spot.len;
-    const tick = Math.min(end, spot.start + local);
+    const tick = Math.min(end, snapTick(Math.max(0, raw), grid, state.sigs, state.measureCount));
     const line = hoverRef.current;
     if (line) {
       line.style.display = "block";
@@ -808,7 +839,7 @@ export function Roll({
               hideHover();
               return;
             }
-            showHover(event.clientX, event.currentTarget);
+            showHover(event.clientX);
           }}
           onPointerLeave={hideHover}
         >
@@ -836,7 +867,7 @@ export function Roll({
                   }}
                   onClick={(event) => {
                     const host = event.currentTarget.parentElement ?? event.currentTarget;
-                    const tick = tickAt(event.clientX, host);
+                    const tick = tickAt(event.clientX);
                     const { notes: current, meta, extras, headerExtras, sigs: timeSigs } = useChart.getState();
                     player.seek(secondsAt(tick, tempoPoints(current, meta.bpm), stopPoints(headerExtras ?? [], extras ?? [], timeSigs)));
                   }}
@@ -861,13 +892,13 @@ export function Roll({
                   const host = event.currentTarget;
                   const sheet = sheetRef.current;
                   const writing = useChart.getState().tool !== "select";
-                  const start = tickAt(event.clientX, host);
+                  const start = tickAt(event.clientX);
                   const brush = useChart.getState().brush;
                   const canHold = writing && HOLD_KEYS.has(brush) && lane.id !== "bpm" && lane.id !== "bgm";
                   const originX = event.clientX;
                   const originY = event.clientY;
                   const rect = sheet?.getBoundingClientRect();
-                  const startX = rect ? event.clientX - rect.left : 0;
+                  const startX = contentX(event.clientX);
                   const startY = rect ? event.clientY - rect.top : 0;
                   const extend = event.shiftKey;
                   const base = extend ? useChart.getState().selection : [];
@@ -875,7 +906,7 @@ export function Roll({
                   let boxed = false;
                   const pick = (clientX: number, clientY: number) => {
                     const now = sheet?.getBoundingClientRect();
-                    const x1 = now ? clientX - now.left : 0;
+                    const x1 = contentX(clientX);
                     const y1 = now ? clientY - now.top : 0;
                     const x = Math.min(startX, x1);
                     const y = Math.min(startY, y1);
@@ -896,7 +927,7 @@ export function Roll({
                     const dragged = Math.hypot(ev.clientX - originX, ev.clientY - originY) > 6;
                     if (canHold && !(ev.ctrlKey && ev.shiftKey)) {
                       if (dragged) {
-                        const end = tickAt(ev.clientX, host);
+                        const end = tickAt(ev.clientX);
                         setGhost({ lane: lane.id, tick: Math.min(start, end), end: Math.max(start, end) });
                       }
                       return;
@@ -925,7 +956,7 @@ export function Roll({
                       if (!extend) useChart.getState().select(null);
                       return;
                     }
-                    const end = tickAt(ev.clientX, host);
+                    const end = tickAt(ev.clientX);
                     const mine = (ev.ctrlKey || ev.metaKey) && ev.shiftKey && canHold;
                     const heart = (ev.ctrlKey || ev.metaKey) && !ev.shiftKey;
                     if (mine) place(lane.id, start, undefined, true);
