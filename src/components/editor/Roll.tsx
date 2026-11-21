@@ -560,6 +560,15 @@ export function Roll({
     if (!scroller) return;
     const zoom = { delta: 0, x: 0, frame: 0, commit: 0 };
     const onWheel = (event: WheelEvent) => {
+      if (event.ctrlKey || event.metaKey) return;
+      if (!event.shiftKey && !event.altKey && useChart.getState().wheelScrollX) {
+        if (event.deltaY !== 0 && Math.abs(event.deltaY) >= Math.abs(event.deltaX)) {
+          event.preventDefault();
+          const scale = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? scroller.clientWidth : 1;
+          scroller.scrollLeft += event.deltaY * scale;
+          return;
+        }
+      }
       if (!event.shiftKey) return;
       event.preventDefault();
       const raw = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;

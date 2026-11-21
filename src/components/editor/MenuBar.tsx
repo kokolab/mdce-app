@@ -36,6 +36,7 @@ export function MenuBar({
     return ids.length > 0 && ids.every((id) => state.notes.find((note) => note.id === id)?.blood);
   });
   const lockLane = useChart((state) => state.lockLane);
+  const wheelScrollX = useChart((state) => state.wheelScrollX);
   const followPlay = useChart((state) => state.followPlay);
   const followTight = useChart((state) => state.followTight);
   const origin = useChartOrigin();
@@ -201,6 +202,7 @@ export function MenuBar({
           <Sep />
           {item("Snap to grid", () => state().setSnapOn(!snapOn), snapOn)}
           {item("Disable vertical moves", () => state().setLockLane(!lockLane), lockLane)}
+          {item("Wheel scrolls horizontally", () => state().setWheelScrollX(!wheelScrollX), wheelScrollX)}
         </>,
       )}
       {menu(
@@ -252,6 +254,7 @@ export function MobileMenu({
     return ids.length > 0 && ids.every((id) => state.notes.find((note) => note.id === id)?.blood);
   });
   const lockLane = useChart((state) => state.lockLane);
+  const wheelScrollX = useChart((state) => state.wheelScrollX);
   const followPlay = useChart((state) => state.followPlay);
   const followTight = useChart((state) => state.followTight);
   const origin = useChartOrigin();
@@ -328,6 +331,7 @@ export function MobileMenu({
             {row("Keep play line tight", () => state().setFollowTight(!followTight), followTight)}
             {row("Snap to grid", () => state().setSnapOn(!snapOn), snapOn)}
             {row("Disable vertical moves", () => state().setLockLane(!lockLane), lockLane)}
+            {row("Wheel scrolls horizontally", () => state().setWheelScrollX(!wheelScrollX), wheelScrollX)}
             <p className="px-4 pt-3 text-xs tracking-wide text-mute uppercase">Conversion</p>
             {row("Swap air and ground", () => state().swapGroundAir())}
             {row("Hidden note", () => state().toggleBlood(), heartOn)}

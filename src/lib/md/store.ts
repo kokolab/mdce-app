@@ -57,6 +57,7 @@ type ChartState = {
   showIcons: boolean;
   snapOn: boolean;
   lockLane: boolean;
+  wheelScrollX: boolean;
   followPlay: boolean;
   followTight: boolean;
   followAmount: number;
@@ -84,6 +85,7 @@ type ChartState = {
   setShowIcons: (show: boolean) => void;
   setSnapOn: (on: boolean) => void;
   setLockLane: (on: boolean) => void;
+  setWheelScrollX: (on: boolean) => void;
   setFollowPlay: (on: boolean) => void;
   setFollowTight: (on: boolean) => void;
   setFollowAmount: (amount: number) => void;
@@ -174,6 +176,7 @@ export const useChart = create<ChartState>((set, get) => ({
   showIcons: true,
   snapOn: true,
   lockLane: false,
+  wheelScrollX: true,
   followPlay: true,
   followTight: false,
   followAmount: 1,
@@ -207,6 +210,7 @@ export const useChart = create<ChartState>((set, get) => ({
   setShowIcons: (showIcons) => set({ showIcons }),
   setSnapOn: (snapOn) => set({ snapOn }),
   setLockLane: (lockLane) => set({ lockLane }),
+  setWheelScrollX: (wheelScrollX) => set({ wheelScrollX }),
   setFollowPlay: (followPlay) => set({ followPlay }),
   setFollowTight: (followTight) => set({ followTight }),
   setFollowAmount: (followAmount) => set({ followAmount: Math.min(1, Math.max(0, followAmount)) }),
@@ -644,6 +648,7 @@ export function persistChart() {
     showIcons: state.showIcons,
     snapOn: state.snapOn,
     lockLane: state.lockLane,
+    wheelScrollX: state.wheelScrollX,
     followPlay: state.followPlay,
     followTight: state.followTight,
     followAmount: state.followAmount,
@@ -675,6 +680,7 @@ export function restoreChart() {
     if (typeof data.showIcons === "boolean") patch.showIcons = data.showIcons;
     if (typeof data.snapOn === "boolean") patch.snapOn = data.snapOn;
     if (typeof data.lockLane === "boolean") patch.lockLane = data.lockLane;
+    if (typeof data.wheelScrollX === "boolean") patch.wheelScrollX = data.wheelScrollX;
     if (typeof data.followPlay === "boolean") patch.followPlay = data.followPlay;
     if (typeof data.followTight === "boolean") patch.followTight = data.followTight;
     if (typeof data.followAmount === "number") patch.followAmount = data.followAmount;

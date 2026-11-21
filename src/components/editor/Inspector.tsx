@@ -72,6 +72,7 @@ export function Inspector() {
   const patchMeta = useChart((state) => state.patchMeta);
   const snapOn = useChart((state) => state.snapOn);
   const lockLane = useChart((state) => state.lockLane);
+  const wheelScrollX = useChart((state) => state.wheelScrollX);
   const divide = useChart((state) => state.divide);
   const sub = useChart((state) => state.sub);
   const xWidth = useChart((state) => state.xWidth);
@@ -249,6 +250,11 @@ export function Inspector() {
           <span className={LABEL} aria-hidden />
           <input type="checkbox" checked readOnly />
           <span>Horizontal View</span>
+        </label>
+        <label className="flex h-6 items-center gap-2 text-xs">
+          <span className={LABEL} aria-hidden />
+          <input type="checkbox" checked={wheelScrollX} onChange={(event) => useChart.getState().setWheelScrollX(event.target.checked)} />
+          <span>Wheel scrolls horizontally</span>
         </label>
       </Group>
 

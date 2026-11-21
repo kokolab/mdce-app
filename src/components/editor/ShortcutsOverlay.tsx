@@ -12,6 +12,7 @@ const ROWS: { keys: string; action: string }[] = [
   { keys: "Ctrl/Cmd + ↑ / ↓", action: "Playback speed" },
   { keys: "G", action: "Snap to grid (Options)" },
   { keys: "D", action: "Lock vertical moves (Options)" },
+  { keys: "Wheel", action: "Scroll the chart. Alt+wheel scrolls lanes" },
   { keys: "?", action: "This shortcuts panel" },
 ];
 
