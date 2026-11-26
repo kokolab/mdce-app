@@ -156,17 +156,18 @@ export async function pickDesktopChart(): Promise<File | null> {
   return new File([bytes], data.name);
 }
 
-export async function pickDesktopChartRoot(): Promise<{ enabled: boolean; folders: string[]; needsPick?: boolean; cancelled?: boolean }> {
+export async function pickDesktopChartRoot(): Promise<{ enabled: boolean; folders: string[]; root?: string; needsPick?: boolean; cancelled?: boolean }> {
   const data = await desktopInvoke<DesktopStatus>("charts_pick_root");
   return {
     enabled: Boolean(data.enabled),
     folders: Array.isArray(data.folders) ? data.folders : [],
+    root: data.root || "",
     needsPick: Boolean(data.needsPick),
     cancelled: Boolean(data.cancelled),
   };
 }
 
-export async function serverCharts(): Promise<{ enabled: boolean; folders: string[]; needsPick?: boolean; cancelled?: boolean }> {
+export async function serverCharts(): Promise<{ enabled: boolean; folders: string[]; root?: string; needsPick?: boolean; cancelled?: boolean }> {
   if (inDesktop()) {
     try {
       const data = await desktopInvoke<DesktopStatus>("charts_status");
@@ -174,6 +175,7 @@ export async function serverCharts(): Promise<{ enabled: boolean; folders: strin
       return {
         enabled: Boolean(data.enabled),
         folders: Array.isArray(data.folders) ? data.folders : [],
+        root: data.root || "",
         needsPick: Boolean(data.needsPick),
       };
     } catch {

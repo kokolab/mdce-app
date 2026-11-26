@@ -1,5 +1,6 @@
 export function FolderPicker({
   folders,
+  root,
   value,
   onChange,
   onLink,
@@ -8,6 +9,7 @@ export function FolderPicker({
   onCancel,
 }: {
   folders: string[];
+  root?: string;
   value: string;
   onChange: (name: string) => void;
   onLink: () => void;
@@ -21,8 +23,13 @@ export function FolderPicker({
         className="w-full max-w-md rounded-xl border border-dock-line bg-dock p-4 text-dock-ink shadow-xl"
         onClick={(event) => event.stopPropagation()}
       >
-        <h2 className="text-base font-semibold text-paper">Link chart folder</h2>
+        <h2 className="text-base font-semibold text-dock-ink">Link chart folder</h2>
         <p className="mt-1 text-sm text-mute">Pick a song folder inside the chart folder you selected.</p>
+        {root ? (
+          <p className="mt-2 truncate font-mono text-xs text-mute" title={root}>
+            {root}
+          </p>
+        ) : null}
         <label className="mt-4 flex flex-col gap-2 text-sm">
           <span>Available folders</span>
           <select

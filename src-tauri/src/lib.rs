@@ -63,15 +63,14 @@ fn list_song_folders(root: &Path) -> Vec<String> {
     let mut folders = Vec::new();
     if let Ok(entries) = fs::read_dir(root) {
         for entry in entries.flatten() {
-            let Ok(kind) = entry.file_type() else { continue };
-            if !kind.is_dir() {
-                continue;
-            }
             let name = entry.file_name().to_string_lossy().to_string();
             if name.starts_with('.') {
                 continue;
             }
-            folders.push(name);
+            // Follow symlinks and junctions. file_type() reports those as not directories.
+            if entry.path().is_dir() {
+                folders.push(name);
+            }
         }
     }
     if folders.is_empty() && dir_has_bms(root) {

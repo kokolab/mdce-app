@@ -268,7 +268,7 @@ export const useChart = create<ChartState>((set, get) => ({
   pasteClipboard: () => {
     const state = get();
     if (!state.clipboard.notes.length) return;
-    const focus = state.focusTick ?? 0;
+    const focus = state.focusTick ?? Math.max(0, livePx.viewTick);
     const base = locate(focus, state.sigs);
     const newNotes: ChartNote[] = state.clipboard.notes.map((c) => {
       const tick = measureStart(base.measure + c.measureDelta, state.sigs) + c.local;
@@ -408,15 +408,15 @@ export const useChart = create<ChartState>((set, get) => ({
     });
   },
   swapGroundAir: () => {
+    const swap: Partial<Record<LaneId, LaneId>> = { air: "gnd", gnd: "air", air2: "gnd2", gnd2: "air2" };
     set((s) => ({
       notes: s.notes.map((n) => {
-        if (n.lane === "A") return { ...n, lane: "G" as LaneId };
-        if (n.lane === "G") return { ...n, lane: "A" as LaneId };
-        return n;
+        const lane = swap[n.lane];
+        return lane ? { ...n, lane } : n;
       }),
       past: [...s.past, snapshot(s)],
       future: [],
-      banner: "Swapped ground/air.",
+      banner: "Swapped air and ground.",
     }));
   },
   setSnap: (snap) => {
@@ -564,11 +564,15 @@ export const useChart = create<ChartState>((set, get) => ({
   },
   toggleBlood: () => {
     const state = get();
-    if (!state.selectedId) return;
+    const ids = state.selection.length ? state.selection : state.selectedId ? [state.selectedId] : [];
+    if (!ids.length) return;
+    const mark = !ids.every((id) => state.notes.find((n) => n.id === id)?.blood);
+    const chosen = new Set(ids);
     set((s) => ({
-      notes: s.notes.map((n) => (n.id === s.selectedId ? { ...n, blood: !n.blood } : n)),
+      notes: s.notes.map((n) => (chosen.has(n.id) ? { ...n, blood: mark } : n)),
       past: [...s.past, snapshot(s)],
       future: [],
+      banner: mark ? "Marked as a hidden note." : "Cleared hidden note.",
     }));
   },
   patchSelected: (patch) => {

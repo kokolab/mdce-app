@@ -108,7 +108,7 @@ export function EditorApp() {
   const [saved, setSaved] = useState("Saved");
   const diskStatusRef = useRef<string | null>(null);
   const diskClearRef = useRef(0);
-  const [folderPicker, setFolderPicker] = useState<{ folders: string[]; current: string } | null>(null);
+  const [folderPicker, setFolderPicker] = useState<{ folders: string[]; root: string; current: string } | null>(null);
   const [folderPick, setFolderPick] = useState("");
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [musicWarnOpen, setMusicWarnOpen] = useState(false);
@@ -318,7 +318,7 @@ export function EditorApp() {
       const current = syncedSongName() || "";
       const initial = current && listed.folders.includes(current) ? current : listed.folders[0];
       setFolderPick(initial);
-      setFolderPicker({ folders: listed.folders, current });
+      setFolderPicker({ folders: listed.folders, root: listed.root || "", current });
     } catch {
       state.setBanner("Could not list chart folders.");
     }
@@ -352,13 +352,101 @@ export function EditorApp() {
   }
 
   useEffect(() => {
+    const typing = (target: EventTarget | null) =>
+      target instanceof HTMLInputElement ||
+      target instanceof HTMLTextAreaElement ||
+      target instanceof HTMLSelectElement ||
+      (target instanceof HTMLElement && target.isContentEditable);
+    const grids = [8, 16, 32, 64, 192];
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "?" && !e.ctrlKey && !e.metaKey && !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement)) {
+      const cmd = e.ctrlKey || e.metaKey;
+      if (e.key === "?" && !cmd && !e.altKey && !typing(e.target)) {
         setShortcutsOpen((s) => !s);
+        return;
       }
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+      if (cmd && e.key.toLowerCase() === "s") {
         e.preventDefault();
         void saveBms();
+        return;
+      }
+      if (typing(e.target)) return;
+      const state = useChart.getState();
+      const key = e.key.toLowerCase();
+      if (cmd && key === "z") {
+        e.preventDefault();
+        if (e.shiftKey) state.redo();
+        else state.undo();
+        return;
+      }
+      if (cmd && key === "y") {
+        e.preventDefault();
+        state.redo();
+        return;
+      }
+      if (cmd && key === "c") {
+        e.preventDefault();
+        state.copySelected();
+        return;
+      }
+      if (cmd && key === "x") {
+        e.preventDefault();
+        state.cutSelected();
+        return;
+      }
+      if (cmd && key === "v") {
+        e.preventDefault();
+        state.pasteClipboard();
+        return;
+      }
+      if (cmd && key === "a") {
+        e.preventDefault();
+        state.selectAll();
+        return;
+      }
+      if (cmd && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
+        e.preventDefault();
+        state.setBgmSpeed(state.bgmSpeed + (e.key === "ArrowUp" ? 0.05 : -0.05));
+        return;
+      }
+      if (cmd || e.altKey) return;
+      if (e.key === "Delete" || e.key === "Backspace") {
+        e.preventDefault();
+        state.deleteSelection();
+        return;
+      }
+      if (key === "g") {
+        state.setSnapOn(!state.snapOn);
+        return;
+      }
+      if (key === "d") {
+        state.setLockLane(!state.lockLane);
+        return;
+      }
+      if (e.key === "[" || e.key === "]") {
+        const finer = e.key === "[";
+        const exact = grids.indexOf(state.divide);
+        if (exact >= 0) {
+          state.setDivide(grids[Math.max(0, Math.min(grids.length - 1, exact + (finer ? 1 : -1)))]);
+          return;
+        }
+        const above = grids.findIndex((n) => n > state.divide);
+        if (finer) state.setDivide(grids[above < 0 ? grids.length - 1 : above]);
+        else state.setDivide(grids[above <= 0 ? 0 : above - 1]);
+        return;
+      }
+      if (!state.selection.length) return;
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        state.nudgeSelection(-1, 0);
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        state.nudgeSelection(1, 0);
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        state.nudgeSelection(0, -1);
+      } else if (e.key === "ArrowDown") {
+        e.preventDefault();
+        state.nudgeSelection(0, 1);
       }
     };
     window.addEventListener("keydown", onKey);
@@ -472,6 +560,7 @@ export function EditorApp() {
       {folderPicker ? (
         <FolderPicker
           folders={folderPicker.folders}
+          root={folderPicker.root}
           value={folderPick}
           onChange={setFolderPick}
           onLink={() => void confirmFolderPick()}
@@ -486,7 +575,7 @@ export function EditorApp() {
             const current = syncedSongName() || "";
             const initial = current && listed.folders.includes(current) ? current : listed.folders[0];
             setFolderPick(initial);
-            setFolderPicker({ folders: listed.folders, current });
+            setFolderPicker({ folders: listed.folders, root: listed.root || "", current });
           })() : undefined}
           onClear={() => {
             void clearLoadedMusic();
@@ -502,7 +591,7 @@ export function EditorApp() {
       {musicWarnOpen ? (
         <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/60 p-4" onClick={(event) => { if (event.target === event.currentTarget) setMusicWarnOpen(false); }}>
           <div className="w-full max-w-md rounded-xl border border-dock-line bg-dock p-4 text-dock-ink shadow-xl">
-            <h2 className="text-base font-semibold text-paper">No music note in chart</h2>
+            <h2 className="text-base font-semibold text-dock-ink">No music note in chart</h2>
             <p className="mt-2 text-sm text-mute">No MUSIC-row note. Add one at tick 0 so the song can start, or ignore.</p>
             <div className="mt-4 flex flex-wrap justify-end gap-2">
               <button type="button" className="h-10 rounded border border-dock-line px-4 text-sm" onClick={() => setMusicWarnOpen(false)}>Ignore</button>

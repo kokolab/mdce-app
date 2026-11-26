@@ -150,6 +150,17 @@ html {
   color-scheme: light;
 }
 
+/* Native menus ignore the dark theme and paint a light popup. Keep the names readable. */
+select {
+  color-scheme: light;
+}
+
+select option,
+select optgroup {
+  background-color: #ffffff;
+  color: #1a1a1a;
+}
+
 html.dark {
   color-scheme: dark;
   --color-ink: #000000;
