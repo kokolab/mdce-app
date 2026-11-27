@@ -6,12 +6,20 @@ use serde::Serialize;
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
+struct RecentFolder {
+    path: String,
+    label: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct ChartsStatus {
     enabled: bool,
     needs_pick: bool,
     cancelled: bool,
     folders: Vec<String>,
     root: String,
+    recents: Vec<RecentFolder>,
 }
 
 #[derive(Serialize)]
@@ -46,10 +54,108 @@ fn config_file() -> PathBuf {
     base.join("MDCE").join("chart-root.txt")
 }
 
+fn roots_file() -> PathBuf {
+    config_file().with_file_name("chart-roots.txt")
+}
+
 fn saved_root() -> Option<PathBuf> {
     let text = fs::read_to_string(config_file()).ok()?;
     let path = PathBuf::from(text.trim());
     if path.is_dir() { Some(path) } else { None }
+}
+
+fn same_dir(a: &Path, b: &Path) -> bool {
+    a == b
+}
+
+fn read_roots() -> Vec<PathBuf> {
+    let mut out = Vec::new();
+    if let Some(active) = saved_root() {
+        out.push(active);
+    }
+    if let Ok(text) = fs::read_to_string(roots_file()) {
+        for line in text.lines() {
+            let trimmed = line.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            let path = PathBuf::from(trimmed);
+            if path.is_dir() && !out.iter().any(|have| same_dir(have, &path)) {
+                out.push(path);
+            }
+        }
+    }
+    out.truncate(30);
+    out
+}
+
+fn store_roots(paths: &[PathBuf]) {
+    let file = roots_file();
+    if let Some(parent) = file.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    let body = paths
+        .iter()
+        .map(|path| path.display().to_string())
+        .collect::<Vec<_>>()
+        .join("\n");
+    let _ = fs::write(file, body);
+}
+
+fn remember(path: &Path, activate: bool) {
+    if !path.is_dir() {
+        return;
+    }
+    if activate {
+        let file = config_file();
+        if let Some(parent) = file.parent() {
+            let _ = fs::create_dir_all(parent);
+        }
+        if fs::write(&file, path.to_string_lossy().as_bytes()).is_err() {
+            return;
+        }
+    }
+    let mut next = vec![path.to_path_buf()];
+    for old in read_roots() {
+        if !same_dir(&old, path) {
+            next.push(old);
+        }
+    }
+    next.truncate(30);
+    store_roots(&next);
+}
+
+fn recent_payload(paths: &[PathBuf]) -> Vec<RecentFolder> {
+    let names: Vec<String> = paths
+        .iter()
+        .map(|path| {
+            path.file_name()
+                .map(|name| name.to_string_lossy().to_string())
+                .unwrap_or_else(|| path.display().to_string())
+        })
+        .collect();
+    paths
+        .iter()
+        .enumerate()
+        .map(|(index, path)| {
+            let name = names[index].clone();
+            let duplicated = names.iter().filter(|item| *item == &name).count() > 1;
+            let label = if duplicated {
+                let parent = path
+                    .parent()
+                    .and_then(|dir| dir.file_name())
+                    .map(|name| name.to_string_lossy().to_string())
+                    .unwrap_or_default();
+                if parent.is_empty() { name } else { format!("{name} — {parent}") }
+            } else {
+                name
+            };
+            RecentFolder {
+                path: path.display().to_string(),
+                label,
+            }
+        })
+        .collect()
 }
 
 fn dir_has_bms(dir: &Path) -> bool {
@@ -73,9 +179,11 @@ fn list_song_folders(root: &Path) -> Vec<String> {
             }
         }
     }
-    if folders.is_empty() && dir_has_bms(root) {
+    if dir_has_bms(root) {
         if let Some(name) = root.file_name().and_then(|name| name.to_str()) {
-            folders.push(name.to_string());
+            if !folders.iter().any(|item| item == name) {
+                folders.insert(0, name.to_string());
+            }
         }
     }
     folders.sort();
@@ -102,6 +210,7 @@ fn status_of(cancelled: bool) -> ChartsStatus {
             cancelled,
             folders: list_song_folders(&root),
             root: root.display().to_string(),
+            recents: recent_payload(&read_roots()),
         },
         None => ChartsStatus {
             enabled: true,
@@ -109,6 +218,7 @@ fn status_of(cancelled: bool) -> ChartsStatus {
             cancelled,
             folders: Vec::new(),
             root: String::new(),
+            recents: recent_payload(&read_roots()),
         },
     }
 }
@@ -127,13 +237,26 @@ fn charts_pick_root() -> ChartsStatus {
     if !path.is_dir() {
         return status_of(true);
     }
-    let file = config_file();
-    if let Some(parent) = file.parent() {
-        let _ = fs::create_dir_all(parent);
+    remember(&path, true);
+    status_of(false)
+}
+
+#[tauri::command]
+fn charts_select_root(path: Option<String>, folder: Option<String>, activate: bool) -> ChartsStatus {
+    let target = if let Some(folder) = folder.filter(|name| !name.trim().is_empty()) {
+        match song_dir(&folder) {
+            Ok(dir) => dir,
+            Err(_) => return status_of(false),
+        }
+    } else if let Some(path) = path {
+        PathBuf::from(path.trim())
+    } else {
+        return status_of(false);
+    };
+    if !target.is_dir() {
+        return status_of(false);
     }
-    if fs::write(&file, path.to_string_lossy().as_bytes()).is_err() {
-        return status_of(true);
-    }
+    remember(&target, activate);
     status_of(false)
 }
 
@@ -312,6 +435,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             charts_status,
             charts_pick_root,
+            charts_select_root,
             charts_pick_chart,
             charts_folder,
             charts_read,

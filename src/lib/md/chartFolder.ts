@@ -108,7 +108,23 @@ function inDesktop(): boolean {
   return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 }
 
-type DesktopStatus = { enabled: boolean; folders: string[]; root?: string; needsPick?: boolean; cancelled?: boolean };
+type RecentFolder = { path: string; label: string };
+type DesktopStatus = {
+  enabled: boolean;
+  folders: string[];
+  root?: string;
+  recents?: RecentFolder[];
+  needsPick?: boolean;
+  cancelled?: boolean;
+};
+export type ChartListing = {
+  enabled: boolean;
+  folders: string[];
+  root: string;
+  recents: RecentFolder[];
+  needsPick?: boolean;
+  cancelled?: boolean;
+};
 type DesktopFolder = { charts: AlbumChart[]; music: string[]; info?: string | null };
 type DesktopFile = { name: string; mime: string; text?: string; base64?: string };
 type DesktopWrite = { ok: boolean; verified?: boolean };
@@ -156,45 +172,59 @@ export async function pickDesktopChart(): Promise<File | null> {
   return new File([bytes], data.name);
 }
 
-export async function pickDesktopChartRoot(): Promise<{ enabled: boolean; folders: string[]; root?: string; needsPick?: boolean; cancelled?: boolean }> {
-  const data = await desktopInvoke<DesktopStatus>("charts_pick_root");
+function listing(data: DesktopStatus): ChartListing {
   return {
     enabled: Boolean(data.enabled),
     folders: Array.isArray(data.folders) ? data.folders : [],
     root: data.root || "",
+    recents: Array.isArray(data.recents) ? data.recents.filter((item) => item?.path && item.label) : [],
     needsPick: Boolean(data.needsPick),
     cancelled: Boolean(data.cancelled),
   };
 }
 
-export async function serverCharts(): Promise<{ enabled: boolean; folders: string[]; root?: string; needsPick?: boolean; cancelled?: boolean }> {
+export async function pickDesktopChartRoot(): Promise<ChartListing> {
+  const data = await desktopInvoke<DesktopStatus>("charts_pick_root");
+  return listing(data);
+}
+
+export async function selectDesktopRoot(path: string): Promise<ChartListing> {
+  const data = await desktopInvoke<DesktopStatus>("charts_select_root", { path, folder: null, activate: true });
+  return listing(data);
+}
+
+export async function rememberLinkedFolder(folder: string): Promise<void> {
+  if (!inDesktop() || !folder.trim()) return;
+  try {
+    await desktopInvoke("charts_select_root", { path: null, folder, activate: false });
+  } catch {
+    /* the link still works if the history write fails */
+  }
+}
+
+export async function serverCharts(): Promise<ChartListing> {
   if (inDesktop()) {
     try {
       const data = await desktopInvoke<DesktopStatus>("charts_status");
       serverEnabled = Boolean(data.enabled);
-      return {
-        enabled: Boolean(data.enabled),
-        folders: Array.isArray(data.folders) ? data.folders : [],
-        root: data.root || "",
-        needsPick: Boolean(data.needsPick),
-      };
+      return listing(data);
     } catch {
       serverEnabled = false;
-      return { enabled: false, folders: [] };
+      return { enabled: false, folders: [], root: "", recents: [] };
     }
   }
   try {
     const response = await fetch("/api/charts");
     if (!response.ok) {
       serverEnabled = false;
-      return { enabled: false, folders: [] };
+      return { enabled: false, folders: [], root: "", recents: [] };
     }
     const data = (await response.json()) as { enabled?: boolean; folders?: string[] };
     serverEnabled = Boolean(data.enabled);
-    return { enabled: Boolean(data.enabled), folders: Array.isArray(data.folders) ? data.folders : [] };
+    return { enabled: Boolean(data.enabled), folders: Array.isArray(data.folders) ? data.folders : [], root: "", recents: [] };
   } catch {
     serverEnabled = false;
-    return { enabled: false, folders: [] };
+    return { enabled: false, folders: [], root: "", recents: [] };
   }
 }
 

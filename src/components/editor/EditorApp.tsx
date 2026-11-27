@@ -4,7 +4,7 @@ import { chartOrigin, currentChartName, setAlbumCharts, setChartOrigin, useAlbum
 import { declaredScene, infoToMeta, musicFileName, nextId, rememberInfo, type ChartNote } from "@/lib/md/bms";
 import { isGearNote, isPlayNote, sceneFromNotes } from "@/lib/md/catalog";
 import { player } from "@/lib/md/player";
-import { clearBrowserLink, desktopApp, linkServerFolder, listLinkedCharts, pickDefaultChart, pickDesktopChart, pickDesktopChartRoot, readLinkedInfo, serverCharts, setSyncedSongName, syncedSongName, writeChartFile } from "@/lib/md/chartFolder";
+import { clearBrowserLink, desktopApp, linkServerFolder, listLinkedCharts, pickDefaultChart, pickDesktopChart, pickDesktopChartRoot, readLinkedInfo, rememberLinkedFolder, selectDesktopRoot, serverCharts, setSyncedSongName, syncedSongName, writeChartFile, type ChartListing } from "@/lib/md/chartFolder";
 import { applyLinkedMusic, bootMusic, clearLoadedMusic } from "@/lib/md/musicLink";
 import { isChartDirty, persistChart, restoreChart, useChart } from "@/lib/md/store";
 import { NotePicker } from "./NotePicker";
@@ -13,6 +13,7 @@ import { Inspector } from "./Inspector";
 import { MenuBar, MobileMenu } from "./MenuBar";
 import { Transport } from "./Transport";
 import { FolderPicker } from "./FolderPicker";
+import { DropDown } from "./DropDown";
 import { ModeBadge, StatusBar, useEditorMode } from "./EditorChrome";
 import { ShortcutsOverlay } from "./ShortcutsOverlay";
 
@@ -108,7 +109,7 @@ export function EditorApp() {
   const [saved, setSaved] = useState("Saved");
   const diskStatusRef = useRef<string | null>(null);
   const diskClearRef = useRef(0);
-  const [folderPicker, setFolderPicker] = useState<{ folders: string[]; root: string; current: string } | null>(null);
+  const [folderPicker, setFolderPicker] = useState<{ folders: string[]; root: string; recents: { path: string; label: string }[] } | null>(null);
   const [folderPick, setFolderPick] = useState("");
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [musicWarnOpen, setMusicWarnOpen] = useState(false);
@@ -297,11 +298,18 @@ export function EditorApp() {
     persistChart();
   }
 
+  function showFolderList(listed: ChartListing) {
+    const current = syncedSongName() || "";
+    const initial = current && listed.folders.includes(current) ? current : listed.folders[0] || "";
+    setFolderPick(initial);
+    setFolderPicker({ folders: listed.folders, root: listed.root || "", recents: listed.recents });
+  }
+
   async function linkFolder() {
     const state = useChart.getState();
     try {
       let listed = await serverCharts();
-      if (desktopApp() && listed.needsPick) {
+      if (desktopApp() && listed.needsPick && !listed.recents.length) {
         listed = await pickDesktopChartRoot();
         if (listed.cancelled) {
           state.setBanner("No chart folder selected.");
@@ -311,14 +319,12 @@ export function EditorApp() {
         state.setBanner("Chart folder server is offline.");
         return;
       }
-      if (!listed.folders.length) {
+      if (!listed.folders.length && !listed.recents.length) {
         state.setBanner(desktopApp() ? "That folder has no song folders." : "No song folders yet. Extract a .mdm into Custom_Albums first.");
         return;
       }
-      const current = syncedSongName() || "";
-      const initial = current && listed.folders.includes(current) ? current : listed.folders[0];
-      setFolderPick(initial);
-      setFolderPicker({ folders: listed.folders, root: listed.root || "", current });
+      showFolderList(listed);
+      if (!listed.folders.length) state.setBanner("Pick a recent chart folder, or choose another folder.");
     } catch {
       state.setBanner("Could not list chart folders.");
     }
@@ -332,6 +338,7 @@ export function EditorApp() {
     try {
       await clearLoadedMusic();
       const ok = await linkServerFolder(pick);
+      if (desktopApp()) await rememberLinkedFolder(pick);
       setChartOrigin("linked");
       const charts = await listLinkedCharts();
       const next = pickDefaultChart(charts);
@@ -502,24 +509,27 @@ export function EditorApp() {
         <Transport playheadRef={playheadRef} scrollerRef={scrollerRef} />
         <div className="ml-auto flex shrink-0 items-center gap-2">
           {album.charts.length > 1 ? (
-            <label className="flex h-8 shrink-0 items-center gap-1.5 rounded border border-dock-line bg-field px-2 text-sm font-medium">
+            <div className="flex h-8 shrink-0 items-center gap-1.5 rounded border border-dock-line bg-field px-2 text-sm font-medium">
               <span className="text-mute">Difficulty</span>
-              <select className="min-w-24 bg-transparent font-mono" value={album.current} onChange={(event) => {
-                const name = event.target.value;
-                const chart = album.charts.find((c) => c.name === name);
-                if (!chart) return;
-                void (async () => {
-                  await clearLoadedMusic();
-                  useChart.getState().loadText(chart.text, chart.name);
-                  setAlbumCharts(album.charts, chart.name);
-                  await applyLinkedInfo(chart.name);
-                  useChart.getState().setBanner(await applyLinkedMusic(`Editing ${chartLabel(chart.name)}.`));
-                  warnMusicIfMissing(setMusicWarnOpen);
-                })();
-              }}>
-                {album.charts.map((chart) => (<option key={chart.name} value={chart.name}>{chartLabel(chart.name, useChart.getState().meta)}</option>))}
-              </select>
-            </label>
+              <DropDown
+                ariaLabel="Difficulty"
+                className="h-7 min-w-28 border-0 bg-transparent font-mono"
+                value={album.current}
+                options={album.charts.map((chart) => ({ value: chart.name, label: chartLabel(chart.name, useChart.getState().meta) }))}
+                onChange={(name) => {
+                  const chart = album.charts.find((item) => item.name === name);
+                  if (!chart) return;
+                  void (async () => {
+                    await clearLoadedMusic();
+                    useChart.getState().loadText(chart.text, chart.name);
+                    setAlbumCharts(album.charts, chart.name);
+                    await applyLinkedInfo(chart.name);
+                    useChart.getState().setBanner(await applyLinkedMusic(`Editing ${chartLabel(chart.name)}.`));
+                    warnMusicIfMissing(setMusicWarnOpen);
+                  })();
+                }}
+              />
+            </div>
           ) : null}
           <ModeBadge mode={mode} />
           <button type="button" className={"h-8 shrink-0 rounded border px-3 text-sm " + (side === "notes" ? "border-pink bg-pink/20 text-dock-ink" : "border-dock-line bg-field text-dock-ink")} onClick={() => { const next = side === "notes" ? null : "notes"; setSide(next); localStorage.setItem("mdce-side", next ?? "closed"); }}>Notes</button>
@@ -560,22 +570,21 @@ export function EditorApp() {
       {folderPicker ? (
         <FolderPicker
           folders={folderPicker.folders}
+          recents={folderPicker.recents}
           root={folderPicker.root}
           value={folderPick}
           onChange={setFolderPick}
+          onChooseRoot={(path) => void (async () => {
+            const listed = await selectDesktopRoot(path);
+            showFolderList(listed);
+            if (!listed.folders.length) useChart.getState().setBanner("That folder has no song folders.");
+          })()}
           onLink={() => void confirmFolderPick()}
           onBrowse={desktopApp() ? () => void (async () => {
             const listed = await pickDesktopChartRoot();
             if (listed.cancelled) return;
-            if (!listed.folders.length) {
-              setFolderPicker(null);
-              useChart.getState().setBanner("That folder has no song folders.");
-              return;
-            }
-            const current = syncedSongName() || "";
-            const initial = current && listed.folders.includes(current) ? current : listed.folders[0];
-            setFolderPick(initial);
-            setFolderPicker({ folders: listed.folders, root: listed.root || "", current });
+            showFolderList(listed);
+            if (!listed.folders.length) useChart.getState().setBanner("That folder has no song folders.");
           })() : undefined}
           onClear={() => {
             void clearLoadedMusic();

@@ -3,6 +3,7 @@ import { MousePointer2, Pencil } from "lucide-react";
 import { stopPoints } from "@/lib/md/bms";
 import { player } from "@/lib/md/player";
 import { useChart } from "@/lib/md/store";
+import { DropDown } from "./DropDown";
 import { formatClock, hoverTime, livePx, locate, measureStart, measureTicks, secondsAt, tempoPoints, tickToX, xToTick } from "@/lib/md/timing";
 
 function typingTarget(target: EventTarget | null): boolean {
@@ -340,17 +341,19 @@ export function Transport({
       {compact ? null : <span className="mx-0.5 h-5 w-px bg-dock-line" aria-hidden />}
       {compact ? null : (
         <>
-          <label className="flex h-8 items-center gap-2 rounded border border-dock-line bg-field px-2 text-sm text-dock-ink">
+          <div className="flex h-8 items-center gap-2 rounded border border-dock-line bg-field px-2 text-sm text-dock-ink">
             Grid
-            <select value={divide} onChange={(event) => setDivide(Number(event.target.value))} className="bg-transparent font-mono text-dock-ink">
-              {GRID_OPTIONS.map((value) => (
-                <option key={value} value={value}>
-                  {value}
-                </option>
-              ))}
-              {GRID_OPTIONS.includes(divide as (typeof GRID_OPTIONS)[number]) ? null : <option value={divide}>{divide}</option>}
-            </select>
-          </label>
+            <DropDown
+              ariaLabel="Grid"
+              className="h-7 min-w-14 border-0 bg-transparent font-mono"
+              value={String(divide)}
+              options={[
+                ...GRID_OPTIONS.map((value) => ({ value: String(value), label: String(value) })),
+                ...(GRID_OPTIONS.includes(divide as (typeof GRID_OPTIONS)[number]) ? [] : [{ value: String(divide), label: String(divide) }]),
+              ]}
+              onChange={(value) => setDivide(Number(value))}
+            />
+          </div>
           <div className="flex h-8 items-center overflow-hidden rounded border border-dock-line bg-field">
             <button type="button" className="h-8 px-2 text-sm text-dock-ink" onClick={() => setPx(px - 24)} aria-label="Zoom out">
               −

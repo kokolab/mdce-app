@@ -4,6 +4,7 @@ import { useChart } from "@/lib/md/store";
 import { rememberInfo } from "@/lib/md/bms";
 import { chartOrigin } from "@/lib/md/pack";
 import { syncedSongName, writeChartFile } from "@/lib/md/chartFolder";
+import { DropDown } from "./DropDown";
 
 const SPEEDS = [
   { id: "1", label: "Speed 1" },
@@ -32,10 +33,10 @@ const LABEL = "w-16 shrink-0 text-right text-xs text-dock-ink/80";
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <label className="flex h-7 min-w-0 items-center gap-2">
+    <div className="flex h-7 min-w-0 items-center gap-2">
       <span className={LABEL}>{label}</span>
       <div className="flex min-w-0 flex-1 items-center gap-1.5">{children}</div>
-    </label>
+    </div>
   );
 }
 
@@ -95,23 +96,20 @@ export function Inspector() {
           <input value={meta.artist} onChange={(event) => patchMeta({ artist: event.target.value })} className={field} />
         </Row>
         <Row label="Scene">
-          <select
+          <DropDown
+            ariaLabel="Scene"
+            className="h-7 w-full border border-dock-line text-xs"
             value={meta.genre === "" ? "" : knownScene ? meta.genre : "custom"}
-            onChange={(event) => {
-              const value = event.target.value;
+            options={[
+              { value: "", label: "None" },
+              ...SCENES.map((scene) => ({ value: scene.id, label: scene.label })),
+              ...(knownScene || !meta.genre ? [] : [{ value: "custom", label: meta.genre }]),
+            ]}
+            onChange={(value) => {
               if (value === "") patchMeta({ genre: "" });
               else if (value !== "custom") useChart.getState().setScene(value);
             }}
-            className={field}
-          >
-            <option value=""></option>
-            {SCENES.map((scene) => (
-              <option key={scene.id} value={scene.id}>
-                {scene.label}
-              </option>
-            ))}
-            {knownScene || !meta.genre ? null : <option value="custom">{meta.genre}</option>}
-          </select>
+          />
         </Row>
         <Row label="BPM">
           <input
@@ -142,32 +140,22 @@ export function Inspector() {
               <input value={meta.designer} onChange={(event) => patchMeta({ designer: event.target.value })} className={field} />
             </Row>
             <Row label="NoteSpeed">
-              <select
+              <DropDown
+                ariaLabel="Note speed"
+                className="h-7 w-full border border-dock-line text-xs"
                 value={meta.noteSpeed || ""}
-                onChange={(event) => useChart.getState().setSpeed(event.target.value)}
-                className={field}
-              >
-                <option value=""></option>
-                {SPEEDS.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
+                options={[{ value: "", label: "None" }, ...SPEEDS.map((item) => ({ value: item.id, label: item.label }))]}
+                onChange={(value) => useChart.getState().setSpeed(value)}
+              />
             </Row>
             <Row label="Difficulty">
-              <select
+              <DropDown
+                ariaLabel="Difficulty"
+                className="h-7 w-full border border-dock-line text-xs"
                 value={meta.chartDifficulty}
-                onChange={(event) => patchMeta({ chartDifficulty: event.target.value as typeof meta.chartDifficulty })}
-                className={field}
-              >
-                <option value=""></option>
-                {DIFFICULTIES.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
+                options={[{ value: "", label: "None" }, ...DIFFICULTIES.map((item) => ({ value: item.id, label: item.label }))]}
+                onChange={(value) => patchMeta({ chartDifficulty: value as typeof meta.chartDifficulty })}
+              />
             </Row>
             <Row label="Scene id">
               <input value={meta.genre} onChange={(event) => patchMeta({ genre: event.target.value })} className={mono} spellCheck={false} />

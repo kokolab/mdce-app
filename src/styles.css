@@ -150,15 +150,47 @@ html {
   color-scheme: light;
 }
 
-/* Native menus ignore the dark theme and paint a light popup. Keep the names readable. */
-select {
-  color-scheme: light;
+.mdce-drop {
+  background: var(--color-field);
+  color: var(--color-dock-ink);
 }
 
-select option,
-select optgroup {
-  background-color: #ffffff;
+.mdce-menu {
+  background: #ffffff;
   color: #1a1a1a;
+  border: 1px solid #b9b9b9;
+}
+
+.mdce-menu button {
+  background: transparent;
+  color: #1a1a1a;
+}
+
+.mdce-menu button:hover,
+.mdce-menu button[aria-checked="true"] {
+  background: #ff4d8d;
+  color: #121014;
+}
+
+html.dark .mdce-drop {
+  background: #242424;
+  color: #f4f4f4;
+}
+
+html.dark .mdce-menu {
+  background: #242424;
+  color: #f4f4f4;
+  border-color: #3a3a3a;
+}
+
+html.dark .mdce-menu button {
+  color: #f4f4f4;
+}
+
+html.dark .mdce-menu button:hover,
+html.dark .mdce-menu button[aria-checked="true"] {
+  background: #ff4d8d;
+  color: #121014;
 }
 
 html.dark {
